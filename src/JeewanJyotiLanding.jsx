@@ -1,8 +1,13 @@
+
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
-import { HeartPulse, Users, Video, Stethoscope, ShieldCheck, BarChart3, Smartphone, Menu, X, ChevronDown } from "lucide-react";
+import { HeartPulse, Users, Video, Stethoscope, ShieldCheck, BarChart3, Smartphone, Menu, X, ChevronDown, Mail, Phone, MessageSquare, Loader2, CheckCircle, XCircle } from "lucide-react";
 import logo from "./assets/logo.png"; // ✅ Import your logo
 import appScreenshot from "./assets/jeewanjyotiss.gif"; // ✅ Import your app GIF
+import qrCode from "./assets/qr.jpg"; // ✅ Import your QR code
+
+// API configuration
+const API_BASE_URL = 'http://127.0.0.1:8000';
 
 // Sticky disappearing heading component
 function SectionHeading({ children }) {
@@ -26,7 +31,7 @@ function SectionHeading({ children }) {
 }
 
 // Custom Button component
-const Button = ({ children, className = "", size = "default", ...props }) => {
+const Button = ({ children, className = "", size = "default", disabled = false, ...props }) => {
   const baseClasses =
     "font-medium transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-sky-400/50 shadow-lg hover:shadow-2xl transform hover:scale-105";
   const sizes = {
@@ -37,7 +42,8 @@ const Button = ({ children, className = "", size = "default", ...props }) => {
 
   return (
     <button
-      className={`${baseClasses} ${sizes[size]} ${className}`}
+      className={`${baseClasses} ${sizes[size]} ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      disabled={disabled}
       {...props}
     >
       {children}
@@ -62,6 +68,344 @@ const CardContent = ({ children, className = "", ...props }) => (
     {children}
   </div>
 );
+
+// Preorder Popup Component
+function PreorderPopup({ isOpen, onClose }) {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    feedback: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState(null); // 'success', 'error', null
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    // Clear any previous error when user starts typing
+    if (submitStatus === 'error') {
+      setSubmitStatus(null);
+      setErrorMessage('');
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setSubmitStatus(null);
+    setErrorMessage('');
+
+    // Log the data being sent for debugging
+    console.log('Submitting data:', formData);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/preorder/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Success response:', result);
+        setSubmitStatus('success');
+        
+        // Reset form after successful submission
+        setTimeout(() => {
+          setFormData({ name: '', email: '', phone: '', feedback: '' });
+          onClose();
+          setSubmitStatus(null);
+        }, 2000);
+      } else {
+        // Try to get detailed error information
+        let errorData;
+        try {
+          errorData = await response.json();
+          console.log('Error response:', errorData);
+        } catch (parseError) {
+          console.log('Could not parse error response as JSON');
+          errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
+        }
+        
+        // Handle different types of error responses
+        let errorMessage = 'Failed to submit preorder';
+        if (errorData.detail) {
+          // FastAPI validation error format
+          if (Array.isArray(errorData.detail)) {
+            errorMessage = errorData.detail.map(err => `${err.loc?.[1] || 'Field'}: ${err.msg}`).join(', ');
+          } else {
+            errorMessage = errorData.detail;
+          }
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+        
+        throw new Error(errorMessage);
+      }
+    } catch (error) {
+      console.error('Error submitting preorder:', error);
+      setSubmitStatus('error');
+      setErrorMessage(error.message || 'Network error. Please check your connection and try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (!isLoading) {
+      setFormData({ name: '', email: '', phone: '', feedback: '' });
+      setSubmitStatus(null);
+      setErrorMessage('');
+      onClose();
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+            onClick={handleClose}
+          />
+
+          {/* Popup */}
+          <motion.div
+            initial={{ y: "100%", opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: "100%", opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 500 }}
+            className="fixed inset-x-4 top-[10%] bottom-4 md:inset-x-8 bg-white rounded-3xl shadow-2xl z-50 overflow-hidden"
+          >
+            <div className="h-full flex flex-col">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-sky-600 to-blue-700 text-white p-6 relative flex flex-col items-center justify-center">
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleClose}
+                  disabled={isLoading}
+                  className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
+                >
+                  <X className="h-6 w-6" />
+                </motion.button>
+                
+                <motion.div
+                  initial={{ y: -20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-center"
+                >
+                  <h2 className="text-3xl font-bold mb-2">🚀 Preorder Digital Care</h2>
+                  <p className="text-sky-100">Join Nepal's first complete digital healthcare revolution today</p>
+                </motion.div>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                  {/* Form Section */}
+                  <motion.div
+                    initial={{ x: -50, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    <h3 className="text-2xl font-bold text-gray-800 mb-6">Complete Your Preorder</h3>
+                    
+                    {/* Status Messages */}
+                    {submitStatus === 'success' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mb-6 p-4 bg-green-100 border border-green-300 rounded-xl flex items-center"
+                      >
+                        <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                        <p className="text-green-800 font-medium">Thank you for your preorder! We'll contact you soon.</p>
+                      </motion.div>
+                    )}
+
+                    {submitStatus === 'error' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mb-6 p-4 bg-red-100 border border-red-300 rounded-xl flex items-center"
+                      >
+                        <XCircle className="h-5 w-5 text-red-600 mr-2" />
+                        <div>
+                          <p className="text-red-800 font-medium">Failed to submit preorder</p>
+                          {errorMessage && <p className="text-red-700 text-sm mt-1">{errorMessage}</p>}
+                        </div>
+                      </motion.div>
+                    )}
+                    
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                      {/* Full Name Field */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <Users className="inline h-4 w-4 mr-2" />
+                          Full Name
+                        </label>
+                        <input
+                          type="text"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleInputChange}
+                          required
+                          disabled={isLoading}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          placeholder="Your Full Name"
+                        />
+                      </div>
+
+                      {/* Email Field */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <Mail className="inline h-4 w-4 mr-2" />
+                          Email Address
+                        </label>
+                        <input
+                          type="email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          required
+                          disabled={isLoading}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          placeholder="your.email@example.com"
+                        />
+                      </div>
+
+                      {/* Phone Field */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <Phone className="inline h-4 w-4 mr-2" />
+                          Phone Number
+                        </label>
+                        <input
+                          type="tel"
+                          name="phone"
+                          value={formData.phone}
+                          onChange={handleInputChange}
+                          required
+                          disabled={isLoading}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          placeholder="+977 98XXXXXXXX"
+                        />
+                      </div>
+
+                      {/* Feedback Field */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <MessageSquare className="inline h-4 w-4 mr-2" />
+                          Feedback / Special Requests
+                        </label>
+                        <textarea
+                          name="feedback"
+                          value={formData.feedback}
+                          onChange={handleInputChange}
+                          rows={4}
+                          disabled={isLoading}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all duration-200 resize-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          placeholder="Tell us what you're most excited about or any special requirements..."
+                        />
+                      </div>
+
+                      {/* Submit Button */}
+                      <motion.button
+                        type="submit"
+                        disabled={isLoading}
+                        whileHover={!isLoading ? { scale: 1.02 } : {}}
+                        whileTap={!isLoading ? { scale: 0.98 } : {}}
+                        className="w-full bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white font-bold py-4 rounded-xl shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center"
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                            Submitting...
+                          </>
+                        ) : (
+                          '💳 Secure Your Spot – Limited Preorders'
+                        )}
+                      </motion.button>
+                    </form>
+
+                    {/* Features List */}
+                    <div className="mt-8 p-4 bg-sky-50 rounded-xl">
+                      <h4 className="font-semibold text-gray-800 mb-3">What you get:</h4>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        <li>✅ Early access to the app</li>
+                        <li>✅ Exclusive preorder pricing</li>
+                        <li>✅ Priority customer support</li>
+                        <li>✅ Beta testing privileges</li>
+                      </ul>
+                    </div>
+                  </motion.div>
+
+                  {/* QR Code Section */}
+                  <motion.div
+                    initial={{ x: 50, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="flex flex-col items-center justify-start"
+                  >
+                    <h3 className="text-2xl font-bold text-gray-800 mb-6">Download with QR Code</h3>
+                    
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border-2 border-sky-200 mb-6">
+                      <img 
+                        src={qrCode} 
+                        alt="Payment QR Code"
+                        className="w-64 h-64 object-cover rounded-xl"
+                      />
+                    </div>
+
+                    <div className="text-center space-y-2">
+                      <p className="text-lg font-semibold text-gray-800">📲 Scan to Download</p>
+                      <p className="text-sm text-gray-600">Quickly install the app on your device</p>
+                      <p className="text-xs text-gray-500 max-w-sm">
+                        Point your camera at the QR code and follow the link to download JeewanJyoti Digital Care
+                      </p>
+                    </div>
+
+                    {/* Payment Methods */}
+                    <div className="mt-6 text-center">
+                      <p className="text-sm text-gray-600 mb-2">Or download directly:</p>
+                      <div className="flex justify-center space-x-2 text-xs text-gray-500">
+                        <span className="bg-gray-100 px-2 py-1 rounded">Google Play</span>
+                        <span className="bg-gray-100 px-2 py-1 rounded">App Store</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="bg-gray-50 p-4 text-center">
+                <p className="text-sm text-gray-600">
+                  🔒 Secure checkout • 💝 Trusted Care, Guaranteed • 📞 24/7 support
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
 
 // Header/Navbar Component
 function Header() {
@@ -236,6 +580,8 @@ function Header() {
 }
 
 export default function JeewanJyotiLanding() {
+  const [isPreorderPopupOpen, setIsPreorderPopupOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-sky-100 to-gray-900 text-gray-900">
       {/* Header */}
@@ -254,7 +600,7 @@ export default function JeewanJyotiLanding() {
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="text-5xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-blue-700 drop-shadow-lg"
+          className="pb-3 text-5xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-blue-700 drop-shadow-lg"
         >
           JeewanJyoti Digital Care
         </motion.h1>
@@ -264,7 +610,7 @@ export default function JeewanJyotiLanding() {
           transition={{ delay: 0.7, duration: 0.8 }}
           className="mt-6 max-w-2xl text-lg md:text-xl text-gray-700"
         >
-          A complete digital health companion: track your vitals, care for loved ones, consult doctors, and much more.
+          "Nepal's first complete digital health companion – connect your tracking device, monitor your vitals in real-time, care for your loved ones, consult doctors anytime, and unlock a smarter way to stay healthy."
         </motion.p>
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
@@ -273,7 +619,7 @@ export default function JeewanJyotiLanding() {
           className="mt-10"
         >
           <Button size="lg" className="bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white rounded-2xl shadow-xl">
-            🚀 Preorder Now — NPR 300
+            🚀 Launching Soon
           </Button>
         </motion.div>
       </section>
@@ -477,13 +823,17 @@ export default function JeewanJyotiLanding() {
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
         >
-          <h2 className="text-4xl md:text-5xl font-extrabold mb-6">Preorder JeewanJyoti Digital Care Today</h2>
+          <h2 className="text-4xl md:text-5xl font-extrabold mb-6">Preorder Digital Care Today</h2>
           <p className="text-lg md:text-xl mb-6 opacity-90">Get early access to a healthier, more connected future</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
-            <span className="text-3xl font-bold text-yellow-300">🔥 Only NPR 300</span>
-            <span className="text-lg opacity-75">• Limited Time Offer •</span>
+            <span className="text-3xl font-bold text-yellow-300">🔥 Early-Bird Offer</span>
+             <span className="text-lg opacity-75">• Price Revealed at Launch •</span>
           </div>
-          <Button size="lg" className="bg-white text-sky-700 hover:bg-gray-100 rounded-2xl font-bold">
+          <Button 
+            size="lg" 
+            onClick={() => setIsPreorderPopupOpen(true)}
+            className="bg-white text-sky-700 hover:bg-gray-100 rounded-2xl font-bold"
+          >
             Preorder Now →
           </Button>
           <p className="mt-6 text-sm opacity-75">✨ Join 1000+ early adopters already signed up</p>
@@ -514,6 +864,12 @@ export default function JeewanJyotiLanding() {
           </div>
         </div>
       </footer>
+
+      {/* Preorder Popup */}
+      <PreorderPopup 
+        isOpen={isPreorderPopupOpen} 
+        onClose={() => setIsPreorderPopupOpen(false)} 
+      />
     </div>
   );
 }
