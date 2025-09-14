@@ -7,7 +7,7 @@ import appScreenshot from "./assets/jeewanjyotiss.gif"; // ✅ Import your app G
 import qrCode from "./assets/qr.jpg"; // ✅ Import your QR code
 
 // API configuration
-const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL = 'http://103.118.16.251:8002';
 
 // Sticky disappearing heading component
 function SectionHeading({ children }) {
