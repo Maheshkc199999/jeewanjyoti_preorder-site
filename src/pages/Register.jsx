@@ -34,6 +34,8 @@ const sliderStyles = `
   }
 `
 
+const API_BASE_URL = 'https://103.118.16.251/api/';
+
 function Register() {
   const { register, handleSubmit, watch, formState: { errors } } = useForm()
   const [type, setType] = useState('individual') // 'individual' | 'institution'
@@ -43,7 +45,9 @@ function Register() {
   const onSubmit = async (data) => {
     setIsLoading(true)
     try {
-      const url = type === 'individual' ? '/api/user/register/' : '/api/institution/register/'
+      const url = type === 'individual'
+        ? `${API_BASE_URL}register/`
+        : `${API_BASE_URL}ins/register/`
       const response = await axios.post(url, data)
       console.log(response.data)
       alert('Registered successfully!')
@@ -54,7 +58,6 @@ function Register() {
       setIsLoading(false)
     }
   }
-
   const InputField = ({ icon: Icon, label, error, children, required = false }) => (
     <div className="group relative">
       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">

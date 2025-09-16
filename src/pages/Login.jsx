@@ -11,7 +11,7 @@ function Login() {
   const onSubmit = async (data) => {
     setIsLoading(true)
     try {
-      const url = '/api/user/login/'
+      const url = '/login/'
       const response = await axios.post(url, data)
       console.log(response.data)
       alert('Login success!')
