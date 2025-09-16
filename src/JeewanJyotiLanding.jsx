@@ -520,8 +520,20 @@ function Header() {
                   ? 'bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white'
                   : 'bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 border border-white/20'
               }`}
+              onClick={() => { window.location.assign('/register') }}
             >
               Join Us
+            </Button>
+            <Button
+              size="sm"
+              className={`ml-3 rounded-full text-base px-6 py-2 transition-all duration-300 ${
+                isScrolled
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-white text-sky-700 hover:bg-sky-50 border border-sky-300'
+              }`}
+              onClick={() => { window.location.assign('/login') }}
+            >
+              Login
             </Button>
           </div>
 
@@ -566,8 +578,17 @@ function Header() {
                   <Button
                     size="sm"
                     className="w-full bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white rounded-xl"
+                    onClick={() => { window.location.assign('/register') }}
                   >
                     Join Us
+                  </Button>
+                  <div className="h-3" />
+                  <Button
+                    size="sm"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
+                    onClick={() => { window.location.assign('/login') }}
+                  >
+                    Login
                   </Button>
                 </div>
               </div>
