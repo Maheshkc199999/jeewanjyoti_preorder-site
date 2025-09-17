@@ -27,8 +27,8 @@ function Login() {
     try {
       // Determine the API endpoint based on login type
       const apiUrl = loginType === 'individual' 
-        ? 'https://localhost/api/login/'
-        : 'https://localhost/api/ins/login/'
+        ? 'https://jeewanjyoti-backend.smart.org.np/api/login/'
+        : 'https://jeewanjyoti-backend.smart.org.np/api/ins/login/'
       
       // Make the API call
       const response = await fetch(apiUrl, {

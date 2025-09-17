@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'https://localhost'
+export const API_BASE_URL = 'https://jeewanjyoti-backend.smart.org.np'
 
 // Adjust this path to match your Django route
 export const REGISTER_ENDPOINT = '/api/register/'

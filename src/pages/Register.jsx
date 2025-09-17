@@ -36,7 +36,7 @@ const sliderStyles = `
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: 'https://localhost',
+  baseURL: 'https://jeewanjyoti-backend.smart.org.np',
   timeout: 10000,
 })
 
