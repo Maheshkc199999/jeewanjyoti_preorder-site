@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form'
 import axios from 'axios'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { User, Building2, Mail, Lock, Phone, MapPin, Globe, FileText, Heart, Stethoscope, UserCheck, Briefcase, GraduationCap, Calendar, Upload, Eye, EyeOff, X, Shield } from 'lucide-react'
 import logo from '../assets/logo.png'
 
@@ -41,6 +42,7 @@ const api = axios.create({
 
 function Register() {
   const { register, handleSubmit, watch, formState: { errors } } = useForm()
+  const navigate = useNavigate()
   const [type, setType] = useState('individual')
   const [role, setRole] = useState('USER')
   const [isLoading, setIsLoading] = useState(false)
@@ -134,9 +136,13 @@ function Register() {
 
       console.log('Registration successful:', response.data)
       
-      // Store email for OTP verification and show popup
-      setRegisteredEmail(data.email)
-      setShowOtpPopup(true)
+      // If backend requires OTP, show popup; else go to dashboard
+      if (response?.data?.requires_otp || response?.data?.otp_required) {
+        setRegisteredEmail(data.email)
+        setShowOtpPopup(true)
+      } else {
+        navigate('/dashboard')
+      }
       
     } catch (error) {
       console.error('Full error:', error)
@@ -195,14 +201,13 @@ function Register() {
       const response = await api.post(url, payload)
 
       console.log('OTP verification successful:', response.data)
-      alert('Account verified successfully! You can now log in.')
+      alert('Account verified successfully!')
       
       // Close popup and optionally redirect to login
       setShowOtpPopup(false)
       setOtp('')
       
-      // Optional: redirect to login page
-      // window.location.href = '/login'
+      navigate('/dashboard')
       
     } catch (error) {
       console.error('OTP verification failed:', error)
