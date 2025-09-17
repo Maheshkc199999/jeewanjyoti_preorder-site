@@ -11,7 +11,7 @@ function Login() {
   const onSubmit = async (data) => {
     setIsLoading(true)
     try {
-      const url = '/login/'
+      const url = 'https://localhost/api/login/'
       const response = await axios.post(url, data)
       console.log(response.data)
       alert('Login success!')
@@ -51,23 +51,23 @@ function Login() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-blue-400/10 to-purple-600/10 rounded-full blur-3xl animate-pulse delay-2000"></div>
       </div>
 
-      <div className="relative z-10 max-w-md mx-auto py-16 px-6">
+  <div className="relative z-10 max-w-md mx-auto py-12 px-6">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-6">
+    <div className="text-center mb-6">
+      <div className="flex items-center justify-center mb-4">
             <div className="relative">
               <img src={logo} alt="Jeewan Jyoti" className="h-16 w-auto" />
             </div>
           </div>
-          <h1 className="text-5xl font-black bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+      <h1 className="text-5xl font-black bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">
             Sign In
           </h1>
-          <p className="text-gray-600 text-lg">Access your healthcare dashboard</p>
+      <p className="text-gray-600 text-lg">Access your healthcare dashboard</p>
         </div>
 
         {/* Main Form Container */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8 hover:shadow-3xl transition-all duration-500">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-7 hover:shadow-3xl transition-all duration-500">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <InputField icon={Mail} label="Email Address" error={errors.email} required>
               <input
                 type="email"
@@ -87,7 +87,7 @@ function Login() {
             </InputField>
 
             {/* Forgot Password Link */}
-            <div className="text-right">
+        <div className="text-right mt-1">
               <a 
                 href="/forgot-password" 
                 className="text-sm text-violet-600 hover:text-violet-800 font-semibold transition-colors hover:underline"
@@ -121,14 +121,14 @@ function Login() {
           </form>
 
           {/* Divider */}
-          <div className="flex items-center my-8">
+      <div className="flex items-center my-6">
             <div className="flex-1 border-t border-gray-200"></div>
             <span className="px-4 text-gray-500 text-sm font-medium">or</span>
             <div className="flex-1 border-t border-gray-200"></div>
           </div>
 
           {/* Social Login Buttons (placeholder) */}
-          <div className="space-y-3">
+      <div className="space-y-2.5">
             <button className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-200 rounded-2xl hover:bg-gray-50 transition-all duration-300 font-semibold text-gray-700">
               <div className="w-5 h-5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
                 <span className="text-white text-xs font-bold">G</span>
@@ -144,7 +144,7 @@ function Login() {
           </div>
 
           {/* Footer */}
-          <div className="text-center mt-8 text-gray-500 text-sm">
+      <div className="text-center mt-6 text-gray-500 text-sm">
             <p>
               Don't have an account?{' '}
               <a 
