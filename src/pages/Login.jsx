@@ -1,23 +1,53 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback, memo } from 'react'
 import { Mail, Lock, LogIn, Eye, EyeOff, Building, User } from 'lucide-react'
 import logo from '../assets/logo.png'
 import { useNavigate } from 'react-router-dom'
 
+// Memoize the InputField component to prevent unnecessary re-renders
+const InputField = memo(({ icon: Icon, label, error, children, required = false }) => (
+  <div className="space-y-2">
+    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+      <Icon className="w-4 h-4 text-violet-600" />
+      {label}
+      {required && <span className="text-red-500 ml-1">*</span>}
+    </label>
+    <div className="relative">
+      {children}
+    </div>
+    {error && (
+      <p className="text-red-500 text-sm mt-2 flex items-center gap-2">
+        <span className="w-1.5 h-1.5 bg-red-500 rounded-full flex-shrink-0"></span>
+        This field is required
+      </p>
+    )}
+  </div>
+))
+
 function Login() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  })
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState({})
-  const [loginType, setLoginType] = useState('individual') // 'individual' or 'institutional'
+  const [loginType, setLoginType] = useState('individual')
   const navigate = useNavigate()
+
+  // Use useCallback to memoize the change handler
+  const handleInputChange = useCallback((field) => (e) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: e.target.value
+    }))
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     const newErrors = {}
     
-    if (!email) newErrors.email = true
-    if (!password) newErrors.password = true
+    if (!formData.email) newErrors.email = true
+    if (!formData.password) newErrors.password = true
     
     setErrors(newErrors)
     
@@ -25,20 +55,18 @@ function Login() {
 
     setIsLoading(true)
     try {
-      // Determine the API endpoint based on login type
       const apiUrl = loginType === 'individual' 
         ? 'https://jeewanjyoti-backend.smart.org.np/api/login/'
         : 'https://jeewanjyoti-backend.smart.org.np/api/ins/login/'
       
-      // Make the API call
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: email,
-          password: password
+          email: formData.email,
+          password: formData.password
         })
       })
       
@@ -50,9 +78,6 @@ function Login() {
       console.log('Login successful:', data)
       navigate('/dashboard')
       
-      // You might want to redirect or store the authentication token here
-      // For example: localStorage.setItem('authToken', data.token)
-      
     } catch (error) {
       console.error('Login error:', error)
       alert('Login failed. Please check your credentials and try again.')
@@ -61,33 +86,14 @@ function Login() {
     }
   }
 
-  const InputField = ({ icon: Icon, label, error, children, required = false }) => (
-    <div className="space-y-2">
-      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-        <Icon className="w-4 h-4 text-violet-600" />
-        {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
-      </label>
-      <div className="relative">
-        {children}
-      </div>
-      {error && (
-        <p className="text-red-500 text-sm mt-2 flex items-center gap-2">
-          <span className="w-1.5 h-1.5 bg-red-500 rounded-full flex-shrink-0"></span>
-          This field is required
-        </p>
-      )}
-    </div>
-  )
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 relative overflow-hidden">
-      {/* Animated background elements */}
+      {/* Animated background elements - Reduced animation intensity */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-32 -right-32 w-64 h-64 bg-gradient-to-br from-violet-400/30 to-purple-600/30 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-gradient-to-br from-pink-400/30 to-violet-600/30 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-1/3 left-1/3 w-48 h-48 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-32 h-32 bg-gradient-to-br from-pink-300/25 to-violet-500/25 rounded-full blur-2xl animate-pulse"></div>
+        <div className="absolute -top-32 -right-32 w-64 h-64 bg-gradient-to-br from-violet-400/30 to-purple-600/30 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-gradient-to-br from-pink-400/30 to-violet-600/30 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/3 left-1/3 w-48 h-48 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-32 h-32 bg-gradient-to-br from-pink-300/25 to-violet-500/25 rounded-full blur-2xl"></div>
       </div>
 
       {/* Main container */}
@@ -135,14 +141,14 @@ function Login() {
           </div>
 
           {/* Main form container */}
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/30 p-6 md:p-8 hover:shadow-3xl transition-all duration-500">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/30 p-6 md:p-8">
             <div className="space-y-5">
               {/* Email field */}
               <InputField icon={Mail} label="Email Address" error={errors.email} required>
                 <input
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={formData.email}
+                  onChange={handleInputChange('email')}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 bg-white/90 backdrop-blur-sm placeholder-gray-400 text-gray-800 font-medium"
                   placeholder="your.email@example.com"
                 />
@@ -153,8 +159,8 @@ function Login() {
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={formData.password}
+                    onChange={handleInputChange('password')}
                     className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 bg-white/90 backdrop-blur-sm placeholder-gray-400 text-gray-800 font-medium"
                     placeholder="Enter your password"
                   />
@@ -172,10 +178,10 @@ function Login() {
               <button
                 onClick={handleSubmit}
                 disabled={isLoading}
-                className={`w-full py-3 px-8 rounded-xl font-bold text-lg shadow-xl transition-all duration-300 transform ${
+                className={`w-full py-3 px-8 rounded-xl font-bold text-lg shadow-xl transition-all duration-300 ${
                   isLoading
-                    ? 'bg-gray-400 cursor-not-allowed scale-95'
-                    : 'bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 hover:from-violet-700 hover:via-purple-700 hover:to-pink-700 text-white hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] shadow-violet-500/25'
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 hover:from-violet-700 hover:via-purple-700 hover:to-pink-700 text-white hover:shadow-2xl'
                 }`}
               >
                 {isLoading ? (
