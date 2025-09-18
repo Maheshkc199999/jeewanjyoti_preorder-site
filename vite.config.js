@@ -8,7 +8,7 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
-    host: '0.0.0.0', // Allow external connections
+    host: '103.118.16.251', // Use your specific IP
     port: 3001, // Use port 3001
   },
 })
