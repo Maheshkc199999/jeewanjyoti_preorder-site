@@ -1,1125 +1,795 @@
-import React, { useState, useEffect } from 'react';
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Heart, Moon, Activity, Zap, Brain, Gauge, Target, TrendingUp, Calendar, Clock, Home, Users, MessageCircle, User, Plus, Phone, Video, Send, Bell, Settings, Edit3, Camera, Mail, MapPin, Award, Star, Sun, Menu, X } from 'lucide-react';
+import { useForm } from 'react-hook-form'
+import axios from 'axios'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { User, Building2, Mail, Lock, Phone, MapPin, Globe, FileText, Heart, Stethoscope, UserCheck, Briefcase, GraduationCap, Calendar, Upload, Eye, EyeOff, X, Shield } from 'lucide-react'
+import logo from '../assets/logo.png'
 
-const Dashboard = () => {
-  const [selectedPeriod, setSelectedPeriod] = useState('today');
-  const [activeTab, setActiveTab] = useState('home');
-  const [messages, setMessages] = useState([
-    { id: 1, sender: 'Dr. Smith', message: 'Your latest test results look great! Keep up the good work with your exercise routine.', time: '2:30 PM', type: 'received' },
-    { id: 2, sender: 'You', message: 'Thank you! Should I continue with the same medication dosage?', time: '2:45 PM', type: 'sent' },
-    { id: 3, sender: 'Dr. Smith', message: 'Yes, continue with the current dosage. Let\'s schedule a follow-up in 2 weeks.', time: '3:00 PM', type: 'received' }
-  ]);
-  const [newMessage, setNewMessage] = useState('');
-  const [darkMode, setDarkMode] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+// Custom CSS for range sliders
+const sliderStyles = `
+  .slider::-webkit-slider-thumb {
+    appearance: none;
+    height: 24px;
+    width: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #8b5cf6, #a855f7);
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+    transition: all 0.2s ease;
+  }
+  
+  .slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.6);
+  }
+  
+  .slider::-moz-range-thumb {
+    height: 24px;
+    width: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #8b5cf6, #a855f7);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+  }
+`
 
-  // Toggle dark mode
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-  };
+// Create axios instance with default config
+const api = axios.create({
+  baseURL: 'https://jeewanjyoti-backend.smart.org.np',
+  timeout: 10000,
+})
 
-  // Apply dark mode class to body
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+function Register() {
+  const { register, handleSubmit, watch, formState: { errors } } = useForm()
+  const navigate = useNavigate()
+  const [type, setType] = useState('individual')
+  const [role, setRole] = useState('USER')
+  const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  
+  // OTP related states
+  const [showOtpPopup, setShowOtpPopup] = useState(false)
+  const [otp, setOtp] = useState('')
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState('')
+
+  const onSubmit = async (data) => {
+    setIsLoading(true)
+    
+    try {
+      const url = type === 'individual' ? '/api/register/' : '/api/ins/register/'
+      
+      console.log('Form data:', data)
+
+      let formData = new FormData()
+      let payload = {}
+
+      if (type === 'individual') {
+        // Prepare individual user data
+        payload = {
+          email: data.email,
+          password: data.password,
+          confirm_password: data.confirm_password,
+          role: role,
+          first_name: data.first_name,
+          last_name: data.last_name,
+          birthdate: data.birthdate,
+          gender: data.gender,
+          phone_number: data.phone_number,
+          specialization: data.specialization,
+          license_number: data.license_number,
+          hospital_name: data.hospital_name,
+          experience: data.experience,
+          education: data.education,
+          description: data.description
+        }
+
+        // Add health info for USER role
+        if (role === 'USER') {
+          payload.height = data.height
+          payload.weight = data.weight
+          payload.blood_group = data.blood_group
+        }
+
+        // Remove fields that are not required for the current role
+        if (role === 'USER') {
+          delete payload.phone_number
+          delete payload.specialization
+          delete payload.license_number
+          delete payload.hospital_name
+          delete payload.experience
+          delete payload.education
+          delete payload.description
+        } else if (role === 'NURSE') {
+          delete payload.specialization
+        }
+
+        // Handle file upload
+        if (data.profile_image && data.profile_image[0]) {
+          formData.append('profile_image', data.profile_image[0])
+        }
+
+        // Add all other fields to formData
+        Object.keys(payload).forEach(key => {
+          if (payload[key] !== null && payload[key] !== undefined) {
+            formData.append(key, payload[key])
+          }
+        })
+      } else {
+        // Institution registration
+        Object.entries(data).forEach(([key, value]) => {
+          if (key === 'logo' && value && value[0]) {
+            formData.append('logo', value[0])
+          } else if (value !== undefined && value !== null) {
+            formData.append(key, value)
+          }
+        })
+      }
+
+      const response = await api.post(url, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+
+      console.log('Registration successful:', response.data)
+      
+      // If backend requires OTP, show popup; else go to dashboard
+      if (response?.data?.requires_otp || response?.data?.otp_required) {
+        setRegisteredEmail(data.email)
+        setShowOtpPopup(true)
+      } else {
+        navigate('/dashboard')
+      }
+      
+    } catch (error) {
+      console.error('Full error:', error)
+      
+      let errorMessage = 'Registration failed'
+      
+      if (error.response) {
+        // Server responded with error status
+        console.error('Server error response:', error.response.data)
+        
+        if (error.response.data.detail) {
+          errorMessage = error.response.data.detail
+        } else if (typeof error.response.data === 'object') {
+          // Handle field errors
+          const fieldErrors = Object.entries(error.response.data)
+            .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+            .join('\n')
+          errorMessage = fieldErrors
+        } else {
+          errorMessage = error.response.data
+        }
+      } else if (error.request) {
+        // Request was made but no response received
+        console.error('No response received:', error.request)
+        errorMessage = 'Cannot connect to server. Please make sure the backend is running.'
+      } else {
+        // Other errors
+        console.error('Error message:', error.message)
+        errorMessage = error.message
+      }
+      
+      alert(errorMessage)
+    } finally {
+      setIsLoading(false)
     }
-  }, [darkMode]);
+  }
 
-  // Sample data for different metrics
-  const heartRateData = [
-    { time: '00:00', value: 65 },
-    { time: '04:00', value: 58 },
-    { time: '08:00', value: 72 },
-    { time: '12:00', value: 85 },
-    { time: '16:00', value: 78 },
-    { time: '20:00', value: 68 },
-    { time: '24:00', value: 62 }
-  ];
-
-  const sleepData = [
-    { stage: 'Deep', value: 2.5, color: '#3B82F6' },
-    { stage: 'Light', value: 4.2, color: '#60A5FA' },
-    { stage: 'REM', value: 1.8, color: '#93C5FD' },
-    { stage: 'Awake', value: 0.3, color: '#E5E7EB' }
-  ];
-
-  const activityData = [
-    { day: 'Mon', steps: 8420, calories: 320 },
-    { day: 'Tue', steps: 12340, calories: 480 },
-    { day: 'Wed', steps: 9850, calories: 380 },
-    { day: 'Thu', steps: 15200, calories: 590 },
-    { day: 'Fri', steps: 11800, calories: 450 },
-    { day: 'Sat', steps: 16500, calories: 640 },
-    { day: 'Sun', steps: 13200, calories: 510 }
-  ];
-
-  const bloodOxygenData = [
-    { time: '6AM', value: 98 },
-    { time: '10AM', value: 97 },
-    { time: '2PM', value: 98 },
-    { time: '6PM', value: 97 },
-    { time: '10PM', value: 98 }
-  ];
-
-  const stressData = [
-    { time: '8AM', level: 25 },
-    { time: '10AM', level: 45 },
-    { time: '12PM', level: 65 },
-    { time: '2PM', level: 80 },
-    { time: '4PM', level: 55 },
-    { time: '6PM', level: 30 },
-    { time: '8PM', level: 20 }
-  ];
-
-  const appointments = [
-    { id: 1, doctor: 'Dr. Sarah Smith', specialty: 'Cardiologist', date: '2024-03-18', time: '10:00 AM', type: 'In-person', status: 'confirmed' },
-    { id: 2, doctor: 'Dr. Michael Johnson', specialty: 'Dermatologist', date: '2024-03-20', time: '2:30 PM', type: 'Video call', status: 'pending' },
-    { id: 3, doctor: 'Dr. Emily Davis', specialty: 'General Practice', date: '2024-03-25', time: '9:15 AM', type: 'In-person', status: 'confirmed' },
-    { id: 4, doctor: 'Dr. Robert Wilson', specialty: 'Orthopedic', date: '2024-03-28', time: '11:00 AM', type: 'In-person', status: 'confirmed' }
-  ];
-
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      const message = {
-        id: messages.length + 1,
-        sender: 'You',
-        message: newMessage,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        type: 'sent'
-      };
-      setMessages([...messages, message]);
-      setNewMessage('');
+  const handleOtpSubmit = async (e) => {
+    e.preventDefault()
+    
+    if (!otp || otp.length !== 6) {
+      alert('Please enter a valid 6-digit OTP')
+      return
     }
-  };
 
-  const MetricCard = ({ icon: Icon, title, value, unit, trend, color, children }) => (
-    <div className={`rounded-2xl p-4 md:p-6 shadow-lg transition-all duration-300 border ${
-      darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-    }`}>
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className={`p-2 md:p-3 rounded-xl ${color} bg-opacity-10`}>
-            <Icon className={`w-5 h-5 md:w-6 md:h-6 ${color.replace('bg-', 'text-')}`} />
-          </div>
-          <div>
-            <h3 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{title}</h3>
-            <div className="flex items-center gap-2">
-              <span className={`text-xl md:text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{value}</span>
-              <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{unit}</span>
-            </div>
-          </div>
-        </div>
-        {trend && (
-          <div className="flex items-center gap-1 text-green-600 bg-green-50 px-2 py-1 rounded-full text-xs md:text-sm">
-            <TrendingUp className="w-3 h-3 md:w-4 md:h-4" />
-            {trend}
-          </div>
-        )}
+    setOtpLoading(true)
+
+    try {
+      const url = type === 'individual' ? '/api/otpVerification/' : '/api/ins/otpVerification/'
+      
+      const payload = {
+        email: registeredEmail,
+        email_otp: otp
+      }
+
+      const response = await api.post(url, payload)
+
+      console.log('OTP verification successful:', response.data)
+      alert('Account verified successfully!')
+      
+      // Close popup and optionally redirect to login
+      setShowOtpPopup(false)
+      setOtp('')
+      
+      navigate('/dashboard')
+      
+    } catch (error) {
+      console.error('OTP verification failed:', error)
+      
+      let errorMessage = 'OTP verification failed'
+      
+      if (error.response && error.response.data) {
+        if (error.response.data.detail) {
+          errorMessage = error.response.data.detail
+        } else if (typeof error.response.data === 'object') {
+          const fieldErrors = Object.entries(error.response.data)
+            .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+            .join('\n')
+          errorMessage = fieldErrors
+        } else {
+          errorMessage = error.response.data
+        }
+      }
+      
+      alert(errorMessage)
+    } finally {
+      setOtpLoading(false)
+    }
+  }
+
+  const InputField = ({ icon: Icon, label, error, children, required = false }) => (
+    <div className="group relative">
+      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+        <Icon className="w-4 h-4 text-violet-600" />
+        {label}
+        {required && <span className="text-red-500">*</span>}
+      </label>
+      <div className="relative">
+        {children}
       </div>
-      {children}
+      {error && (
+        <p className="text-red-500 text-xs mt-1 animate-pulse flex items-center gap-1">
+          <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+          This field is required
+        </p>
+      )}
     </div>
-  );
+  )
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className={`p-3 border rounded-lg shadow-lg ${
-          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}>
-          <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>{label}</p>
-          <p className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-            {payload[0].value} {payload[0].unit || ''}
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const renderHome = () => (
-    <div>
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
-        <div className="bg-gradient-to-r from-red-500 to-pink-500 rounded-xl md:rounded-2xl p-4 md:p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-red-100 text-xs md:text-sm">Heart Rate</p>
-              <p className="text-xl md:text-3xl font-bold">72 BPM</p>
-            </div>
-            <Heart className="w-8 h-8 md:w-12 md:h-12 text-red-200" />
-          </div>
-        </div>
-        
-        <div className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl md:rounded-2xl p-4 md:p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-blue-100 text-xs md:text-sm">Sleep Score</p>
-              <p className="text-xl md:text-3xl font-bold">85/100</p>
-            </div>
-            <Moon className="w-8 h-8 md:w-12 md:h-12 text-blue-200" />
-          </div>
-        </div>
-        
-        <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl md:rounded-2xl p-4 md:p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-green-100 text-xs md:text-sm">Daily Steps</p>
-              <p className="text-xl md:text-3xl font-bold">12,340</p>
-            </div>
-            <Activity className="w-8 h-8 md:w-12 md:h-12 text-green-200" />
-          </div>
-        </div>
-        
-        <div className="bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl md:rounded-2xl p-4 md:p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-purple-100 text-xs md:text-sm">Stress Level</p>
-              <p className="text-xl md:text-3xl font-bold">Low</p>
-            </div>
-            <Brain className="w-8 h-8 md:w-12 md:h-12 text-purple-200" />
-          </div>
-        </div>
-      </div>
-
-      {/* Main Metrics Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
-        {/* Heart Rate */}
-        <MetricCard
-          icon={Heart}
-          title="Heart Rate"
-          value="72"
-          unit="BPM"
-          trend="+2%"
-          color="bg-red-500"
+  const PasswordField = ({ icon: Icon, label, error, register, name, required = false, showPassword, setShowPassword }) => (
+    <InputField icon={Icon} label={label} error={error} required={required}>
+      <div className="relative">
+        <input
+          type={showPassword ? "text" : "password"}
+          {...register(name, { required })}
+          className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400 pr-12"
+          placeholder="••••••••"
+        />
+        <button
+          type="button"
+          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-violet-600"
+          onClick={() => setShowPassword(!showPassword)}
         >
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={heartRateData}>
-              {darkMode ? (
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} vertical={false} />
-              ) : (
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              )}
-              <XAxis 
-                dataKey="time" 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <YAxis 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Area 
-                type="monotone" 
-                dataKey="value" 
-                stroke="#ef4444" 
-                fill="#ef4444" 
-                fillOpacity={0.1}
-                strokeWidth={3}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </MetricCard>
-
-        {/* Blood Oxygen */}
-        <MetricCard
-          icon={Zap}
-          title="Blood Oxygen"
-          value="98"
-          unit="%"
-          trend="Normal"
-          color="bg-blue-500"
-        >
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={bloodOxygenData}>
-              {darkMode ? (
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} vertical={false} />
-              ) : (
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              )}
-              <XAxis 
-                dataKey="time" 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <YAxis 
-                domain={[95, 100]} 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Line 
-                type="monotone" 
-                dataKey="value" 
-                stroke="#3b82f6" 
-                strokeWidth={3}
-                dot={{ fill: '#3b82f6', strokeWidth: 2, r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </MetricCard>
-      </div>
-
-      {/* Sleep and Activity Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
-        {/* Sleep Analysis */}
-        <MetricCard
-          icon={Moon}
-          title="Sleep Analysis"
-          value="8.8"
-          unit="hours"
-          trend="Excellent"
-          color="bg-indigo-500"
-        >
-          <div className="flex items-center justify-between">
-            <ResponsiveContainer width="60%" height={200}>
-              <PieChart>
-                <Pie
-                  data={sleepData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={80}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {sleepData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="w-35% space-y-2">
-              {sleepData.map((item, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: item.color }}
-                  ></div>
-                  <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>{item.stage}</span>
-                  <span className={`text-xs md:text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{item.value}h</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </MetricCard>
-
-        {/* Activity Tracking */}
-        <MetricCard
-          icon={Activity}
-          title="Weekly Activity"
-          value="12,340"
-          unit="steps today"
-          trend="+15%"
-          color="bg-green-500"
-        >
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={activityData}>
-              {darkMode ? (
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} vertical={false} />
-              ) : (
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              )}
-              <XAxis 
-                dataKey="day" 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <YAxis 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="steps" fill="#10b981" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </MetricCard>
-      </div>
-
-      {/* Stress and HRV Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
-        {/* Stress Level */}
-        <MetricCard
-          icon={Brain}
-          title="Stress Level"
-          value="32"
-          unit="Low"
-          trend="Improving"
-          color="bg-purple-500"
-        >
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={stressData}>
-              {darkMode ? (
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} vertical={false} />
-              ) : (
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              )}
-              <XAxis 
-                dataKey="time" 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <YAxis 
-                domain={[0, 100]} 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Area 
-                type="monotone" 
-                dataKey="level" 
-                stroke="#8b5cf6" 
-                fill="#8b5cf6" 
-                fillOpacity={0.2}
-                strokeWidth={3}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </MetricCard>
-
-        {/* Blood Pressure & HRV */}
-        <div className="space-y-4 md:space-y-6">
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 md:p-3 rounded-xl bg-orange-500 bg-opacity-10">
-                <Gauge className="w-5 h-5 md:w-6 md:h-6 text-orange-500" />
-              </div>
-              <div>
-                <h3 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Blood Pressure</h3>
-                <div className="flex items-center gap-2">
-                  <span className={`text-lg md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>120/80</span>
-                  <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>mmHg</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-green-600 bg-green-50 px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium">
-                Normal Range
-              </span>
-              <Clock className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-            </div>
-          </div>
-
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 md:p-3 rounded-xl bg-teal-500 bg-opacity-10">
-                <Target className="w-5 h-5 md:w-6 md:h-6 text-teal-500" />
-              </div>
-              <div>
-                <h3 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>HRV Score</h3>
-                <div className="flex items-center gap-2">
-                  <span className={`text-lg md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>45</span>
-                  <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>ms</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-blue-600 bg-blue-50 px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium">
-                Good Recovery
-              </span>
-              <div className={`w-16 md:w-24 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} rounded-full h-2`}>
-                <div className="bg-teal-500 h-2 rounded-full" style={{ width: '75%' }}></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Health Summary */}
-      <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-        darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-      }`}>
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <h3 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-2`}>Health Summary</h3>
-            <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Great job maintaining your health metrics today! Your heart rate variability indicates good recovery, 
-              and your stress levels are well-managed. Keep up the excellent sleep routine.
-            </p>
-          </div>
-          <div className="flex items-center gap-4 ml-4">
-            <div className="text-center">
-              <div className="text-xl md:text-2xl font-bold text-green-500">A+</div>
-              <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Overall Score</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderAppointments = () => (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Appointments</h2>
-        <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm md:text-base">
-          <Plus className="w-4 h-4 md:w-5 md:h-5" />
-          <span className="hidden md:inline">Book Appointment</span>
+          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
         </button>
       </div>
+    </InputField>
+  )
 
-      <div className="grid gap-4 md:gap-6">
-        {appointments.map((appointment) => (
-          <div key={appointment.id} className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border hover:shadow-xl transition-all duration-300 ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <div className="flex flex-col md:flex-row md:items-center justify-between">
-              <div className="flex items-center gap-4 mb-4 md:mb-0">
-                <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg md:text-xl">
-                  {appointment.doctor.split(' ').map(n => n[0]).join('')}
+  return (
+    <>
+      <style>{sliderStyles}</style>
+      <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 relative overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-violet-400/20 to-purple-600/20 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-pink-400/20 to-violet-600/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-blue-400/10 to-purple-600/10 rounded-full blur-3xl animate-pulse delay-2000"></div>
+        </div>
+
+        {/* OTP Popup */}
+        {showOtpPopup && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 relative">
+              {/* Close button */}
+              <button
+                onClick={() => setShowOtpPopup(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              {/* Header */}
+              <div className="text-center mb-6">
+                <div className="w-20 h-20 bg-gradient-to-r from-violet-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Shield className="w-10 h-10 text-white" />
                 </div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">Verify Your Email</h2>
+                <p className="text-gray-600 text-sm">
+                  We've sent a 6-digit verification code to
+                </p>
+                <p className="text-violet-600 font-semibold">{registeredEmail}</p>
+              </div>
+
+              {/* OTP Form */}
+              <form onSubmit={handleOtpSubmit} className="space-y-6">
                 <div>
-                  <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{appointment.doctor}</h3>
-                  <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{appointment.specialty}</p>
-                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mt-2">
-                    <div className={`flex items-center gap-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                      <Calendar className="w-3 h-3 md:w-4 md:h-4" />
-                      <span className="text-xs md:text-sm">{appointment.date}</span>
-                    </div>
-                    <div className={`flex items-center gap-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                      <Clock className="w-3 h-3 md:w-4 md:h-4" />
-                      <span className="text-xs md:text-sm">{appointment.time}</span>
-                    </div>
-                  </div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Enter OTP Code
+                  </label>
+                  <input
+                    type="text"
+                    value={otp}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 6)
+                      setOtp(value)
+                    }}
+                    className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400 text-center text-2xl font-mono tracking-widest"
+                    placeholder="000000"
+                    maxLength="6"
+                  />
+                  <p className="text-xs text-gray-500 mt-2 text-center">
+                    Enter the 6-digit code sent to your email
+                  </p>
                 </div>
-              </div>
-              <div className="flex items-center justify-between md:justify-end gap-3">
-                <div className="flex flex-col items-center gap-2">
-                  <span className={`px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium ${
-                    appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {appointment.status}
-                  </span>
-                  <div className={`flex items-center gap-1 text-xs md:text-sm ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                    {appointment.type === 'Video call' ? <Video className="w-3 h-3 md:w-4 md:h-4" /> : <MapPin className="w-3 h-3 md:w-4 md:h-4" />}
-                    <span>{appointment.type}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {appointment.type === 'Video call' && (
-                    <button className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors">
-                      <Video className="w-4 h-4 md:w-5 md:h-5" />
-                    </button>
+
+                <button
+                  type="submit"
+                  disabled={otpLoading || otp.length !== 6}
+                  className={`w-full py-4 px-8 rounded-2xl font-bold text-lg shadow-2xl transition-all duration-300 transform ${
+                    otpLoading || otp.length !== 6
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 hover:from-violet-700 hover:via-purple-700 hover:to-pink-700 text-white hover:shadow-3xl hover:scale-105 active:scale-95'
+                  }`}
+                >
+                  {otpLoading ? (
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Verifying...
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <Shield className="w-5 h-5" />
+                      Verify Account
+                    </div>
                   )}
-                  <button className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors">
-                    <Phone className="w-4 h-4 md:w-5 md:h-5" />
+                </button>
+              </form>
+
+              {/* Resend OTP */}
+              <div className="text-center mt-6">
+                <p className="text-gray-500 text-sm">
+                  Didn't receive the code?{' '}
+                  <button
+                    type="button"
+                    className="text-violet-600 hover:text-violet-800 font-semibold transition-colors"
+                    onClick={() => {
+                      // You can add resend OTP functionality here if your API supports it
+                      alert('Resend functionality can be implemented here')
+                    }}
+                  >
+                    Resend OTP
                   </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  const renderChat = () => (
-    <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Messages</h2>
-        <div className="flex items-center gap-2">
-          <Bell className="w-5 h-5 text-gray-400" />
-          <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1">3</span>
-        </div>
-      </div>
-
-      <div className={`rounded-xl md:rounded-2xl shadow-lg border flex-1 flex flex-col ${
-        darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-      }`}>
-        <div className={`p-4 border-b ${
-          darkMode ? 'border-gray-700' : 'border-gray-200'
-        }`}>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm md:text-base">
-              DS
-            </div>
-            <div>
-              <h3 className={`font-semibold text-base md:text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>Dr. Smith</h3>
-              <span className="text-xs md:text-sm text-green-500">Online</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 p-4 space-y-4 overflow-y-auto max-h-96">
-          {messages.map((message) => (
-            <div key={message.id} className={`flex ${message.type === 'sent' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
-                message.type === 'sent' 
-                  ? 'bg-blue-500 text-white' 
-                  : darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800'
-              }`}>
-                <p className="text-sm">{message.message}</p>
-                <p className={`text-xs mt-1 ${
-                  message.type === 'sent' ? 'text-blue-100' : darkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>
-                  {message.time}
                 </p>
               </div>
             </div>
-          ))}
-        </div>
-
-        <div className={`p-4 border-t ${
-          darkMode ? 'border-gray-700' : 'border-gray-200'
-        }`}>
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type your message..."
-              className={`flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                darkMode 
-                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                  : 'border-gray-200'
-              }`}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-            />
-            <button
-              onClick={handleSendMessage}
-              className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-xl transition-colors"
-            >
-              <Send className="w-5 h-5" />
-            </button>
           </div>
-        </div>
-      </div>
-    </div>
-  );
+        )}
 
-  const renderProfile = () => (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Profile</h2>
-        <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm md:text-base">
-          <Edit3 className="w-4 h-4" />
-          <span className="hidden md:inline">Edit Profile</span>
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-        {/* Profile Info */}
-        <div className="lg:col-span-1">
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <div className="text-center mb-6">
-              <div className="relative mx-auto w-16 h-16 md:w-24 md:h-24 mb-4">
-                <div className="w-16 h-16 md:w-24 md:h-24 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-lg md:text-2xl font-bold">
-                  JD
-                </div>
-                <button className={`absolute bottom-0 right-0 border-2 rounded-full p-1 md:p-2 ${
-                  darkMode 
-                    ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' 
-                    : 'bg-white border-gray-200 hover:bg-gray-50'
-                } transition-colors`}>
-                  <Camera className="w-3 h-3 md:w-4 md:h-4 text-gray-600" />
-                </button>
-              </div>
-              <h3 className={`text-lg md:text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>John Doe</h3>
-              <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Patient ID: #12345</p>
-            </div>
-
-            <div className="space-y-3 md:space-y-4">
-              <div className="flex items-center gap-3">
-                <Mail className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-                <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>john.doe@email.com</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Phone className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-                <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>+1 (555) 123-4567</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <MapPin className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-                <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>New York, NY</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-                <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Born: Jan 15, 1990</span>
+        <div className="relative z-10 max-w-4xl mx-auto py-8 px-4">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center mb-6">
+              <div className="relative">
+                <img src={logo} alt="Jeewan Jyoti" className="h-16 w-auto" />
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Health Stats & Achievements */}
-        <div className="lg:col-span-2 space-y-4 md:space-y-6">
-          {/* Health Stats */}
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Health Statistics</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-lg md:text-2xl font-bold text-blue-600">72</div>
-                <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Avg Heart Rate</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg md:text-2xl font-bold text-green-600">85</div>
-                <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Sleep Score</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg md:text-2xl font-bold text-purple-600">12,340</div>
-                <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Daily Steps</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg md:text-2xl font-bold text-orange-600">98%</div>
-                <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Blood Oxygen</div>
-              </div>
-            </div>
+            <h1 className="text-5xl font-black bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+              Create Account
+            </h1>
+            <p className="text-gray-600 text-lg">Join our healthcare community</p>
           </div>
 
-          {/* Medical Information */}
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Medical Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              <div>
-                <h4 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>Basic Info</h4>
-                <div className="space-y-2 text-xs md:text-sm">
-                  <div className="flex justify-between">
-                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Height:</span>
-                    <span className={darkMode ? 'text-gray-300' : 'text-gray-800'}>5'10" (178 cm)</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Weight:</span>
-                    <span className={darkMode ? 'text-gray-300' : 'text-gray-800'}>175 lbs (79 kg)</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Blood Type:</span>
-                    <span className={darkMode ? 'text-gray-300' : 'text-gray-800'}>O+</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>BMI:</span>
-                    <span className={darkMode ? 'text-gray-300' : 'text-gray-800'}>25.1</span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <h4 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>Conditions</h4>
-                <div className="space-y-2">
-                  <span className="inline-block bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs md:text-sm">
-                    Mild Hypertension
-                  </span>
-                  <br />
-                  <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs md:text-sm mt-2">
-                    Seasonal Allergies
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Achievements */}
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Health Achievements</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-              <div className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl ${
-                darkMode 
-                  ? 'bg-gradient-to-r from-yellow-900 to-yellow-800' 
-                  : 'bg-gradient-to-r from-yellow-100 to-yellow-50'
-              }`}>
-                <Award className="w-6 h-6 md:w-8 md:h-8 text-yellow-600" />
-                <div>
-                  <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>7-Day Streak</div>
-                  <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Daily step goal</div>
-                </div>
-              </div>
-              <div className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl ${
-                darkMode 
-                  ? 'bg-gradient-to-r from-green-900 to-green-800' 
-                  : 'bg-gradient-to-r from-green-100 to-emerald-100'
-              }`}>
-                <Star className="w-6 h-6 md:w-8 md:h-8 text-green-600" />
-                <div>
-                  <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>Sleep Champion</div>
-                  <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>30 days good sleep</div>
-                </div>
-              </div>
-              <div className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl ${
-                darkMode 
-                  ? 'bg-gradient-to-r from-blue-900 to-blue-800' 
-                  : 'bg-gradient-to-r from-blue-100 to-cyan-100'
-              }`}>
-                <Heart className="w-6 h-6 md:w-8 md:h-8 text-blue-600" />
-                <div>
-                  <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>Heart Health</div>
-                  <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Optimal HR zone</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Emergency Contacts */}
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Emergency Contacts</h3>
-            <div className="space-y-3 md:space-y-4">
-              <div className={`flex items-center justify-between p-3 md:p-4 rounded-xl ${
-                darkMode ? 'bg-gray-700' : 'bg-gray-50'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <Users className="w-4 h-4 md:w-5 md:h-5 text-gray-500" />
-                  <div>
-                    <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>Sarah Doe</div>
-                    <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Spouse</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>+1 (555) 987-6543</span>
-                  <Phone className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />
-                </div>
-              </div>
-              <div className={`flex items-center justify-between p-3 md:p-4 rounded-xl ${
-                darkMode ? 'bg-gray-700' : 'bg-gray-50'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <Users className="w-4 h-4 md:w-5 md:h-5 text-gray-500" />
-                  <div>
-                    <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>Dr. Sarah Smith</div>
-                    <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Primary Care</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>+1 (555) 246-8102</span>
-                  <Phone className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'home':
-        return renderHome();
-      case 'appointments':
-        return renderAppointments();
-      case 'chat':
-        return renderChat();
-      case 'profile':
-        return renderProfile();
-      default:
-        return renderHome();
-    }
-  };
-
-  return (
-    <div className={`min-h-screen pb-20 md:pb-0 ${
-      darkMode 
-        ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
-        : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
-    }`}>
-      {/* Navigation */}
-      <nav className={`shadow-lg border-b sticky top-0 z-10 ${
-        darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-100'
-      }`}>
-        <div className="max-w-7xl mx-auto px-4 md:px-6">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4 md:gap-8">
-              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                HealthCare+
-              </h1>
-              <div className={`hidden md:flex items-center gap-1 rounded-xl p-1 ${
-                darkMode ? 'bg-gray-800' : 'bg-gray-100'
-              }`}>
+          {/* Main Form Container */}
+          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8 hover:shadow-3xl transition-all duration-500">
+            {/* Type Selector */}
+            <div className="flex justify-center mb-8">
+              <div className="bg-gray-100/80 backdrop-blur-sm p-1 rounded-2xl shadow-inner flex flex-row items-center gap-2 whitespace-nowrap">
                 <button
-                  onClick={() => setActiveTab('home')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-                    activeTab === 'home' 
-                      ? darkMode 
-                        ? 'bg-gray-700 shadow-md text-blue-400' 
-                        : 'bg-white shadow-md text-blue-600' 
-                      : darkMode 
-                        ? 'text-gray-400 hover:text-gray-200' 
-                        : 'text-gray-600 hover:text-gray-800'
+                  type="button"
+                  className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                    type === 'individual'
+                      ? 'bg-gradient-to-r from-violet-600 to-purple-700 text-white shadow-lg transform scale-105'
+                      : 'text-gray-600 hover:text-gray-800'
                   }`}
+                  onClick={() => setType('individual')}
                 >
-                  <Home className="w-5 h-5" />
-                  <span className="font-medium">Home</span>
+                  <User className="w-4 h-4" />
+                  Individual
                 </button>
                 <button
-                  onClick={() => setActiveTab('appointments')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-                    activeTab === 'appointments' 
-                      ? darkMode 
-                        ? 'bg-gray-700 shadow-md text-blue-400' 
-                        : 'bg-white shadow-md text-blue-600' 
-                      : darkMode 
-                        ? 'text-gray-400 hover:text-gray-200' 
-                        : 'text-gray-600 hover:text-gray-800'
+                  type="button"
+                  className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                    type === 'institution'
+                      ? 'bg-gradient-to-r from-violet-600 to-purple-700 text-white shadow-lg transform scale-105'
+                      : 'text-gray-600 hover:text-gray-800'
                   }`}
+                  onClick={() => setType('institution')}
                 >
-                  <Calendar className="w-5 h-5" />
-                  <span className="font-medium">Appointments</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('chat')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-                    activeTab === 'chat' 
-                      ? darkMode 
-                        ? 'bg-gray-700 shadow-md text-blue-400' 
-                        : 'bg-white shadow-md text-blue-600' 
-                      : darkMode 
-                        ? 'text-gray-400 hover:text-gray-200' 
-                        : 'text-gray-600 hover:text-gray-800'
-                  }`}
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  <span className="font-medium">Chat</span>
-                  <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 ml-1">3</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('profile')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-                    activeTab === 'profile' 
-                      ? darkMode 
-                        ? 'bg-gray-700 shadow-md text-blue-400' 
-                        : 'bg-white shadow-md text-blue-600' 
-                      : darkMode 
-                        ? 'text-gray-400 hover:text-gray-200' 
-                        : 'text-gray-600 hover:text-gray-800'
-                  }`}
-                >
-                  <User className="w-5 h-5" />
-                  <span className="font-medium">Profile</span>
+                  <Building2 className="w-4 h-4" />
+                  Institution
                 </button>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              {activeTab === 'home' && (
-                <select 
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value)}
-                  className={`hidden md:block px-4 py-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    darkMode 
-                      ? 'bg-gray-800 border-gray-700 text-white' 
-                      : 'bg-white border-gray-200'
-                  } border`}
-                >
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                </select>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              {/* Individual Form */}
+              {type === 'individual' && (
+                <>
+                  {/* Roles - centered buttons (no label) */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setRole('USER')}
+                        className={`px-4 py-2 rounded-2xl border transition-all duration-300 ${role === 'USER' ? 'bg-gradient-to-r from-violet-600 to-purple-700 text-white shadow-lg' : 'bg-white/80 border-gray-200 text-gray-700 hover:border-violet-300'}`}
+                      >
+                        <span className="mr-1">👤</span>
+                        User
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRole('DOCTOR')}
+                        className={`px-4 py-2 rounded-2xl border transition-all duration-300 ${role === 'DOCTOR' ? 'bg-gradient-to-r from-violet-600 to-purple-700 text-white shadow-lg' : 'bg-white/80 border-gray-200 text-gray-700 hover:border-violet-300'}`}
+                      >
+                        <span className="mr-1">👨‍⚕️</span>
+                        Doctor
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRole('NURSE')}
+                        className={`px-4 py-2 rounded-2xl border transition-all duration-300 ${role === 'NURSE' ? 'bg-gradient-to-r from-violet-600 to-purple-700 text-white shadow-lg' : 'bg-white/80 border-gray-200 text-gray-700 hover:border-violet-300'}`}
+                      >
+                        <span className="mr-1">👩‍⚕️</span>
+                        Nurse
+                      </button>
+                    </div>
+                    <input type="hidden" value={role} {...register('role')} readOnly />
+                  </div>
+
+                  {/* Name Fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <InputField icon={User} label="First Name" error={errors.first_name} required>
+                      <input
+                        {...register('first_name', { required: true })}
+                        className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400"
+                        placeholder="Enter your first name"
+                      />
+                    </InputField>
+                    <InputField icon={User} label="Last Name" error={errors.last_name} required>
+                      <input
+                        {...register('last_name', { required: true })}
+                        className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400"
+                        placeholder="Enter your last name"
+                      />
+                    </InputField>
+                  </div>
+
+                  {/* Basic Information */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <InputField icon={Calendar} label="Birthdate">
+                      <input
+                        type="date"
+                        {...register('birthdate')}
+                        className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 bg-white/80 backdrop-blur-sm"
+                      />
+                    </InputField>
+                    <InputField icon={User} label="Gender">
+                      <select
+                        {...register('gender')}
+                        className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 bg-white/80 backdrop-blur-sm"
+                      >
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </InputField>
+                    <InputField icon={Upload} label="Profile Image">
+                      <input
+                        type="file"
+                        {...register('profile_image')}
+                        className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 bg-white/80 backdrop-blur-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
+                      />
+                    </InputField>
+                  </div>
+
+                  {/* Email & Password */}
+                  <div className="space-y-6">
+                    <InputField icon={Mail} label="Email Address" error={errors.email} required>
+                      <input
+                        type="email"
+                        {...register('email', { required: true })}
+                        className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400"
+                        placeholder="your.email@example.com"
+                      />
+                    </InputField>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <PasswordField
+                        icon={Lock}
+                        label="Password"
+                        error={errors.password}
+                        register={register}
+                        name="password"
+                        required={true}
+                        showPassword={showPassword}
+                        setShowPassword={setShowPassword}
+                      />
+                      <PasswordField
+                        icon={Lock}
+                        label="Confirm Password"
+                        error={errors.confirm_password}
+                        register={register}
+                        name="confirm_password"
+                        required={true}
+                        showPassword={showConfirmPassword}
+                        setShowPassword={setShowConfirmPassword}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Role-specific fields */}
+                  {role === 'USER' && (
+                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-100">
+                      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <Heart className="w-5 h-5 text-red-500" />
+                        Health Information
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <InputField icon={User} label="Height (cm)" required>
+                          <input
+                            type="number"
+                            step="0.01"
+                            {...register('height', { required: role === 'USER' })}
+                            className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400"
+                            placeholder="170"
+                          />
+                        </InputField>
+                        <InputField icon={User} label="Weight (kg)" required>
+                          <input
+                            type="number"
+                            step="0.01"
+                            {...register('weight', { required: role === 'USER' })}
+                            className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400"
+                            placeholder="65"
+                          />
+                        </InputField>
+                        <InputField icon={Heart} label="Blood Group" required>
+                          <input
+                            {...register('blood_group', { required: role === 'USER' })}
+                            className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-red-500/20 focus:border-red-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400"
+                            placeholder="A+"
+                          />
+                        </InputField>
+                      </div>
+                    </div>
+                  )}
+
+                  {(role === 'DOCTOR' || role === 'NURSE') && (
+                    <div className="bg-gradient-to-r from-green-50 to-teal-50 rounded-2xl p-6 border border-green-100">
+                      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <Stethoscope className="w-5 h-5 text-green-600" />
+                        Professional Information
+                      </h3>
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <InputField icon={FileText} label="License Number" error={errors.license_number} required>
+                            <input
+                              {...register('license_number', { required: role === 'DOCTOR' || role === 'NURSE' })}
+                              className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400"
+                              placeholder="LIC123456"
+                            />
+                          </InputField>
+                          <InputField icon={Building2} label="Hospital Name" error={errors.hospital_name} required>
+                            <input
+                              {...register('hospital_name', { required: role === 'DOCTOR' || role === 'NURSE' })}
+                              className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400"
+                              placeholder="City Hospital"
+                            />
+                          </InputField>
+                          <InputField icon={Calendar} label="Experience (years)" error={errors.experience} required>
+                            <input
+                              type="number"
+                              {...register('experience', { required: role === 'DOCTOR' || role === 'NURSE' })}
+                              className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400"
+                              placeholder="5"
+                            />
+                          </InputField>
+                          <InputField icon={Phone} label="Phone Number" error={errors.phone_number} required>
+                            <input
+                              {...register('phone_number', { required: role === 'DOCTOR' || role === 'NURSE' })}
+                              className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400"
+                              placeholder="+977-98xxxxxxxx"
+                            />
+                          </InputField>
+                        </div>
+
+                        {role === 'DOCTOR' && (
+                          <div className="space-y-4">
+                            <InputField icon={Stethoscope} label="Specialization" error={errors.specialization} required>
+                              <input
+                                {...register('specialization', { required: role === 'DOCTOR' })}
+                                className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400"
+                                placeholder="Cardiology"
+                              />
+                            </InputField>
+                            <InputField icon={GraduationCap} label="Education">
+                              <textarea
+                                {...register('education')}
+                                className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400 resize-none"
+                                rows="3"
+                                placeholder="MBBS, MD - Cardiology"
+                              />
+                            </InputField>
+                          </div>
+                        )}
+
+                        <InputField icon={FileText} label="Description" error={errors.description} required>
+                          <textarea
+                            {...register('description', { required: role === 'DOCTOR' || role === 'NURSE' })}
+                            className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400 resize-none"
+                            rows="4"
+                            placeholder="Tell us about yourself and your professional background..."
+                          />
+                        </InputField>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
-              <div className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-xl border ${
-                darkMode 
-                  ? 'bg-gray-800 border-gray-700 text-gray-300' 
-                  : 'bg-white border-gray-200 text-gray-700'
-              }`}>
-                <Calendar className="w-5 h-5 text-gray-500" />
-                <span>March 15, 2024</span>
-              </div>
-              <div className="hidden md:flex items-center gap-2">
-                <button 
-                  onClick={toggleDarkMode}
-                  className={`p-2 rounded-xl border transition-colors ${
-                    darkMode 
-                      ? 'bg-gray-800 border-gray-700 text-yellow-400 hover:bg-gray-700' 
-                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </button>
-                <button className={`p-2 rounded-xl border transition-colors ${
-                  darkMode 
-                    ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' 
-                    : 'bg-white border-gray-200 hover:bg-gray-50'
-                }`}>
-                  <Bell className="w-5 h-5 text-gray-500" />
-                </button>
-                <button className={`p-2 rounded-xl border transition-colors ${
-                  darkMode 
-                    ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' 
-                    : 'bg-white border-gray-200 hover:bg-gray-50'
-                }`}>
-                  <Settings className="w-5 h-5 text-gray-500" />
-                </button>
-              </div>
-              <button 
-                className="md:hidden p-2 rounded-xl border transition-colors"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              >
-                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
 
-      {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <div className={`md:hidden fixed inset-0 z-20 ${darkMode ? 'bg-gray-900' : 'bg-white'} pt-16`}>
-          <div className="p-4 space-y-4">
-            <button
-              onClick={() => { setActiveTab('home'); setIsMobileMenuOpen(false); }}
-              className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
-                activeTab === 'home' 
-                  ? darkMode 
-                    ? 'bg-gray-800 text-blue-400' 
-                    : 'bg-blue-50 text-blue-600' 
-                  : darkMode 
-                    ? 'text-gray-300' 
-                    : 'text-gray-700'
-              }`}
-            >
-              <Home className="w-6 h-6" />
-              <span className="font-medium">Home</span>
-            </button>
-            <button
-              onClick={() => { setActiveTab('appointments'); setIsMobileMenuOpen(false); }}
-              className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
-                activeTab === 'appointments' 
-                  ? darkMode 
-                    ? 'bg-gray-800 text-blue-400' 
-                    : 'bg-blue-50 text-blue-600' 
-                  : darkMode 
-                    ? 'text-gray-300' 
-                    : 'text-gray-700'
-              }`}
-            >
-              <Calendar className="w-6 h-6" />
-              <span className="font-medium">Appointments</span>
-            </button>
-            <button
-              onClick={() => { setActiveTab('chat'); setIsMobileMenuOpen(false); }}
-              className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
-                activeTab === 'chat' 
-                  ? darkMode 
-                    ? 'bg-gray-800 text-blue-400' 
-                    : 'bg-blue-50 text-blue-600' 
-                  : darkMode 
-                    ? 'text-gray-300' 
-                    : 'text-gray-700'
-              }`}
-            >
-              <MessageCircle className="w-6 h-6" />
-              <span className="font-medium">Chat</span>
-              <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 ml-auto">3</span>
-            </button>
-            <button
-              onClick={() => { setActiveTab('profile'); setIsMobileMenuOpen(false); }}
-              className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
-                activeTab === 'profile' 
-                  ? darkMode 
-                    ? 'bg-gray-800 text-blue-400' 
-                    : 'bg-blue-50 text-blue-600' 
-                  : darkMode 
-                    ? 'text-gray-300' 
-                    : 'text-gray-700'
-              }`}
-            >
-              <User className="w-6 h-6" />
-              <span className="font-medium">Profile</span>
-            </button>
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-              <button 
-                onClick={toggleDarkMode}
-                className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
-                  darkMode ? 'text-gray-300' : 'text-gray-700'
+              {/* Institution Form */}
+              {type === 'institution' && (
+                <div className="space-y-6">
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-100">
+                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                      <Building2 className="w-5 h-5 text-indigo-600" />
+                      Institution Details
+                    </h3>
+                    
+                    <div className="space-y-4">
+                      <InputField icon={Mail} label="Email Address" error={errors.email} required>
+                        <input
+                          type="email"
+                          {...register('email', { required: true })}
+                          className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400"
+                          placeholder="contact@institution.com"
+                        />
+                      </InputField>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <PasswordField
+                          icon={Lock}
+                          label="Password"
+                          error={errors.password}
+                          register={register}
+                          name="password"
+                          required={true}
+                          showPassword={showPassword}
+                          setShowPassword={setShowPassword}
+                        />
+                        <PasswordField
+                          icon={Lock}
+                          label="Confirm Password"
+                          error={errors.confirm_password}
+                          register={register}
+                          name="confirm_password"
+                          required={true}
+                          showPassword={showConfirmPassword}
+                          setShowPassword={setShowConfirmPassword}
+                        />
+                      </div>
+
+                      <InputField icon={Building2} label="Institution Name" error={errors.name} required>
+                        <input
+                          {...register('name', { required: true })}
+                          className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400"
+                          placeholder="City General Hospital"
+                        />
+                      </InputField>
+
+                      <InputField icon={Briefcase} label="Institution Type" required>
+                        <select
+                          {...register('institution_type')}
+                          className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm"
+                        >
+                          <option value="hospital">🏥 Hospital</option>
+                          <option value="clinic">🏥 Clinic</option>
+                          <option value="school">🏫 School</option>
+                          <option value="ngo">🤝 NGO</option>
+                          <option value="university">🎓 University</option>
+                          <option value="government">🏛️ Government Office</option>
+                          <option value="company">🏢 Company</option>
+                          <option value="other">📋 Other</option>
+                        </select>
+                      </InputField>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <InputField icon={MapPin} label="Address" error={errors.address} required>
+                          <input
+                            {...register('address', { required: true })}
+                            className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400"
+                            placeholder="123 Main Street, City"
+                          />
+                        </InputField>
+                        <InputField icon={Phone} label="Phone Number">
+                          <input
+                            {...register('phone')}
+                            className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400"
+                            placeholder="+977-1-4xxxxxx"
+                          />
+                        </InputField>
+                      </div>
+
+                      <InputField icon={Globe} label="Website">
+                        <input
+                          {...register('website')}
+                          className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400"
+                          placeholder="https://www.institution.com"
+                        />
+                      </InputField>
+
+                      <InputField icon={FileText} label="Description">
+                        <textarea
+                          {...register('description')}
+                          className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400 resize-none"
+                          rows="4"
+                          placeholder="Describe your institution and services..."
+                        />
+                      </InputField>
+
+                      <InputField icon={Upload} label="Logo">
+                        <input
+                          type="file"
+                          {...register('logo')}
+                          className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                        />
+                      </InputField>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className={`w-full py-4 px-8 rounded-2xl font-bold text-lg shadow-2xl transition-all duration-300 transform ${
+                  isLoading
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 hover:from-violet-700 hover:via-purple-700 hover:to-pink-700 text-white hover:shadow-3xl hover:scale-105 active:scale-95'
                 }`}
               >
-                {darkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
-                <span className="font-medium">{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
+                {isLoading ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Creating your account...
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2">
+                    <Heart className="w-5 h-5" />
+                    Register
+                  </div>
+                )}
               </button>
+            </form>
+
+            {/* Footer */}
+            <div className="text-center mt-8 text-gray-500 text-sm">
+              <p>Already have an account? <a href="/login" className="text-violet-600 hover:text-violet-800 font-semibold transition-colors">Sign in</a></p>
             </div>
           </div>
         </div>
-      )}
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto p-4 md:p-6">{renderContent()}</main>
-
-      {/* Bottom Navigation for Mobile */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-10 border-t bg-white dark:bg-gray-900 dark:border-gray-800">
-        <div className="grid grid-cols-4 h-16">
-          <button
-            onClick={() => setActiveTab('home')}
-            className={`flex flex-col items-center justify-center p-2 transition-colors ${
-              activeTab === 'home' 
-                ? darkMode 
-                  ? 'text-blue-400' 
-                  : 'text-blue-600' 
-                : darkMode 
-                  ? 'text-gray-400' 
-                  : 'text-gray-500'
-            }`}
-          >
-            <Home className="w-6 h-6" />
-            <span className="text-xs mt-1">Home</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('appointments')}
-            className={`flex flex-col items-center justify-center p-2 transition-colors ${
-              activeTab === 'appointments' 
-                ? darkMode 
-                  ? 'text-blue-400' 
-                  : 'text-blue-600' 
-                : darkMode 
-                  ? 'text-gray-400' 
-                  : 'text-gray-500'
-            }`}
-          >
-            <Calendar className="w-6 h-6" />
-            <span className="text-xs mt-1">Appointments</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('chat')}
-            className={`flex flex-col items-center justify-center p-2 transition-colors relative ${
-              activeTab === 'chat' 
-                ? darkMode 
-                  ? 'text-blue-400' 
-                  : 'text-blue-600' 
-                : darkMode 
-                  ? 'text-gray-400' 
-                  : 'text-gray-500'
-            }`}
-          >
-            <MessageCircle className="w-6 h-6" />
-            <span className="text-xs mt-1">Chat</span>
-            <span className="absolute top-1 right-4 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">3</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`flex flex-col items-center justify-center p-2 transition-colors ${
-              activeTab === 'profile' 
-                ? darkMode 
-                  ? 'text-blue-400' 
-                  : 'text-blue-600' 
-                : darkMode 
-                  ? 'text-gray-400' 
-                  : 'text-gray-500'
-            }`}
-          >
-            <User className="w-6 h-6" />
-            <span className="text-xs mt-1">Profile</span>
-          </button>
-        </div>
       </div>
-    </div>
-  );
-};
+    </>
+  )
+}
 
-export default Dashboard;
+export default Register
