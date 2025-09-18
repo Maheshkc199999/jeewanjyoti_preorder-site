@@ -7,4 +7,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    host: '0.0.0.0', // Allow external connections
+    port: 3001, // Use port 3001
+  },
 })
