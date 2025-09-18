@@ -937,16 +937,6 @@ const Dashboard = () => {
                 <span>March 15, 2024</span>
               </div>
               <div className="hidden md:flex items-center gap-2">
-                <button 
-                  onClick={toggleDarkMode}
-                  className={`p-2 rounded-xl border transition-colors ${
-                    darkMode 
-                      ? 'bg-gray-800 border-gray-700 text-yellow-400 hover:bg-gray-700' 
-                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </button>
                 <button className={`p-2 rounded-xl border transition-colors ${
                   darkMode 
                     ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' 
@@ -962,12 +952,28 @@ const Dashboard = () => {
                   <Settings className="w-5 h-5 text-gray-500" />
                 </button>
               </div>
-              <button 
-                className="md:hidden p-2 rounded-xl border transition-colors"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              >
-                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={toggleDarkMode}
+                  className={`p-2 rounded-xl border transition-colors ${
+                    darkMode 
+                      ? 'bg-gray-800 border-gray-700 text-yellow-400 hover:bg-gray-700' 
+                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </button>
+                <button 
+                  className={`md:hidden p-2 rounded-xl border transition-colors ${
+                    darkMode 
+                      ? 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700' 
+                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                >
+                  {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1038,17 +1044,6 @@ const Dashboard = () => {
               <User className="w-6 h-6" />
               <span className="font-medium">Profile</span>
             </button>
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-              <button 
-                onClick={toggleDarkMode}
-                className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
-                  darkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}
-              >
-                {darkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
-                <span className="font-medium">{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
-              </button>
-            </div>
           </div>
         </div>
       )}
