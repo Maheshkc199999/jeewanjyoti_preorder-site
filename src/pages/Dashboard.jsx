@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Heart, Moon, Activity, Zap, Brain, Gauge, Target, TrendingUp, Calendar, Clock, Home, Users, MessageCircle, User, Plus, Phone, Video, Send, Bell, Settings, Edit3, Camera, Mail, MapPin, Award, Star, Sun, Menu, X } from 'lucide-react';
+import jjlogo from '../assets/jjlogo.png';
 
 const Dashboard = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('today');
@@ -839,9 +840,12 @@ const Dashboard = () => {
         <div className="max-w-7xl mx-auto px-4 md:px-6">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4 md:gap-8">
-              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                HealthCare+
-              </h1>
+              <div className="flex items-center gap-3">
+                <img src={jjlogo} alt="JJ Logo" className="w-8 h-8" />
+                <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  DIGITAL CARE
+                </h1>
+              </div>
               <div className={`hidden md:flex items-center gap-1 rounded-xl p-1 ${
                 darkMode ? 'bg-gray-800' : 'bg-gray-100'
               }`}>
