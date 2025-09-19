@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { Home, Calendar, MessageCircle, User, Moon, Sun, Bell, Settings, Menu, X, LogOut } from 'lucide-react';
+import { Home, Calendar, MessageCircle, User, Moon, Sun, Bell, Settings, Menu, X, LogOut, Filter, SlidersHorizontal } from 'lucide-react';
 import jjlogo from '../assets/jjlogo.png';
 import HomeTab from './dashboard/Home';
 import AppointmentsTab from './dashboard/Appointments';
@@ -18,6 +18,7 @@ const Dashboard = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
   // Check authentication status
   useEffect(() => {
@@ -34,6 +35,20 @@ const Dashboard = () => {
 
     return () => unsubscribe();
   }, [navigate]);
+
+  // Close filter dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showFilterDropdown && !event.target.closest('.filter-dropdown')) {
+        setShowFilterDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showFilterDropdown]);
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -219,48 +234,92 @@ const Dashboard = () => {
 
               {/* Period Filter - Only show on Home tab */}
               {activeTab === 'home' && (
-                <select 
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value)}
-                  className={`hidden md:block px-3 py-2 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    darkMode 
-                      ? 'bg-gray-800 border-gray-700 text-white' 
-                      : 'bg-gray-100 border-gray-200 text-gray-700'
-                  } border`}
-                >
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                </select>
+                <div className="hidden md:block relative filter-dropdown">
+                  <button
+                    onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                    className={`p-2 rounded-lg transition-all duration-200 ${
+                      showFilterDropdown
+                        ? darkMode 
+                          ? 'bg-purple-600 hover:bg-purple-700' 
+                          : 'bg-purple-500 hover:bg-purple-600'
+                        : darkMode 
+                          ? 'bg-gray-800 hover:bg-purple-600/20 border border-purple-500/30' 
+                          : 'bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 border border-purple-200'
+                    }`}
+                    title={`Filter: ${selectedPeriod === 'today' ? 'Today' : selectedPeriod === 'week' ? 'This Week' : 'This Month'}`}
+                  >
+                    <SlidersHorizontal className={`w-5 h-5 transition-colors ${
+                      showFilterDropdown
+                        ? 'text-white'
+                        : 'text-purple-600'
+                    }`} />
+                  </button>
+                  
+                  {/* Filter Dropdown */}
+                  {showFilterDropdown && (
+                    <div className={`absolute top-full right-0 mt-2 w-40 rounded-lg shadow-xl border z-10 ${
+                      darkMode 
+                        ? 'bg-gray-800 border-purple-500/30 shadow-purple-500/20' 
+                        : 'bg-white border-purple-200 shadow-purple-100'
+                    }`}>
+                      <div className="py-1">
+                        <button
+                          onClick={() => {
+                            setSelectedPeriod('today');
+                            setShowFilterDropdown(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                            selectedPeriod === 'today'
+                              ? darkMode 
+                                ? 'bg-purple-600/20 text-purple-400' 
+                                : 'bg-purple-50 text-purple-600'
+                              : darkMode 
+                                ? 'text-gray-300 hover:bg-purple-600/10' 
+                                : 'text-gray-700 hover:bg-purple-50'
+                          }`}
+                        >
+                          Today
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedPeriod('week');
+                            setShowFilterDropdown(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                            selectedPeriod === 'week'
+                              ? darkMode 
+                                ? 'bg-purple-600/20 text-purple-400' 
+                                : 'bg-purple-50 text-purple-600'
+                              : darkMode 
+                                ? 'text-gray-300 hover:bg-purple-600/10' 
+                                : 'text-gray-700 hover:bg-purple-50'
+                          }`}
+                        >
+                          This Week
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedPeriod('month');
+                            setShowFilterDropdown(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                            selectedPeriod === 'month'
+                              ? darkMode 
+                                ? 'bg-purple-600/20 text-purple-400' 
+                                : 'bg-purple-50 text-purple-600'
+                              : darkMode 
+                                ? 'text-gray-300 hover:bg-purple-600/10' 
+                                : 'text-gray-700 hover:bg-purple-50'
+                          }`}
+                        >
+                          This Month
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
               
-              <div className="flex items-center gap-1">
-                <button className={`p-2 rounded-lg transition-colors ${
-                  darkMode 
-                    ? 'hover:bg-gray-700' 
-                    : 'hover:bg-gray-100'
-                }`}>
-                  <Bell className="w-5 h-5 text-gray-500" />
-                </button>
-                <button className={`p-2 rounded-lg transition-colors ${
-                  darkMode 
-                    ? 'hover:bg-gray-700' 
-                    : 'hover:bg-gray-100'
-                }`}>
-                  <Settings className="w-5 h-5 text-gray-500" />
-                </button>
-                <button 
-                  onClick={handleLogoutClick}
-                  className={`p-2 rounded-lg transition-colors ${
-                    darkMode 
-                      ? 'hover:bg-red-700' 
-                      : 'hover:bg-red-50'
-                  }`}
-                  title="Logout"
-                >
-                  <LogOut className="w-5 h-5 text-red-500" />
-                </button>
-              </div>
               <div className="flex items-center gap-1">
                 <button 
                   onClick={toggleDarkMode}
@@ -272,6 +331,33 @@ const Dashboard = () => {
                 >
                   {darkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
                 </button>
+                <div className="hidden md:flex items-center gap-1">
+                  <button className={`p-2 rounded-lg transition-colors ${
+                    darkMode 
+                      ? 'hover:bg-gray-700' 
+                      : 'hover:bg-gray-100'
+                  }`}>
+                    <Bell className="w-5 h-5 text-gray-500" />
+                  </button>
+                  <button className={`p-2 rounded-lg transition-colors ${
+                    darkMode 
+                      ? 'hover:bg-gray-700' 
+                      : 'hover:bg-gray-100'
+                  }`}>
+                    <Settings className="w-5 h-5 text-gray-500" />
+                  </button>
+                  <button 
+                    onClick={handleLogoutClick}
+                    className={`p-2 rounded-lg transition-colors ${
+                      darkMode 
+                        ? 'hover:bg-red-700' 
+                        : 'hover:bg-red-50'
+                    }`}
+                    title="Logout"
+                  >
+                    <LogOut className="w-5 h-5 text-red-500" />
+                  </button>
+                </div>
                 <button 
                   className={`md:hidden p-2 rounded-lg transition-colors ${
                     darkMode 
@@ -353,7 +439,18 @@ const Dashboard = () => {
               <User className="w-6 h-6" />
               <span className="font-medium">Profile</span>
             </button>
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-2">
+              <button
+                onClick={() => { setIsMobileMenuOpen(false); }}
+                className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
+                  darkMode 
+                    ? 'text-gray-300 hover:bg-gray-800' 
+                    : 'text-gray-700 hover:bg-gray-100'
+                } transition-colors`}
+              >
+                <Settings className="w-6 h-6" />
+                <span className="font-medium">Settings</span>
+              </button>
               <button
                 onClick={() => { handleLogoutClick(); setIsMobileMenuOpen(false); }}
                 className="flex items-center gap-3 w-full p-4 rounded-xl text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"

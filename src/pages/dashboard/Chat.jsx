@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Bell, Send, Paperclip, Mic, Video, Phone, X, Smile, Image, 
-  File, Download, Search, MoreHorizontal, Circle
+  File, Download, Search, MoreHorizontal, Circle, ArrowLeft
 } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 
 const ChatTab = ({ darkMode }) => {
   const [selectedChat, setSelectedChat] = useState('dr-smith');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showChatRoom, setShowChatRoom] = useState(false); // Mobile state for chat room
+  
   
   const [chatUsers] = useState([
     {
@@ -230,6 +232,233 @@ const ChatTab = ({ darkMode }) => {
 
   return (
     <div className="h-full flex overflow-hidden">
+      {/* Mobile: Show profiles list or chat room based on state */}
+      <div className="md:hidden w-full h-full">
+        {!showChatRoom ? (
+          // Mobile: Profiles List View
+          <div className={`w-full h-full flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            {/* Header */}
+            <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-800'} mb-3`}>Messages</h2>
+              
+              {/* Search */}
+              <div className="relative">
+                <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                <input
+                  type="text"
+                  placeholder="Search conversations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    darkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'border-gray-200'
+                  }`}
+                />
+              </div>
+            </div>
+
+            {/* Mobile Chat List */}
+            <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
+              {filteredChats.map((chat) => (
+                <div
+                  key={chat.id}
+                  onClick={() => {
+                    setSelectedChat(chat.id);
+                    setShowChatRoom(true);
+                  }}
+                  className={`p-4 border-b cursor-pointer transition-colors ${
+                    selectedChat === chat.id
+                      ? darkMode 
+                        ? 'bg-gray-700 border-gray-600' 
+                        : 'bg-blue-50 border-blue-200'
+                      : darkMode 
+                        ? 'hover:bg-gray-700 border-gray-700' 
+                        : 'hover:bg-gray-50 border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${
+                        darkMode ? 'bg-gray-600' : 'bg-gray-400'
+                      }`}>
+                        {chat.avatar}
+                      </div>
+                      {chat.online && (
+                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <h3 className={`font-semibold truncate ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                          {chat.name}
+                        </h3>
+                        <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {chat.time}
+                        </span>
+                      </div>
+                      <p className={`text-sm truncate ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {chat.lastMessage}
+                      </p>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                          {chat.role}
+                        </span>
+                        {chat.unread > 0 && (
+                          <div className="bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                            {chat.unread}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          // Mobile: Chat Room View
+          <div className={`w-full h-full flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            {/* Mobile Chat Header with Back Button */}
+            <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex items-center gap-3`}>
+              <button
+                onClick={() => setShowChatRoom(false)}
+                className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
+              >
+                <ArrowLeft className="w-5 h-5 text-gray-500" />
+              </button>
+              <div className="flex items-center gap-3 flex-1">
+                <div className="relative">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
+                    darkMode ? 'bg-gray-600' : 'bg-gray-400'
+                  }`}>
+                    {currentChat.avatar}
+                  </div>
+                  {currentChat.online && (
+                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className={`font-semibold truncate ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                    {currentChat.name}
+                  </h3>
+                  <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {currentChat.online ? 'Online' : 'Offline'} • {currentChat.role}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => startCall('audio')}
+                  className={`p-2 rounded-full ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} transition-colors`}
+                  title="Audio Call"
+                >
+                  <Phone className="w-4 h-4 text-blue-500" />
+                </button>
+                <button 
+                  onClick={() => startCall('video')}
+                  className={`p-2 rounded-full ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} transition-colors`}
+                  title="Video Call"
+                >
+                  <Video className="w-4 h-4 text-blue-500" />
+                </button>
+              </div>
+            </div>
+
+            {/* Mobile Messages */}
+            <div className="flex-1 p-4 space-y-4 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent pb-4">
+              {messages.map((message) => (
+                <div key={message.id} className={`flex ${message.type === 'sent' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-xs px-4 py-2 rounded-2xl ${
+                    message.type === 'sent' 
+                      ? 'bg-blue-500 text-white' 
+                      : darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {message.type === 'received' && (
+                      <div className="text-xs font-semibold mb-1">{message.sender}</div>
+                    )}
+                    <p className="text-sm">{message.message}</p>
+                    
+                    {message.files && message.files.length > 0 && (
+                      <div className={`mt-2 space-y-2 ${message.type === 'sent' ? 'bg-blue-400' : darkMode ? 'bg-gray-600' : 'bg-gray-200'} p-2 rounded-lg`}>
+                        {message.files.map((file, index) => (
+                          <div key={index} className="flex items-center gap-2 text-xs">
+                            {renderFileIcon(file.type)}
+                            <div className="flex-1 min-w-0">
+                              <div className="truncate">{file.name}</div>
+                              <div className="text-gray-500">{file.size}</div>
+                            </div>
+                            <button className="text-blue-500 hover:text-blue-600">
+                              <Download className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <div className={`text-xs mt-1 ${message.type === 'sent' ? 'text-blue-100' : darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {message.time}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Mobile Message Input */}
+            <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
+                >
+                  <Smile className="w-5 h-5 text-gray-500" />
+                </button>
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Type a message..."
+                    className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      darkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'border-gray-200'
+                    }`}
+                  />
+                  {showEmojiPicker && (
+                    <div className="absolute bottom-full left-0 mb-2 z-10">
+                      <EmojiPicker
+                        onEmojiClick={(emoji) => {
+                          setNewMessage(prev => prev + emoji.emoji);
+                          setShowEmojiPicker(false);
+                        }}
+                        theme={darkMode ? 'dark' : 'light'}
+                        width={280}
+                        height={350}
+                      />
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={sendMessage}
+                  disabled={!newMessage.trim()}
+                  className={`p-2 rounded-lg transition-colors ${
+                    newMessage.trim()
+                      ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                      : darkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-200 text-gray-400'
+                  }`}
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: Original Layout */}
+      <div className="hidden md:flex w-full h-full">
       {/* Call Interface Overlay */}
       {callStatus && (
         <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center ${darkMode ? 'bg-gray-900' : 'bg-gray-800'} bg-opacity-95 text-white p-6`}>
@@ -562,6 +791,7 @@ const ChatTab = ({ darkMode }) => {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
