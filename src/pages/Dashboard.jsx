@@ -511,7 +511,7 @@ const Dashboard = () => {
       )}
 
       {/* Main Content */}
-      <main className={`${activeTab === 'chat' ? `flex-1 min-h-0 ${isChatRoomOpen ? 'pb-0' : 'pb-16'} md:pb-0` : 'max-w-7xl mx-auto p-4 md:p-6'}`}>
+      <main className={`${activeTab === 'chat' ? `flex-1 min-h-0 h-full ${isChatRoomOpen ? 'pb-0' : 'pb-16'} md:pb-0` : 'max-w-7xl mx-auto p-4 md:p-6'}`}>
         {renderContent()}
       </main>
 

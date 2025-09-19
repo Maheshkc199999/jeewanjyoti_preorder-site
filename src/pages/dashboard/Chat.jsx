@@ -254,11 +254,8 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
 
   // Handle profile click for mobile
   const handleProfileClick = (chatId) => {
-    console.log('Profile clicked:', chatId);
-    console.log('Before state change - showChatRoom:', showChatRoom);
     setSelectedChat(chatId);
     setShowChatRoom(true);
-    console.log('State change triggered for:', chatId);
   };
 
   // Handle back button for mobile
@@ -273,22 +270,14 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     }
   }, [showChatRoom, onChatRoomStateChange]);
 
-  // Debug useEffect to track state changes
-  useEffect(() => {
-    console.log('Chat state changed:', { selectedChat, showChatRoom });
-  }, [selectedChat, showChatRoom]);
 
   return (
     <div className="h-full flex overflow-hidden">
       {/* Mobile Layout */}
-      <div className="md:hidden w-full h-full">
+      <div className="md:hidden w-full h-screen">
         {!showChatRoom ? (
           // Mobile: Profiles List View
           <div className={`w-full h-full flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            {/* Debug indicator */}
-            <div className="fixed top-0 left-0 bg-blue-500 text-white p-2 text-xs z-50">
-              Mobile Profiles List - showChatRoom: {showChatRoom.toString()}
-            </div>
             {/* Header */}
             <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
               <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-800'} mb-3`}>Messages</h2>
@@ -370,11 +359,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
           </div>
         ) : (
           // Mobile: Chat Room View
-          <div className={`w-full h-full flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            {/* Debug indicator */}
-            <div className="fixed top-0 left-0 bg-green-500 text-white p-2 text-xs z-50">
-              Mobile Chat Room Open
-            </div>
+          <div className={`w-full h-screen flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
             {/* Mobile Chat Header with Back Button - Fixed */}
             <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex items-center gap-3 flex-shrink-0`}>
               <button
@@ -465,9 +450,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
             </div>
 
             {/* Mobile Message Input - Fixed */}
-            <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex-shrink-0 bg-red-100`}>
-              {/* Debug indicator */}
-              <div className="text-xs text-red-600 mb-2">Mobile Input Bar - Visible</div>
+            <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex-shrink-0 bg-white dark:bg-gray-800`}>
               {/* Selected file preview */}
               {selectedFile && (
                 <div className={`mb-2 p-2 rounded-lg flex items-center justify-between ${
