@@ -250,7 +250,6 @@ function Login() {
         localStorage.setItem('refresh_token', data.refresh)
       }
       
-      alert('Google login successful!')
       navigate('/dashboard')
       
     } catch (error) {

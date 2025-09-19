@@ -1,23 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Heart, Moon, Activity, Zap, Brain, Gauge, Target, TrendingUp, Calendar, Clock, Home, Users, MessageCircle, User, Plus, Phone, Video, Send, Bell, Settings, Edit3, Camera, Mail, MapPin, Award, Star, Sun, Menu, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { Home, Calendar, MessageCircle, User, Moon, Sun, Bell, Settings, Menu, X, LogOut } from 'lucide-react';
 import jjlogo from '../assets/jjlogo.png';
+import HomeTab from './dashboard/Home';
+import AppointmentsTab from './dashboard/Appointments';
+import ChatTab from './dashboard/Chat';
+import ProfileTab from './dashboard/Profile';
+import { auth } from '../lib/firebase';
 
 const Dashboard = () => {
-  const [selectedPeriod, setSelectedPeriod] = useState('today');
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('home');
-  const [messages, setMessages] = useState([
-    { id: 1, sender: 'Dr. Smith', message: 'Your latest test results look great! Keep up the good work with your exercise routine.', time: '2:30 PM', type: 'received' },
-    { id: 2, sender: 'You', message: 'Thank you! Should I continue with the same medication dosage?', time: '2:45 PM', type: 'sent' },
-    { id: 3, sender: 'Dr. Smith', message: 'Yes, continue with the current dosage. Let\'s schedule a follow-up in 2 weeks.', time: '3:00 PM', type: 'received' }
-  ]);
-  const [newMessage, setNewMessage] = useState('');
   const [darkMode, setDarkMode] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState('today');
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  // Check authentication status
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUser(user);
+        setLoading(false);
+      } else {
+        setUser(null);
+        setLoading(false);
+        navigate('/login');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [navigate]);
 
   // Toggle dark mode
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
+  };
+
+  // Show logout confirmation
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  // Handle logout confirmation
+  const handleLogoutConfirm = async () => {
+    try {
+      await signOut(auth);
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  // Cancel logout
+  const handleLogoutCancel = () => {
+    setShowLogoutConfirm(false);
   };
 
   // Apply dark mode class to body
@@ -29,806 +69,40 @@ const Dashboard = () => {
     }
   }, [darkMode]);
 
-  // Sample data for different metrics
-  const heartRateData = [
-    { time: '00:00', value: 65 },
-    { time: '04:00', value: 58 },
-    { time: '08:00', value: 72 },
-    { time: '12:00', value: 85 },
-    { time: '16:00', value: 78 },
-    { time: '20:00', value: 68 },
-    { time: '24:00', value: 62 }
-  ];
-
-  const sleepData = [
-    { stage: 'Deep', value: 2.5, color: '#3B82F6' },
-    { stage: 'Light', value: 4.2, color: '#60A5FA' },
-    { stage: 'REM', value: 1.8, color: '#93C5FD' },
-    { stage: 'Awake', value: 0.3, color: '#E5E7EB' }
-  ];
-
-  const activityData = [
-    { day: 'Mon', steps: 8420, calories: 320 },
-    { day: 'Tue', steps: 12340, calories: 480 },
-    { day: 'Wed', steps: 9850, calories: 380 },
-    { day: 'Thu', steps: 15200, calories: 590 },
-    { day: 'Fri', steps: 11800, calories: 450 },
-    { day: 'Sat', steps: 16500, calories: 640 },
-    { day: 'Sun', steps: 13200, calories: 510 }
-  ];
-
-  const bloodOxygenData = [
-    { time: '6AM', value: 98 },
-    { time: '10AM', value: 97 },
-    { time: '2PM', value: 98 },
-    { time: '6PM', value: 97 },
-    { time: '10PM', value: 98 }
-  ];
-
-  const stressData = [
-    { time: '8AM', level: 25 },
-    { time: '10AM', level: 45 },
-    { time: '12PM', level: 65 },
-    { time: '2PM', level: 80 },
-    { time: '4PM', level: 55 },
-    { time: '6PM', level: 30 },
-    { time: '8PM', level: 20 }
-  ];
-
-  const appointments = [
-    { id: 1, doctor: 'Dr. Sarah Smith', specialty: 'Cardiologist', date: '2024-03-18', time: '10:00 AM', type: 'In-person', status: 'confirmed' },
-    { id: 2, doctor: 'Dr. Michael Johnson', specialty: 'Dermatologist', date: '2024-03-20', time: '2:30 PM', type: 'Video call', status: 'pending' },
-    { id: 3, doctor: 'Dr. Emily Davis', specialty: 'General Practice', date: '2024-03-25', time: '9:15 AM', type: 'In-person', status: 'confirmed' },
-    { id: 4, doctor: 'Dr. Robert Wilson', specialty: 'Orthopedic', date: '2024-03-28', time: '11:00 AM', type: 'In-person', status: 'confirmed' }
-  ];
-
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      const message = {
-        id: messages.length + 1,
-        sender: 'You',
-        message: newMessage,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        type: 'sent'
-      };
-      setMessages([...messages, message]);
-      setNewMessage('');
-    }
-  };
-
-  const MetricCard = ({ icon: Icon, title, value, unit, trend, color, children }) => (
-    <div className={`rounded-2xl p-4 md:p-6 shadow-lg transition-all duration-300 border ${
-      darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-    }`}>
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className={`p-2 md:p-3 rounded-xl ${color} bg-opacity-10`}>
-            <Icon className={`w-5 h-5 md:w-6 md:h-6 ${color.replace('bg-', 'text-')}`} />
-          </div>
-          <div>
-            <h3 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{title}</h3>
-            <div className="flex items-center gap-2">
-              <span className={`text-xl md:text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{value}</span>
-              <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{unit}</span>
-            </div>
-          </div>
-        </div>
-        {trend && (
-          <div className="flex items-center gap-1 text-green-600 bg-green-50 px-2 py-1 rounded-full text-xs md:text-sm">
-            <TrendingUp className="w-3 h-3 md:w-4 md:h-4" />
-            {trend}
-          </div>
-        )}
-      </div>
-      {children}
-    </div>
-  );
-
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className={`p-3 border rounded-lg shadow-lg ${
-          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}>
-          <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>{label}</p>
-          <p className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-            {payload[0].value} {payload[0].unit || ''}
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const renderHome = () => (
-    <div>
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
-        <div className="bg-gradient-to-r from-red-500 to-pink-500 rounded-xl md:rounded-2xl p-4 md:p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-red-100 text-xs md:text-sm">Heart Rate</p>
-              <p className="text-xl md:text-3xl font-bold">72 BPM</p>
-            </div>
-            <Heart className="w-8 h-8 md:w-12 md:h-12 text-red-200" />
-          </div>
-        </div>
-        
-        <div className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl md:rounded-2xl p-4 md:p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-blue-100 text-xs md:text-sm">Sleep Score</p>
-              <p className="text-xl md:text-3xl font-bold">85/100</p>
-            </div>
-            <Moon className="w-8 h-8 md:w-12 md:h-12 text-blue-200" />
-          </div>
-        </div>
-        
-        <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl md:rounded-2xl p-4 md:p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-green-100 text-xs md:text-sm">Daily Steps</p>
-              <p className="text-xl md:text-3xl font-bold">12,340</p>
-            </div>
-            <Activity className="w-8 h-8 md:w-12 md:h-12 text-green-200" />
-          </div>
-        </div>
-        
-        <div className="bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl md:rounded-2xl p-4 md:p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-purple-100 text-xs md:text-sm">Stress Level</p>
-              <p className="text-xl md:text-3xl font-bold">Low</p>
-            </div>
-            <Brain className="w-8 h-8 md:w-12 md:h-12 text-purple-200" />
-          </div>
-        </div>
-      </div>
-
-      {/* Main Metrics Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
-        {/* Heart Rate */}
-        <MetricCard
-          icon={Heart}
-          title="Heart Rate"
-          value="72"
-          unit="BPM"
-          trend="+2%"
-          color="bg-red-500"
-        >
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={heartRateData}>
-              {darkMode ? (
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} vertical={false} />
-              ) : (
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              )}
-              <XAxis 
-                dataKey="time" 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <YAxis 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Area 
-                type="monotone" 
-                dataKey="value" 
-                stroke="#ef4444" 
-                fill="#ef4444" 
-                fillOpacity={0.1}
-                strokeWidth={3}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </MetricCard>
-
-        {/* Blood Oxygen */}
-        <MetricCard
-          icon={Zap}
-          title="Blood Oxygen"
-          value="98"
-          unit="%"
-          trend="Normal"
-          color="bg-blue-500"
-        >
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={bloodOxygenData}>
-              {darkMode ? (
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} vertical={false} />
-              ) : (
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              )}
-              <XAxis 
-                dataKey="time" 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <YAxis 
-                domain={[95, 100]} 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Line 
-                type="monotone" 
-                dataKey="value" 
-                stroke="#3b82f6" 
-                strokeWidth={3}
-                dot={{ fill: '#3b82f6', strokeWidth: 2, r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </MetricCard>
-      </div>
-
-      {/* Sleep and Activity Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
-        {/* Sleep Analysis */}
-        <MetricCard
-          icon={Moon}
-          title="Sleep Analysis"
-          value="8.8"
-          unit="hours"
-          trend="Excellent"
-          color="bg-indigo-500"
-        >
-          <div className="flex items-center justify-between">
-            <ResponsiveContainer width="60%" height={200}>
-              <PieChart>
-                <Pie
-                  data={sleepData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={80}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {sleepData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="w-35% space-y-2">
-              {sleepData.map((item, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: item.color }}
-                  ></div>
-                  <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>{item.stage}</span>
-                  <span className={`text-xs md:text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{item.value}h</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </MetricCard>
-
-        {/* Activity Tracking */}
-        <MetricCard
-          icon={Activity}
-          title="Weekly Activity"
-          value="12,340"
-          unit="steps today"
-          trend="+15%"
-          color="bg-green-500"
-        >
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={activityData}>
-              {darkMode ? (
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} vertical={false} />
-              ) : (
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              )}
-              <XAxis 
-                dataKey="day" 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <YAxis 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="steps" fill="#10b981" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </MetricCard>
-      </div>
-
-      {/* Stress and HRV Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
-        {/* Stress Level */}
-        <MetricCard
-          icon={Brain}
-          title="Stress Level"
-          value="32"
-          unit="Low"
-          trend="Improving"
-          color="bg-purple-500"
-        >
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={stressData}>
-              {darkMode ? (
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} vertical={false} />
-              ) : (
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              )}
-              <XAxis 
-                dataKey="time" 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <YAxis 
-                domain={[0, 100]} 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Area 
-                type="monotone" 
-                dataKey="level" 
-                stroke="#8b5cf6" 
-                fill="#8b5cf6" 
-                fillOpacity={0.2}
-                strokeWidth={3}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </MetricCard>
-
-        {/* Blood Pressure & HRV */}
-        <div className="space-y-4 md:space-y-6">
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 md:p-3 rounded-xl bg-orange-500 bg-opacity-10">
-                <Gauge className="w-5 h-5 md:w-6 md:h-6 text-orange-500" />
-              </div>
-              <div>
-                <h3 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Blood Pressure</h3>
-                <div className="flex items-center gap-2">
-                  <span className={`text-lg md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>120/80</span>
-                  <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>mmHg</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-green-600 bg-green-50 px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium">
-                Normal Range
-              </span>
-              <Clock className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-            </div>
-          </div>
-
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 md:p-3 rounded-xl bg-teal-500 bg-opacity-10">
-                <Target className="w-5 h-5 md:w-6 md:h-6 text-teal-500" />
-              </div>
-              <div>
-                <h3 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>HRV Score</h3>
-                <div className="flex items-center gap-2">
-                  <span className={`text-lg md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>45</span>
-                  <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>ms</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-blue-600 bg-blue-50 px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium">
-                Good Recovery
-              </span>
-              <div className={`w-16 md:w-24 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} rounded-full h-2`}>
-                <div className="bg-teal-500 h-2 rounded-full" style={{ width: '75%' }}></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Health Summary */}
-      <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-        darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-      }`}>
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <h3 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-2`}>Health Summary</h3>
-            <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Great job maintaining your health metrics today! Your heart rate variability indicates good recovery, 
-              and your stress levels are well-managed. Keep up the excellent sleep routine.
-            </p>
-          </div>
-          <div className="flex items-center gap-4 ml-4">
-            <div className="text-center">
-              <div className="text-xl md:text-2xl font-bold text-green-500">A+</div>
-              <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Overall Score</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderAppointments = () => (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Appointments</h2>
-        <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm md:text-base">
-          <Plus className="w-4 h-4 md:w-5 md:h-5" />
-          <span className="hidden md:inline">Book Appointment</span>
-        </button>
-      </div>
-
-      <div className="grid gap-4 md:gap-6">
-        {appointments.map((appointment) => (
-          <div key={appointment.id} className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border hover:shadow-xl transition-all duration-300 ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <div className="flex flex-col md:flex-row md:items-center justify-between">
-              <div className="flex items-center gap-4 mb-4 md:mb-0">
-                <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg md:text-xl">
-                  {appointment.doctor.split(' ').map(n => n[0]).join('')}
-                </div>
-                <div>
-                  <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{appointment.doctor}</h3>
-                  <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{appointment.specialty}</p>
-                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mt-2">
-                    <div className={`flex items-center gap-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                      <Calendar className="w-3 h-3 md:w-4 md:h-4" />
-                      <span className="text-xs md:text-sm">{appointment.date}</span>
-                    </div>
-                    <div className={`flex items-center gap-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                      <Clock className="w-3 h-3 md:w-4 md:h-4" />
-                      <span className="text-xs md:text-sm">{appointment.time}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between md:justify-end gap-3">
-                <div className="flex flex-col items-center gap-2">
-                  <span className={`px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium ${
-                    appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {appointment.status}
-                  </span>
-                  <div className={`flex items-center gap-1 text-xs md:text-sm ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                    {appointment.type === 'Video call' ? <Video className="w-3 h-3 md:w-4 md:h-4" /> : <MapPin className="w-3 h-3 md:w-4 md:h-4" />}
-                    <span>{appointment.type}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {appointment.type === 'Video call' && (
-                    <button className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors">
-                      <Video className="w-4 h-4 md:w-5 md:h-5" />
-                    </button>
-                  )}
-                  <button className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors">
-                    <Phone className="w-4 h-4 md:w-5 md:h-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  const renderChat = () => (
-    <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Messages</h2>
-        <div className="flex items-center gap-2">
-          <Bell className="w-5 h-5 text-gray-400" />
-          <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1">3</span>
-        </div>
-      </div>
-
-      <div className={`rounded-xl md:rounded-2xl shadow-lg border flex-1 flex flex-col ${
-        darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-      }`}>
-        <div className={`p-4 border-b ${
-          darkMode ? 'border-gray-700' : 'border-gray-200'
-        }`}>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm md:text-base">
-              DS
-            </div>
-            <div>
-              <h3 className={`font-semibold text-base md:text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>Dr. Smith</h3>
-              <span className="text-xs md:text-sm text-green-500">Online</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 p-4 space-y-4 overflow-y-auto max-h-96">
-          {messages.map((message) => (
-            <div key={message.id} className={`flex ${message.type === 'sent' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
-                message.type === 'sent' 
-                  ? 'bg-blue-500 text-white' 
-                  : darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800'
-              }`}>
-                <p className="text-sm">{message.message}</p>
-                <p className={`text-xs mt-1 ${
-                  message.type === 'sent' ? 'text-blue-100' : darkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>
-                  {message.time}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className={`p-4 border-t ${
-          darkMode ? 'border-gray-700' : 'border-gray-200'
-        }`}>
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type your message..."
-              className={`flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                darkMode 
-                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                  : 'border-gray-200'
-              }`}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-            />
-            <button
-              onClick={handleSendMessage}
-              className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-xl transition-colors"
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderProfile = () => (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Profile</h2>
-        <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm md:text-base">
-          <Edit3 className="w-4 h-4" />
-          <span className="hidden md:inline">Edit Profile</span>
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-        {/* Profile Info */}
-        <div className="lg:col-span-1">
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <div className="text-center mb-6">
-              <div className="relative mx-auto w-16 h-16 md:w-24 md:h-24 mb-4">
-                <div className="w-16 h-16 md:w-24 md:h-24 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-lg md:text-2xl font-bold">
-                  JD
-                </div>
-                <button className={`absolute bottom-0 right-0 border-2 rounded-full p-1 md:p-2 ${
-                  darkMode 
-                    ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' 
-                    : 'bg-white border-gray-200 hover:bg-gray-50'
-                } transition-colors`}>
-                  <Camera className="w-3 h-3 md:w-4 md:h-4 text-gray-600" />
-                </button>
-              </div>
-              <h3 className={`text-lg md:text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>John Doe</h3>
-              <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Patient ID: #12345</p>
-            </div>
-
-            <div className="space-y-3 md:space-y-4">
-              <div className="flex items-center gap-3">
-                <Mail className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-                <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>john.doe@email.com</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Phone className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-                <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>+1 (555) 123-4567</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <MapPin className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-                <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>New York, NY</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-                <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Born: Jan 15, 1990</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Health Stats & Achievements */}
-        <div className="lg:col-span-2 space-y-4 md:space-y-6">
-          {/* Health Stats */}
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Health Statistics</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-lg md:text-2xl font-bold text-blue-600">72</div>
-                <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Avg Heart Rate</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg md:text-2xl font-bold text-green-600">85</div>
-                <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Sleep Score</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg md:text-2xl font-bold text-purple-600">12,340</div>
-                <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Daily Steps</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg md:text-2xl font-bold text-orange-600">98%</div>
-                <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Blood Oxygen</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Medical Information */}
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Medical Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              <div>
-                <h4 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>Basic Info</h4>
-                <div className="space-y-2 text-xs md:text-sm">
-                  <div className="flex justify-between">
-                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Height:</span>
-                    <span className={darkMode ? 'text-gray-300' : 'text-gray-800'}>5'10" (178 cm)</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Weight:</span>
-                    <span className={darkMode ? 'text-gray-300' : 'text-gray-800'}>175 lbs (79 kg)</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Blood Type:</span>
-                    <span className={darkMode ? 'text-gray-300' : 'text-gray-800'}>O+</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>BMI:</span>
-                    <span className={darkMode ? 'text-gray-300' : 'text-gray-800'}>25.1</span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <h4 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>Conditions</h4>
-                <div className="space-y-2">
-                  <span className="inline-block bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs md:text-sm">
-                    Mild Hypertension
-                  </span>
-                  <br />
-                  <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs md:text-sm mt-2">
-                    Seasonal Allergies
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Achievements */}
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Health Achievements</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-              <div className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl ${
-                darkMode 
-                  ? 'bg-gradient-to-r from-yellow-900 to-yellow-800' 
-                  : 'bg-gradient-to-r from-yellow-100 to-yellow-50'
-              }`}>
-                <Award className="w-6 h-6 md:w-8 md:h-8 text-yellow-600" />
-                <div>
-                  <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>7-Day Streak</div>
-                  <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Daily step goal</div>
-                </div>
-              </div>
-              <div className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl ${
-                darkMode 
-                  ? 'bg-gradient-to-r from-green-900 to-green-800' 
-                  : 'bg-gradient-to-r from-green-100 to-emerald-100'
-              }`}>
-                <Star className="w-6 h-6 md:w-8 md:h-8 text-green-600" />
-                <div>
-                  <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>Sleep Champion</div>
-                  <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>30 days good sleep</div>
-                </div>
-              </div>
-              <div className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl ${
-                darkMode 
-                  ? 'bg-gradient-to-r from-blue-900 to-blue-800' 
-                  : 'bg-gradient-to-r from-blue-100 to-cyan-100'
-              }`}>
-                <Heart className="w-6 h-6 md:w-8 md:h-8 text-blue-600" />
-                <div>
-                  <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>Heart Health</div>
-                  <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Optimal HR zone</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Emergency Contacts */}
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Emergency Contacts</h3>
-            <div className="space-y-3 md:space-y-4">
-              <div className={`flex items-center justify-between p-3 md:p-4 rounded-xl ${
-                darkMode ? 'bg-gray-700' : 'bg-gray-50'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <Users className="w-4 h-4 md:w-5 md:h-5 text-gray-500" />
-                  <div>
-                    <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>Sarah Doe</div>
-                    <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Spouse</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>+1 (555) 987-6543</span>
-                  <Phone className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />
-                </div>
-              </div>
-              <div className={`flex items-center justify-between p-3 md:p-4 rounded-xl ${
-                darkMode ? 'bg-gray-700' : 'bg-gray-50'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <Users className="w-4 h-4 md:w-5 md:h-5 text-gray-500" />
-                  <div>
-                    <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>Dr. Sarah Smith</div>
-                    <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Primary Care</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>+1 (555) 246-8102</span>
-                  <Phone className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
-        return renderHome();
+        return <HomeTab darkMode={darkMode} selectedPeriod={selectedPeriod} setSelectedPeriod={setSelectedPeriod} />;
       case 'appointments':
-        return renderAppointments();
+        return <AppointmentsTab darkMode={darkMode} />;
       case 'chat':
-        return renderChat();
+        return <ChatTab darkMode={darkMode} />;
       case 'profile':
-        return renderProfile();
+        return <ProfileTab darkMode={darkMode} />;
       default:
-        return renderHome();
+        return <HomeTab darkMode={darkMode} selectedPeriod={selectedPeriod} setSelectedPeriod={setSelectedPeriod} />;
     }
   };
 
+  // Show loading spinner while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render anything if user is not authenticated (will redirect)
+  if (!user) {
+    return null;
+  }
+
   return (
-    <div className={`min-h-screen pb-20 md:pb-0 ${
+    <div className={`${activeTab === 'chat' ? 'h-screen overflow-hidden flex flex-col' : 'min-h-screen pb-20 md:pb-0'} ${
       darkMode 
         ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
         : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
@@ -840,12 +114,15 @@ const Dashboard = () => {
         <div className="max-w-7xl mx-auto px-4 md:px-6">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4 md:gap-8">
-              <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setActiveTab('home')}
+                className="flex items-center gap-3 hover:opacity-80 transition-opacity duration-200"
+              >
                 <img src={jjlogo} alt="JJ Logo" className="w-8 h-8" />
                 <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   DIGITAL CARE
                 </h1>
-              </div>
+              </button>
               <div className={`hidden md:flex items-center gap-1 rounded-xl p-1 ${
                 darkMode ? 'bg-gray-800' : 'bg-gray-100'
               }`}>
@@ -913,14 +190,42 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              <div className={`hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg ${
+                darkMode 
+                  ? 'bg-gray-800 text-gray-300' 
+                  : 'bg-gray-100 text-gray-700'
+              }`}>
+                <User className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium truncate max-w-32">
+                  {user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}
+                </span>
+              </div>
+              
+              {/* Date Display */}
+              <div className={`hidden md:flex items-center gap-2 px-3 py-2 rounded-lg ${
+                darkMode 
+                  ? 'bg-gray-800 text-gray-300' 
+                  : 'bg-gray-100 text-gray-700'
+              }`}>
+                <Calendar className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium">
+                  {new Date().toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  })}
+                </span>
+              </div>
+
+              {/* Period Filter - Only show on Home tab */}
               {activeTab === 'home' && (
                 <select 
                   value={selectedPeriod}
                   onChange={(e) => setSelectedPeriod(e.target.value)}
-                  className={`hidden md:block px-4 py-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  className={`hidden md:block px-3 py-2 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                     darkMode 
                       ? 'bg-gray-800 border-gray-700 text-white' 
-                      : 'bg-white border-gray-200'
+                      : 'bg-gray-100 border-gray-200 text-gray-700'
                   } border`}
                 >
                   <option value="today">Today</option>
@@ -928,46 +233,50 @@ const Dashboard = () => {
                   <option value="month">This Month</option>
                 </select>
               )}
-              <div className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-xl border ${
-                darkMode 
-                  ? 'bg-gray-800 border-gray-700 text-gray-300' 
-                  : 'bg-white border-gray-200 text-gray-700'
-              }`}>
-                <Calendar className="w-5 h-5 text-gray-500" />
-                <span>March 15, 2024</span>
-              </div>
-              <div className="hidden md:flex items-center gap-2">
-                <button className={`p-2 rounded-xl border transition-colors ${
+              
+              <div className="flex items-center gap-1">
+                <button className={`p-2 rounded-lg transition-colors ${
                   darkMode 
-                    ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' 
-                    : 'bg-white border-gray-200 hover:bg-gray-50'
+                    ? 'hover:bg-gray-700' 
+                    : 'hover:bg-gray-100'
                 }`}>
                   <Bell className="w-5 h-5 text-gray-500" />
                 </button>
-                <button className={`p-2 rounded-xl border transition-colors ${
+                <button className={`p-2 rounded-lg transition-colors ${
                   darkMode 
-                    ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' 
-                    : 'bg-white border-gray-200 hover:bg-gray-50'
+                    ? 'hover:bg-gray-700' 
+                    : 'hover:bg-gray-100'
                 }`}>
                   <Settings className="w-5 h-5 text-gray-500" />
                 </button>
+                <button 
+                  onClick={handleLogoutClick}
+                  className={`p-2 rounded-lg transition-colors ${
+                    darkMode 
+                      ? 'hover:bg-red-700' 
+                      : 'hover:bg-red-50'
+                  }`}
+                  title="Logout"
+                >
+                  <LogOut className="w-5 h-5 text-red-500" />
+                </button>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <button 
                   onClick={toggleDarkMode}
-                  className={`p-2 rounded-xl border transition-colors ${
+                  className={`p-2 rounded-lg transition-colors ${
                     darkMode 
-                      ? 'bg-gray-800 border-gray-700 text-yellow-400 hover:bg-gray-700' 
-                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                      ? 'text-yellow-400 hover:bg-gray-700' 
+                      : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  {darkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
                 </button>
                 <button 
-                  className={`md:hidden p-2 rounded-xl border transition-colors ${
+                  className={`md:hidden p-2 rounded-lg transition-colors ${
                     darkMode 
-                      ? 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700' 
-                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                      ? 'text-gray-300 hover:bg-gray-700' 
+                      : 'text-gray-600 hover:bg-gray-100'
                   }`}
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 >
@@ -1044,79 +353,133 @@ const Dashboard = () => {
               <User className="w-6 h-6" />
               <span className="font-medium">Profile</span>
             </button>
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+              <button
+                onClick={() => { handleLogoutClick(); setIsMobileMenuOpen(false); }}
+                className="flex items-center gap-3 w-full p-4 rounded-xl text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              >
+                <LogOut className="w-6 h-6" />
+                <span className="font-medium">Logout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className={`rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl ${
+            darkMode ? 'bg-gray-800' : 'bg-white'
+          }`}>
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 rounded-full bg-red-100 dark:bg-red-900/20">
+                <LogOut className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Logout
+                </h3>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Are you sure you want to logout?
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleLogoutCancel}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  darkMode 
+                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogoutConfirm}
+                className="px-4 py-2 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto p-4 md:p-6">{renderContent()}</main>
+      <main className={`${activeTab === 'chat' ? 'flex-1 min-h-0' : 'max-w-7xl mx-auto p-4 md:p-6'}`}>
+        {renderContent()}
+      </main>
 
       {/* Bottom Navigation for Mobile */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-10 border-t bg-white dark:bg-gray-900 dark:border-gray-800">
-        <div className="grid grid-cols-4 h-16">
-          <button
-            onClick={() => setActiveTab('home')}
-            className={`flex flex-col items-center justify-center p-2 transition-colors ${
-              activeTab === 'home' 
-                ? darkMode 
-                  ? 'text-blue-400' 
-                  : 'text-blue-600' 
-                : darkMode 
-                  ? 'text-gray-400' 
-                  : 'text-gray-500'
-            }`}
-          >
-            <Home className="w-6 h-6" />
-            <span className="text-xs mt-1">Home</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('appointments')}
-            className={`flex flex-col items-center justify-center p-2 transition-colors ${
-              activeTab === 'appointments' 
-                ? darkMode 
-                  ? 'text-blue-400' 
-                  : 'text-blue-600' 
-                : darkMode 
-                  ? 'text-gray-400' 
-                  : 'text-gray-500'
-            }`}
-          >
-            <Calendar className="w-6 h-6" />
-            <span className="text-xs mt-1">Appointments</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('chat')}
-            className={`flex flex-col items-center justify-center p-2 transition-colors relative ${
-              activeTab === 'chat' 
-                ? darkMode 
-                  ? 'text-blue-400' 
-                  : 'text-blue-600' 
-                : darkMode 
-                  ? 'text-gray-400' 
-                  : 'text-gray-500'
-            }`}
-          >
-            <MessageCircle className="w-6 h-6" />
-            <span className="text-xs mt-1">Chat</span>
-            <span className="absolute top-1 right-4 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">3</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`flex flex-col items-center justify-center p-2 transition-colors ${
-              activeTab === 'profile' 
-                ? darkMode 
-                  ? 'text-blue-400' 
-                  : 'text-blue-600' 
-                : darkMode 
-                  ? 'text-gray-400' 
-                  : 'text-gray-500'
-            }`}
-          >
-            <User className="w-6 h-6" />
-            <span className="text-xs mt-1">Profile</span>
-          </button>
+      {activeTab !== 'chat' && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-10 border-t bg-white dark:bg-gray-900 dark:border-gray-800">
+          <div className="grid grid-cols-4 h-16">
+            <button
+              onClick={() => setActiveTab('home')}
+              className={`flex flex-col items-center justify-center p-2 transition-colors ${
+                activeTab === 'home' 
+                  ? darkMode 
+                    ? 'text-blue-400' 
+                    : 'text-blue-600' 
+                  : darkMode 
+                    ? 'text-gray-400' 
+                    : 'text-gray-500'
+              }`}
+            >
+              <Home className="w-6 h-6" />
+              <span className="text-xs mt-1">Home</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('appointments')}
+              className={`flex flex-col items-center justify-center p-2 transition-colors ${
+                activeTab === 'appointments' 
+                  ? darkMode 
+                    ? 'text-blue-400' 
+                    : 'text-blue-600' 
+                  : darkMode 
+                    ? 'text-gray-400' 
+                    : 'text-gray-500'
+              }`}
+            >
+              <Calendar className="w-6 h-6" />
+              <span className="text-xs mt-1">Appointments</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={`flex flex-col items-center justify-center p-2 transition-colors relative ${
+                activeTab === 'chat' 
+                  ? darkMode 
+                    ? 'text-blue-400' 
+                    : 'text-blue-600' 
+                  : darkMode 
+                    ? 'text-gray-400' 
+                    : 'text-gray-500'
+              }`}
+            >
+              <MessageCircle className="w-6 h-6" />
+              <span className="text-xs mt-1">Chat</span>
+              <span className="absolute top-1 right-4 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">3</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`flex flex-col items-center justify-center p-2 transition-colors ${
+                activeTab === 'profile' 
+                  ? darkMode 
+                    ? 'text-blue-400' 
+                    : 'text-blue-600' 
+                  : darkMode 
+                    ? 'text-gray-400' 
+                    : 'text-gray-500'
+              }`}
+            >
+              <User className="w-6 h-6" />
+              <span className="text-xs mt-1">Profile</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
