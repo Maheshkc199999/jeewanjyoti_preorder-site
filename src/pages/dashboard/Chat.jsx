@@ -27,7 +27,7 @@ const EmojiPicker = ({ onEmojiClick, theme, height, width }) => {
   );
 };
 
-const ChatTab = ({ darkMode = false }) => {
+const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   const [selectedChat, setSelectedChat] = useState('dr-smith');
   const [searchQuery, setSearchQuery] = useState('');
   const [showChatRoom, setShowChatRoom] = useState(false);
@@ -263,6 +263,13 @@ const ChatTab = ({ darkMode = false }) => {
     setShowChatRoom(false);
   };
 
+  // Notify parent component when chat room state changes
+  useEffect(() => {
+    if (onChatRoomStateChange) {
+      onChatRoomStateChange(showChatRoom);
+    }
+  }, [showChatRoom, onChatRoomStateChange]);
+
   return (
     <div className="h-full flex overflow-hidden">
       {/* Mobile Layout */}
@@ -351,9 +358,9 @@ const ChatTab = ({ darkMode = false }) => {
           </div>
         ) : (
           // Mobile: Chat Room View
-          <div className={`w-full h-full flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            {/* Mobile Chat Header with Back Button */}
-            <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex items-center gap-3`}>
+          <div className={`w-full h-screen flex flex-col fixed inset-0 z-50 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            {/* Mobile Chat Header with Back Button - Fixed */}
+            <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex items-center gap-3 flex-shrink-0`}>
               <button
                 onClick={handleBackToList}
                 className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
@@ -401,8 +408,8 @@ const ChatTab = ({ darkMode = false }) => {
               </div>
             </div>
 
-            {/* Mobile Messages */}
-            <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+            {/* Mobile Messages - Scrollable */}
+            <div className="flex-1 p-4 space-y-4 overflow-y-auto min-h-0">
               {messages.map((message) => (
                 <div key={message.id} className={`flex ${message.type === 'sent' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-xs px-4 py-2 rounded-2xl ${
@@ -441,8 +448,8 @@ const ChatTab = ({ darkMode = false }) => {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Mobile Message Input */}
-            <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            {/* Mobile Message Input - Fixed */}
+            <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex-shrink-0`}>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}

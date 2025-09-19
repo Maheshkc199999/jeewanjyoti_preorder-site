@@ -19,6 +19,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [isChatRoomOpen, setIsChatRoomOpen] = useState(false);
 
   // Check authentication status
   useEffect(() => {
@@ -70,6 +71,11 @@ const Dashboard = () => {
     }
   };
 
+  // Handle chat room state change
+  const handleChatRoomStateChange = (isOpen) => {
+    setIsChatRoomOpen(isOpen);
+  };
+
   // Cancel logout
   const handleLogoutCancel = () => {
     setShowLogoutConfirm(false);
@@ -91,7 +97,7 @@ const Dashboard = () => {
       case 'appointments':
         return <AppointmentsTab darkMode={darkMode} />;
       case 'chat':
-        return <ChatTab darkMode={darkMode} />;
+        return <ChatTab darkMode={darkMode} onChatRoomStateChange={handleChatRoomStateChange} />;
       case 'profile':
         return <ProfileTab darkMode={darkMode} />;
       default:
@@ -125,7 +131,7 @@ const Dashboard = () => {
       {/* Navigation */}
       <nav className={`shadow-lg border-b sticky top-0 z-10 ${
         darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-100'
-      }`}>
+      } ${isChatRoomOpen ? 'md:block hidden' : ''}`}>
         <div className="max-w-7xl mx-auto px-4 md:px-6">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4 md:gap-8">
@@ -505,12 +511,12 @@ const Dashboard = () => {
       )}
 
       {/* Main Content */}
-      <main className={`${activeTab === 'chat' ? 'flex-1 min-h-0 pb-16 md:pb-0' : 'max-w-7xl mx-auto p-4 md:p-6'}`}>
+      <main className={`${activeTab === 'chat' ? `flex-1 min-h-0 ${isChatRoomOpen ? 'pb-0' : 'pb-16'} md:pb-0` : 'max-w-7xl mx-auto p-4 md:p-6'}`}>
         {renderContent()}
       </main>
 
       {/* Bottom Navigation for Mobile */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-10 border-t bg-white dark:bg-gray-900 dark:border-gray-800">
+      <div className={`md:hidden fixed bottom-0 left-0 right-0 z-10 border-t bg-white dark:bg-gray-900 dark:border-gray-800 ${isChatRoomOpen ? 'hidden' : ''}`}>
           <div className="grid grid-cols-4 h-16">
             <button
               onClick={() => setActiveTab('home')}
