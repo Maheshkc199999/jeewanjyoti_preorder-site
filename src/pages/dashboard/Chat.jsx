@@ -270,16 +270,77 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     }
   }, [showChatRoom, onChatRoomStateChange]);
 
-
   return (
     <div className="h-full flex overflow-hidden">
+      {/* Call Interface Overlay */}
+      {callStatus && (
+        <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center ${darkMode ? 'bg-gray-900' : 'bg-gray-800'} bg-opacity-95 text-white p-6`}>
+          <div className="flex flex-col items-center justify-center flex-1 w-full max-w-4xl">
+            <div className="w-full h-64 md:h-96 bg-gray-700 rounded-lg mb-6 flex items-center justify-center relative overflow-hidden">
+              {callStatus === 'calling' ? (
+                <div className="text-center">
+                  <div className="text-2xl font-semibold mb-2">Calling {currentChat?.name}...</div>
+                  <div className="text-lg text-gray-300">Please wait for the doctor to answer</div>
+                  <div className="mt-8 animate-pulse">
+                    <div className="w-24 h-24 mx-auto rounded-full bg-gray-600 flex items-center justify-center">
+                      {callType === 'video' ? (
+                        <Video className="w-12 h-12" />
+                      ) : (
+                        <Phone className="w-12 h-12" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="w-full h-full bg-gray-900"></div>
+                  <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 rounded-lg p-2">
+                    <div className="text-sm">{currentChat?.name}</div>
+                  </div>
+                </>
+              )}
+            </div>
+            
+            {callType === 'video' && callStatus === 'in-progress' && (
+              <div className="w-32 h-24 bg-gray-900 rounded-lg absolute bottom-24 right-6 border-2 border-white">
+                <div className="w-full h-full bg-gray-800"></div>
+              </div>
+            )}
+            
+            <div className="flex gap-6 mt-8">
+              <button 
+                onClick={endCall}
+                className="w-16 h-16 rounded-full bg-red-600 flex items-center justify-center hover:bg-red-700 transition-colors"
+              >
+                <Phone className="w-8 h-8 transform rotate-135" />
+              </button>
+              
+              {callType === 'audio' && callStatus === 'in-progress' && (
+                <button className="w-16 h-16 rounded-full bg-gray-600 flex items-center justify-center hover:bg-gray-700 transition-colors">
+                  <Mic className="w-8 h-8" />
+                </button>
+              )}
+            </div>
+            
+            <div className="mt-8 text-center">
+              <div className="text-xl font-semibold">
+                {callStatus === 'calling' ? 'Calling...' : '00:05:23'}
+              </div>
+              <div className="text-gray-400 mt-2">
+                {callType === 'audio' ? 'Audio Call' : 'Video Call'} with {currentChat?.name}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mobile Layout */}
-      <div className="md:hidden w-full h-screen">
+      <div className="md:hidden w-full h-full">
         {!showChatRoom ? (
           // Mobile: Profiles List View
           <div className={`w-full h-full flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
             {/* Header */}
-            <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex-shrink-0`}>
               <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-800'} mb-3`}>Messages</h2>
               
               {/* Search */}
@@ -359,8 +420,8 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
           </div>
         ) : (
           // Mobile: Chat Room View
-          <div className={`w-full h-screen flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            {/* Mobile Chat Header with Back Button - Fixed */}
+          <div className={`w-full h-full flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            {/* Mobile Chat Header with Back Button */}
             <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex items-center gap-3 flex-shrink-0`}>
               <button
                 onClick={handleBackToList}
@@ -409,51 +470,51 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
               </div>
             </div>
 
-            {/* Mobile Messages - Scrollable */}
-            <div className="flex-1 p-4 space-y-4 overflow-y-auto min-h-0">
-              {messages.map((message) => (
-                <div key={message.id} className={`flex ${message.type === 'sent' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-xs px-4 py-2 rounded-2xl ${
-                    message.type === 'sent' 
-                      ? 'bg-blue-500 text-white' 
-                      : darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {message.type === 'received' && (
-                      <div className="text-xs font-semibold mb-1">{message.sender}</div>
-                    )}
-                    <p className="text-sm">{message.message}</p>
-                    
-                    {message.files && message.files.length > 0 && (
-                      <div className={`mt-2 space-y-2 ${message.type === 'sent' ? 'bg-blue-400' : darkMode ? 'bg-gray-600' : 'bg-gray-200'} p-2 rounded-lg`}>
-                        {message.files.map((file, index) => (
-                          <div key={index} className="flex items-center gap-2 text-xs">
-                            {renderFileIcon(file.type)}
-                            <div className="flex-1 min-w-0">
-                              <div className="truncate">{file.name}</div>
-                              <div className="text-gray-500">{file.size}</div>
+            {/* Mobile Messages Area */}
+            <div className="flex-1 flex flex-col min-h-0">
+              {/* Messages Container */}
+              <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+                {messages.map((message) => (
+                  <div key={message.id} className={`flex ${message.type === 'sent' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] px-4 py-2 rounded-2xl ${
+                      message.type === 'sent' 
+                        ? 'bg-blue-500 text-white' 
+                        : darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {message.type === 'received' && (
+                        <div className="text-xs font-semibold mb-1">{message.sender}</div>
+                      )}
+                      <p className="text-sm">{message.message}</p>
+                      
+                      {message.files && message.files.length > 0 && (
+                        <div className={`mt-2 space-y-2 ${message.type === 'sent' ? 'bg-blue-400' : darkMode ? 'bg-gray-600' : 'bg-gray-200'} p-2 rounded-lg`}>
+                          {message.files.map((file, index) => (
+                            <div key={index} className="flex items-center gap-2 text-xs">
+                              {renderFileIcon(file.type)}
+                              <div className="flex-1 min-w-0">
+                                <div className="truncate">{file.name}</div>
+                                <div className="text-gray-500">{file.size}</div>
+                              </div>
+                              <button className="text-blue-500 hover:text-blue-600">
+                                <Download className="w-4 h-4" />
+                              </button>
                             </div>
-                            <button className="text-blue-500 hover:text-blue-600">
-                              <Download className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
+                      )}
+                      
+                      <div className={`text-xs mt-1 ${message.type === 'sent' ? 'text-blue-100' : darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {message.time}
                       </div>
-                    )}
-                    
-                    <div className={`text-xs mt-1 ${message.type === 'sent' ? 'text-blue-100' : darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {message.time}
                     </div>
                   </div>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
 
-            {/* Mobile Message Input - Fixed */}
-            <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex-shrink-0 bg-white dark:bg-gray-800`}>
               {/* Selected file preview */}
               {selectedFile && (
-                <div className={`mb-2 p-2 rounded-lg flex items-center justify-between ${
+                <div className={`mx-4 mb-2 p-2 rounded-lg flex items-center justify-between ${
                   darkMode ? 'bg-gray-700' : 'bg-blue-50'
                 }`}>
                   <div className="flex items-center gap-2">
@@ -471,69 +532,72 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
                   </button>
                 </div>
               )}
-              
-              <div className="flex items-center gap-2">
-                <div className="relative">
+
+              {/* Mobile Message Input */}
+              <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex-shrink-0`}>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
+                    >
+                      <Smile className="w-5 h-5 text-gray-500" />
+                    </button>
+                    
+                    {showEmojiPicker && (
+                      <div className="absolute bottom-full left-0 mb-2 z-10">
+                        <EmojiPicker
+                          onEmojiClick={(emoji) => {
+                            setNewMessage(prev => prev + emoji.emoji);
+                            setShowEmojiPicker(false);
+                          }}
+                          theme={darkMode ? 'dark' : 'light'}
+                          width={280}
+                          height={350}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  
                   <button
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    onClick={() => fileInputRef.current?.click()}
                     className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
                   >
-                    <Smile className="w-5 h-5 text-gray-500" />
+                    <Paperclip className="w-5 h-5 text-gray-500" />
                   </button>
                   
-                  {showEmojiPicker && (
-                    <div className="absolute bottom-full left-0 mb-2 z-10">
-                      <EmojiPicker
-                        onEmojiClick={(emoji) => {
-                          setNewMessage(prev => prev + emoji.emoji);
-                          setShowEmojiPicker(false);
-                        }}
-                        theme={darkMode ? 'dark' : 'light'}
-                        width={280}
-                        height={350}
-                      />
-                    </div>
-                  )}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Type a message..."
+                    className={`flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      darkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'border-gray-200'
+                    }`}
+                    onKeyPress={handleKeyPress}
+                  />
+                  
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim() && !selectedFile}
+                    className={`p-2 rounded-xl transition-colors ${
+                      (!newMessage.trim() && !selectedFile) 
+                        ? 'bg-gray-300 text-gray-500 dark:bg-gray-600' 
+                        : 'bg-blue-500 hover:bg-blue-600 text-white'
+                    }`}
+                  >
+                    <Send className="w-5 h-5" />
+                  </button>
                 </div>
-                
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
-                >
-                  <Paperclip className="w-5 h-5 text-gray-500" />
-                </button>
-                
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  className={`flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    darkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                      : 'border-gray-200'
-                  }`}
-                  onKeyPress={handleKeyPress}
-                />
-                
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim() && !selectedFile}
-                  className={`p-2 rounded-xl transition-colors ${
-                    (!newMessage.trim() && !selectedFile) 
-                      ? 'bg-gray-300 text-gray-500 dark:bg-gray-600' 
-                      : 'bg-blue-500 hover:bg-blue-600 text-white'
-                  }`}
-                >
-                  <Send className="w-5 h-5" />
-                </button>
               </div>
             </div>
           </div>
@@ -542,68 +606,6 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
 
       {/* Desktop: Original Layout */}
       <div className="hidden md:flex w-full h-full">
-        {/* Call Interface Overlay */}
-        {callStatus && (
-          <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center ${darkMode ? 'bg-gray-900' : 'bg-gray-800'} bg-opacity-95 text-white p-6`}>
-            <div className="flex flex-col items-center justify-center flex-1 w-full max-w-4xl">
-              <div className="w-full h-64 md:h-96 bg-gray-700 rounded-lg mb-6 flex items-center justify-center relative overflow-hidden">
-                {callStatus === 'calling' ? (
-                  <div className="text-center">
-                    <div className="text-2xl font-semibold mb-2">Calling {currentChat?.name}...</div>
-                    <div className="text-lg text-gray-300">Please wait for the doctor to answer</div>
-                    <div className="mt-8 animate-pulse">
-                      <div className="w-24 h-24 mx-auto rounded-full bg-gray-600 flex items-center justify-center">
-                        {callType === 'video' ? (
-                          <Video className="w-12 h-12" />
-                        ) : (
-                          <Phone className="w-12 h-12" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="w-full h-full bg-gray-900"></div>
-                    <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 rounded-lg p-2">
-                      <div className="text-sm">{currentChat?.name}</div>
-                    </div>
-                  </>
-                )}
-              </div>
-              
-              {callType === 'video' && callStatus === 'in-progress' && (
-                <div className="w-32 h-24 bg-gray-900 rounded-lg absolute bottom-24 right-6 border-2 border-white">
-                  <div className="w-full h-full bg-gray-800"></div>
-                </div>
-              )}
-              
-              <div className="flex gap-6 mt-8">
-                <button 
-                  onClick={endCall}
-                  className="w-16 h-16 rounded-full bg-red-600 flex items-center justify-center hover:bg-red-700 transition-colors"
-                >
-                  <Phone className="w-8 h-8 transform rotate-135" />
-                </button>
-                
-                {callType === 'audio' && callStatus === 'in-progress' && (
-                  <button className="w-16 h-16 rounded-full bg-gray-600 flex items-center justify-center hover:bg-gray-700 transition-colors">
-                    <Mic className="w-8 h-8" />
-                  </button>
-                )}
-              </div>
-              
-              <div className="mt-8 text-center">
-                <div className="text-xl font-semibold">
-                  {callStatus === 'calling' ? 'Calling...' : '00:05:23'}
-                </div>
-                <div className="text-gray-400 mt-2">
-                  {callType === 'audio' ? 'Audio Call' : 'Video Call'} with {currentChat?.name}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Chat Users List */}
         <div className={`w-80 border-r ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} flex flex-col h-full`}>
           {/* Header */}
