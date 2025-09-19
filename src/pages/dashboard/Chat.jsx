@@ -10,6 +10,9 @@ const ChatTab = ({ darkMode }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showChatRoom, setShowChatRoom] = useState(false); // Mobile state for chat room
   
+  // Force initial state for debugging
+  console.log('Initial states:', { selectedChat, showChatRoom });
+  
   
   const [chatUsers] = useState([
     {
@@ -231,12 +234,37 @@ const ChatTab = ({ darkMode }) => {
   );
 
   // Debug logging
-  console.log('Chat state:', { selectedChat, showChatRoom, filteredChats: filteredChats.length });
+  console.log('Chat state:', { 
+    selectedChat, 
+    showChatRoom, 
+    filteredChats: filteredChats.length,
+    currentChat: currentChat?.name,
+    isMobile: window.innerWidth < 768
+  });
+
+  // Debug useEffect to track state changes
+  useEffect(() => {
+    console.log('State changed:', { selectedChat, showChatRoom });
+  }, [selectedChat, showChatRoom]);
 
   return (
     <div className="h-full flex overflow-hidden">
       {/* Mobile: Show profiles list or chat room based on state */}
       <div className="md:hidden w-full h-full">
+        {/* Debug indicator */}
+        <div className="fixed top-0 right-0 bg-red-500 text-white p-2 text-xs z-50">
+          Mobile View - showChatRoom: {showChatRoom.toString()}
+        </div>
+        {/* Debug test button */}
+        <button 
+          onClick={() => {
+            console.log('Test button clicked');
+            setShowChatRoom(true);
+          }}
+          className="fixed top-12 right-0 bg-blue-500 text-white p-2 text-xs z-50"
+        >
+          Test Open Chat
+        </button>
         {!showChatRoom ? (
           // Mobile: Profiles List View
           <div className={`w-full h-full flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
@@ -268,8 +296,10 @@ const ChatTab = ({ darkMode }) => {
                   key={chat.id}
                   onClick={() => {
                     console.log('Profile clicked:', chat.id);
+                    console.log('Before state change:', { selectedChat, showChatRoom });
                     setSelectedChat(chat.id);
                     setShowChatRoom(true);
+                    console.log('State change triggered for:', chat.id);
                   }}
                   className={`p-4 border-b cursor-pointer transition-colors ${
                     selectedChat === chat.id
