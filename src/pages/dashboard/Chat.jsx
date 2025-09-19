@@ -335,10 +335,10 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
       )}
 
       {/* Mobile Layout */}
-      <div className="md:hidden w-full h-screen">
+      <div className="md:hidden w-full h-full">
         {!showChatRoom ? (
           // Mobile: Profiles List View
-          <div className={`w-full h-screen flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+          <div className={`w-full h-full flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
             {/* Header */}
             <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex-shrink-0`}>
               <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-800'} mb-3`}>Messages</h2>
@@ -420,9 +420,9 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
           </div>
         ) : (
           // Mobile: Chat Room View
-          <div className={`w-full h-screen flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'} fixed inset-0 z-40`}>
-            {/* Mobile Chat Header with Back Button - Fixed */}
-            <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex items-center gap-3 flex-shrink-0 bg-white dark:bg-gray-800`}>
+          <div className={`w-full h-full flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'} relative`}>
+            {/* Mobile Chat Header - Fixed at top */}
+            <div className={`fixed top-0 left-0 right-0 z-10 p-4 border-b ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'} flex items-center gap-3`}>
               <button
                 onClick={handleBackToList}
                 className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
@@ -470,51 +470,51 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
               </div>
             </div>
 
-            {/* Mobile Messages Area - Scrollable */}
-            <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
-                {messages.map((message) => (
-                  <div key={message.id} className={`flex ${message.type === 'sent' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] px-4 py-2 rounded-2xl ${
-                      message.type === 'sent' 
-                        ? 'bg-blue-500 text-white' 
-                        : darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {message.type === 'received' && (
-                        <div className="text-xs font-semibold mb-1">{message.sender}</div>
-                      )}
-                      <p className="text-sm">{message.message}</p>
-                      
-                      {message.files && message.files.length > 0 && (
-                        <div className={`mt-2 space-y-2 ${message.type === 'sent' ? 'bg-blue-400' : darkMode ? 'bg-gray-600' : 'bg-gray-200'} p-2 rounded-lg`}>
-                          {message.files.map((file, index) => (
-                            <div key={index} className="flex items-center gap-2 text-xs">
-                              {renderFileIcon(file.type)}
-                              <div className="flex-1 min-w-0">
-                                <div className="truncate">{file.name}</div>
-                                <div className="text-gray-500">{file.size}</div>
-                              </div>
-                              <button className="text-blue-500 hover:text-blue-600">
-                                <Download className="w-4 h-4" />
-                              </button>
+            {/* Messages Container - Scrollable middle section */}
+            <div className="pt-20 pb-24 px-4 space-y-4 overflow-y-auto flex-1">
+              {messages.map((message) => (
+                <div key={message.id} className={`flex ${message.type === 'sent' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] px-4 py-2 rounded-2xl ${
+                    message.type === 'sent' 
+                      ? 'bg-blue-500 text-white' 
+                      : darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {message.type === 'received' && (
+                      <div className="text-xs font-semibold mb-1">{message.sender}</div>
+                    )}
+                    <p className="text-sm">{message.message}</p>
+                    
+                    {message.files && message.files.length > 0 && (
+                      <div className={`mt-2 space-y-2 ${message.type === 'sent' ? 'bg-blue-400' : darkMode ? 'bg-gray-600' : 'bg-gray-200'} p-2 rounded-lg`}>
+                        {message.files.map((file, index) => (
+                          <div key={index} className="flex items-center gap-2 text-xs">
+                            {renderFileIcon(file.type)}
+                            <div className="flex-1 min-w-0">
+                              <div className="truncate">{file.name}</div>
+                              <div className="text-gray-500">{file.size}</div>
                             </div>
-                          ))}
-                        </div>
-                      )}
-                      
-                      <div className={`text-xs mt-1 ${message.type === 'sent' ? 'text-blue-100' : darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                        {message.time}
+                            <button className="text-blue-500 hover:text-blue-600">
+                              <Download className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
                       </div>
+                    )}
+                    
+                    <div className={`text-xs mt-1 ${message.type === 'sent' ? 'text-blue-100' : darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {message.time}
                     </div>
                   </div>
-                ))}
-                <div ref={messagesEndRef} />
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
             </div>
 
-            {/* Mobile Message Input - Fixed */}
-            <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex-shrink-0 bg-white dark:bg-gray-800`}>
+            {/* Mobile Message Input - Fixed at bottom */}
+            <div className={`fixed bottom-0 left-0 right-0 z-10 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
               {/* Selected file preview */}
               {selectedFile && (
-                <div className={`mb-2 p-2 rounded-lg flex items-center justify-between ${
+                <div className={`mx-4 mb-2 p-2 rounded-lg flex items-center justify-between ${
                   darkMode ? 'bg-gray-700' : 'bg-blue-50'
                 }`}>
                   <div className="flex items-center gap-2">
@@ -532,69 +532,71 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
                   </button>
                 </div>
               )}
-              
-              <div className="flex items-center gap-2">
-                <div className="relative">
+
+              <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
+                    >
+                      <Smile className="w-5 h-5 text-gray-500" />
+                    </button>
+                    
+                    {showEmojiPicker && (
+                      <div className="absolute bottom-full left-0 mb-2 z-20">
+                        <EmojiPicker
+                          onEmojiClick={(emoji) => {
+                            setNewMessage(prev => prev + emoji.emoji);
+                            setShowEmojiPicker(false);
+                          }}
+                          theme={darkMode ? 'dark' : 'light'}
+                          width={280}
+                          height={350}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  
                   <button
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    onClick={() => fileInputRef.current?.click()}
                     className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
                   >
-                    <Smile className="w-5 h-5 text-gray-500" />
+                    <Paperclip className="w-5 h-5 text-gray-500" />
                   </button>
                   
-                  {showEmojiPicker && (
-                    <div className="absolute bottom-full left-0 mb-2 z-10">
-                      <EmojiPicker
-                        onEmojiClick={(emoji) => {
-                          setNewMessage(prev => prev + emoji.emoji);
-                          setShowEmojiPicker(false);
-                        }}
-                        theme={darkMode ? 'dark' : 'light'}
-                        width={280}
-                        height={350}
-                      />
-                    </div>
-                  )}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Type a message..."
+                    className={`flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      darkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'border-gray-200'
+                    }`}
+                    onKeyPress={handleKeyPress}
+                  />
+                  
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim() && !selectedFile}
+                    className={`p-2 rounded-xl transition-colors ${
+                      (!newMessage.trim() && !selectedFile) 
+                        ? 'bg-gray-300 text-gray-500 dark:bg-gray-600' 
+                        : 'bg-blue-500 hover:bg-blue-600 text-white'
+                    }`}
+                  >
+                    <Send className="w-5 h-5" />
+                  </button>
                 </div>
-                
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
-                >
-                  <Paperclip className="w-5 h-5 text-gray-500" />
-                </button>
-                
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  className={`flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    darkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                      : 'border-gray-200'
-                  }`}
-                  onKeyPress={handleKeyPress}
-                />
-                
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim() && !selectedFile}
-                  className={`p-2 rounded-xl transition-colors ${
-                    (!newMessage.trim() && !selectedFile) 
-                      ? 'bg-gray-300 text-gray-500 dark:bg-gray-600' 
-                      : 'bg-blue-500 hover:bg-blue-600 text-white'
-                  }`}
-                >
-                  <Send className="w-5 h-5" />
-                </button>
               </div>
             </div>
           </div>
