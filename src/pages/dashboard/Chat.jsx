@@ -230,6 +230,9 @@ const ChatTab = ({ darkMode }) => {
     chat.role.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Debug logging
+  console.log('Chat state:', { selectedChat, showChatRoom, filteredChats: filteredChats.length });
+
   return (
     <div className="h-full flex overflow-hidden">
       {/* Mobile: Show profiles list or chat room based on state */}
@@ -264,6 +267,7 @@ const ChatTab = ({ darkMode }) => {
                 <div
                   key={chat.id}
                   onClick={() => {
+                    console.log('Profile clicked:', chat.id);
                     setSelectedChat(chat.id);
                     setShowChatRoom(true);
                   }}
