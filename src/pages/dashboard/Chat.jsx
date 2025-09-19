@@ -450,26 +450,36 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
 
             {/* Mobile Message Input - Fixed */}
             <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex-shrink-0`}>
+              {/* Selected file preview */}
+              {selectedFile && (
+                <div className={`mb-2 p-2 rounded-lg flex items-center justify-between ${
+                  darkMode ? 'bg-gray-700' : 'bg-blue-50'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <Paperclip className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm truncate max-w-xs">{selectedFile.name}</span>
+                    <span className="text-xs text-gray-500">
+                      ({(selectedFile.size / 1024).toFixed(1)} KB)
+                    </span>
+                  </div>
+                  <button 
+                    onClick={removeSelectedFile}
+                    className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+              
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
-                >
-                  <Smile className="w-5 h-5 text-gray-500" />
-                </button>
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Type a message..."
-                    className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      darkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-200'
-                    }`}
-                  />
+                <div className="relative">
+                  <button
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
+                  >
+                    <Smile className="w-5 h-5 text-gray-500" />
+                  </button>
+                  
                   {showEmojiPicker && (
                     <div className="absolute bottom-full left-0 mb-2 z-10">
                       <EmojiPicker
@@ -484,13 +494,41 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
                     </div>
                   )}
                 </div>
+                
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
+                >
+                  <Paperclip className="w-5 h-5 text-gray-500" />
+                </button>
+                
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  className={`flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    darkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'border-gray-200'
+                  }`}
+                  onKeyPress={handleKeyPress}
+                />
+                
                 <button
                   onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
-                  className={`p-2 rounded-lg transition-colors ${
-                    newMessage.trim()
-                      ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                      : darkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-200 text-gray-400'
+                  disabled={!newMessage.trim() && !selectedFile}
+                  className={`p-2 rounded-xl transition-colors ${
+                    (!newMessage.trim() && !selectedFile) 
+                      ? 'bg-gray-300 text-gray-500 dark:bg-gray-600' 
+                      : 'bg-blue-500 hover:bg-blue-600 text-white'
                   }`}
                 >
                   <Send className="w-5 h-5" />
