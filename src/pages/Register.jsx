@@ -4,6 +4,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { User, Building2, Mail, Lock, Phone, MapPin, Globe, FileText, Heart, Stethoscope, UserCheck, Briefcase, GraduationCap, Calendar, Upload, Eye, EyeOff, X, Shield } from 'lucide-react'
 import logo from '../assets/logo.png'
+import { storeTokens } from '../lib/tokenManager'
+import { signInWithPopup } from 'firebase/auth'
+import { auth, googleProvider } from '../lib/firebase'
 
 // Custom CSS for range sliders
 const sliderStyles = `
@@ -54,6 +57,7 @@ function Register() {
   const [otp, setOtp] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
   const [registeredEmail, setRegisteredEmail] = useState('')
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   const onSubmit = async (data) => {
     setIsLoading(true)
@@ -136,6 +140,11 @@ function Register() {
 
       console.log('Registration successful:', response.data)
       
+      // Store tokens and user data if provided
+      if (response.data.access && response.data.refresh) {
+        storeTokens(response.data.access, response.data.refresh, response.data.user)
+      }
+      
       // If backend requires OTP, show popup; else go to dashboard
       if (response?.data?.requires_otp || response?.data?.otp_required) {
         setRegisteredEmail(data.email)
@@ -203,6 +212,11 @@ function Register() {
       console.log('OTP verification successful:', response.data)
       alert('Account verified successfully!')
       
+      // Store tokens and user data if provided after OTP verification
+      if (response.data.access && response.data.refresh) {
+        storeTokens(response.data.access, response.data.refresh, response.data.user)
+      }
+      
       // Close popup and optionally redirect to login
       setShowOtpPopup(false)
       setOtp('')
@@ -230,6 +244,56 @@ function Register() {
       alert(errorMessage)
     } finally {
       setOtpLoading(false)
+    }
+  }
+
+  // Google Sign-Up handler
+  const handleGoogleSignUp = async () => {
+    setGoogleLoading(true)
+    try {
+      const result = await signInWithPopup(auth, googleProvider)
+      const user = result.user
+      
+      // Get the ID token
+      const idToken = await user.getIdToken()
+      
+      // Send to your backend for registration
+      const apiUrl = type === 'individual' 
+        ? 'https://jeewanjyoti-backend.smart.org.np/api/firebase-register/'
+        : 'https://jeewanjyoti-backend.smart.org.np/api/ins/firebase-register/'
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id_token: idToken,
+          user_type: type,
+          role: role // Include the selected role for individual users
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Google registration failed with status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      console.log('Google registration successful:', data)
+      
+      // Store tokens and user data
+      storeTokens(data.access, data.refresh, data.user)
+      
+      // Navigate to dashboard
+      navigate('/dashboard')
+      
+    } catch (error) {
+      console.error('Google registration error:', error)
+      console.error('Error details:', error.message)
+      console.error('Error code:', error.code)
+      alert(`Google registration failed: ${error.message}. Please check the console for more details.`)
+    } finally {
+      setGoogleLoading(false)
     }
   }
 
@@ -780,6 +844,38 @@ function Register() {
                 )}
               </button>
             </form>
+
+            {/* Divider */}
+            <div className="flex items-center my-6">
+              <div className="flex-1 border-t border-gray-200"></div>
+              <span className="px-4 text-gray-500 text-sm font-medium bg-white rounded-full">or continue with</span>
+              <div className="flex-1 border-t border-gray-200"></div>
+            </div>
+
+            {/* Google Sign-Up Button */}
+            <button 
+              onClick={handleGoogleSignUp}
+              disabled={googleLoading}
+              className={`w-full py-3 px-8 rounded-2xl font-bold text-lg shadow-xl transition-all duration-300 transform ${
+                googleLoading
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-white border-2 border-gray-200 hover:border-gray-300 text-gray-700 hover:shadow-2xl hover:scale-105 active:scale-95'
+              }`}
+            >
+              {googleLoading ? (
+                <div className="flex items-center justify-center gap-3">
+                  <div className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+                  Signing up with Google...
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-3">
+                  <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">G</span>
+                  </div>
+                  Sign up with Google
+                </div>
+              )}
+            </button>
 
             {/* Footer */}
             <div className="text-center mt-8 text-gray-500 text-sm">

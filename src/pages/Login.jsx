@@ -4,6 +4,7 @@ import logo from '../assets/logo.png'
 import { useNavigate } from 'react-router-dom'
 import { signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider } from '../lib/firebase'
+import { storeTokens } from '../lib/tokenManager'
 
 // Memoize the InputField component to prevent unnecessary re-renders
 const InputField = memo(({ icon: Icon, label, error, children, required = false }) => (
@@ -242,13 +243,8 @@ function Login() {
       const data = await response.json()
       console.log('Google login successful:', data)
       
-      // Store tokens if provided
-      if (data.access) {
-        localStorage.setItem('access_token', data.access)
-      }
-      if (data.refresh) {
-        localStorage.setItem('refresh_token', data.refresh)
-      }
+      // Store tokens and user data
+      storeTokens(data.access, data.refresh, data.user)
       
       navigate('/dashboard')
       
@@ -296,6 +292,10 @@ function Login() {
       
       const data = await response.json()
       console.log('Login successful:', data)
+      
+      // Store tokens and user data
+      storeTokens(data.access, data.refresh, data.user)
+      
       navigate('/dashboard')
       
     } catch (error) {

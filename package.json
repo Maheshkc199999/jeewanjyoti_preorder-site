@@ -13,6 +13,7 @@
     "@tailwindcss/vite": "^4.1.12",
     "axios": "^1.12.2",
     "chart.js": "^4.5.0",
+    "dotenv": "^17.2.2",
     "emoji-picker-react": "^4.13.3",
     "firebase": "^12.2.1",
     "framer-motion": "^12.23.12",

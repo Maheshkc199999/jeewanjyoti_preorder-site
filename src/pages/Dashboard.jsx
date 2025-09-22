@@ -5,9 +5,12 @@ import { Home, Calendar, MessageCircle, User, Moon, Sun, Bell, Settings, Menu, X
 import jjlogo from '../assets/jjlogo.png';
 import HomeTab from './dashboard/Home';
 import AppointmentsTab from './dashboard/Appointments';
+import ErrorBoundary from '../components/ErrorBoundary';
 import ChatTab from './dashboard/Chat';
 import ProfileTab from './dashboard/Profile';
 import { auth } from '../lib/firebase';
+import { isAuthenticated, getUserData, clearTokens } from '../lib/tokenManager';
+import { logoutUser } from '../lib/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -20,21 +23,36 @@ const Dashboard = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [isChatRoomOpen, setIsChatRoomOpen] = useState(false);
+  const [backendUser, setBackendUser] = useState(null);
 
   // Check authentication status
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUser(user);
+    const checkAuthentication = () => {
+      // Check if user has valid tokens
+      if (isAuthenticated()) {
+        const userData = getUserData();
+        setBackendUser(userData);
         setLoading(false);
       } else {
-        setUser(null);
-        setLoading(false);
-        navigate('/login');
+        // Check Firebase auth as fallback
+        const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+          if (firebaseUser) {
+            setUser(firebaseUser);
+            setLoading(false);
+          } else {
+            setUser(null);
+            setLoading(false);
+            navigate('/login');
+          }
+        });
+        return unsubscribe;
       }
-    });
+    };
 
-    return () => unsubscribe();
+    const unsubscribe = checkAuthentication();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [navigate]);
 
   // Close filter dropdown when clicking outside
@@ -64,10 +82,22 @@ const Dashboard = () => {
   // Handle logout confirmation
   const handleLogoutConfirm = async () => {
     try {
-      await signOut(auth);
+      // Try to logout from backend first
+      await logoutUser();
+      
+      // Also sign out from Firebase if user is signed in
+      if (user) {
+        await signOut(auth);
+      }
+      
+      // Clear all tokens and redirect
+      clearTokens();
       navigate('/login');
     } catch (error) {
       console.error('Error signing out:', error);
+      // Even if logout fails, clear tokens and redirect
+      clearTokens();
+      navigate('/login');
     }
   };
 
@@ -91,11 +121,18 @@ const Dashboard = () => {
   }, [darkMode]);
 
   const renderContent = () => {
+    console.log('Dashboard renderContent - activeTab:', activeTab, 'user:', !!user, 'backendUser:', !!backendUser);
+    
     switch (activeTab) {
       case 'home':
         return <HomeTab darkMode={darkMode} selectedPeriod={selectedPeriod} setSelectedPeriod={setSelectedPeriod} />;
       case 'appointments':
-        return <AppointmentsTab darkMode={darkMode} />;
+        console.log('Rendering AppointmentsTab with ErrorBoundary...');
+        return (
+          <ErrorBoundary>
+            <AppointmentsTab darkMode={darkMode} />
+          </ErrorBoundary>
+        );
       case 'chat':
         return <ChatTab darkMode={darkMode} onChatRoomStateChange={handleChatRoomStateChange} />;
       case 'profile':
@@ -118,7 +155,7 @@ const Dashboard = () => {
   }
 
   // Don't render anything if user is not authenticated (will redirect)
-  if (!user) {
+  if (!user && !backendUser) {
     return null;
   }
 
@@ -218,7 +255,7 @@ const Dashboard = () => {
               }`}>
                 <User className="w-4 h-4 text-gray-500" />
                 <span className="text-sm font-medium truncate max-w-32">
-                  {user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}
+                  {backendUser?.first_name || user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}
                 </span>
               </div>
               

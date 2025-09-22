@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Heart, Moon, Activity, Zap, Brain, Gauge, Target, TrendingUp, Clock } from 'lucide-react';
+import { Heart, Moon, Activity, Zap, Brain, Gauge, Target, TrendingUp, Clock, Droplets, Thermometer, BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Activity as ActivityIcon } from 'lucide-react';
 
 const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
   // Sample data for different metrics
@@ -49,17 +49,27 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
     { time: '8PM', level: 20 }
   ];
 
-  const MetricCard = ({ icon: Icon, title, value, unit, trend, color, children }) => (
+  const MetricCard = ({ icon: Icon, title, value, unit, trend, color, chartType, children }) => (
     <div className={`rounded-2xl p-4 md:p-6 shadow-lg transition-all duration-300 border ${
       darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
     }`}>
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className={`p-2 md:p-3 rounded-xl ${color} bg-opacity-10`}>
-            <Icon className={`w-5 h-5 md:w-6 md:h-6 ${color.replace('bg-', 'text-')}`} />
+          <div className={`p-3 md:p-4 rounded-xl ${color} bg-opacity-20 shadow-lg`}>
+            <Icon className={`w-6 h-6 md:w-8 md:h-8 ${color.replace('bg-', 'text-')}`} />
           </div>
           <div>
-            <h3 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{title}</h3>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{title}</h3>
+              {chartType && (
+                <div className={`p-1 rounded-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  {chartType === 'area' && <AreaChart className="w-3 h-3 text-gray-500" />}
+                  {chartType === 'line' && <LineChartIcon className="w-3 h-3 text-gray-500" />}
+                  {chartType === 'bar' && <BarChart3 className="w-3 h-3 text-gray-500" />}
+                  {chartType === 'pie' && <PieChartIcon className="w-3 h-3 text-gray-500" />}
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <span className={`text-xl md:text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{value}</span>
               <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{unit}</span>
@@ -67,7 +77,11 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
           </div>
         </div>
         {trend && (
-          <div className="flex items-center gap-1 text-green-600 bg-green-50 px-2 py-1 rounded-full text-xs md:text-sm">
+          <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs md:text-sm ${
+            trend.includes('+') || trend === 'Normal' || trend === 'Excellent' || trend === 'Improving' || trend === 'Good Recovery'
+              ? 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400'
+              : 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400'
+          }`}>
             <TrendingUp className="w-3 h-3 md:w-4 md:h-4" />
             {trend}
           </div>
@@ -148,6 +162,7 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
           unit="BPM"
           trend="+2%"
           color="bg-red-500"
+          chartType="area"
         >
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={heartRateData}>
@@ -182,12 +197,13 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
 
         {/* Blood Oxygen */}
         <MetricCard
-          icon={Zap}
+          icon={Droplets}
           title="Blood Oxygen"
           value="98"
           unit="%"
           trend="Normal"
           color="bg-blue-500"
+          chartType="line"
         >
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={bloodOxygenData}>
@@ -231,6 +247,7 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
           unit="hours"
           trend="Excellent"
           color="bg-indigo-500"
+          chartType="pie"
         >
           <div className="flex items-center justify-between">
             <ResponsiveContainer width="60%" height={200}>
@@ -274,6 +291,7 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
           unit="steps today"
           trend="+15%"
           color="bg-green-500"
+          chartType="bar"
         >
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={activityData}>
@@ -310,6 +328,7 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
           unit="Low"
           trend="Improving"
           color="bg-purple-500"
+          chartType="area"
         >
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={stressData}>
@@ -349,11 +368,16 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
             darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
           }`}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 md:p-3 rounded-xl bg-orange-500 bg-opacity-10">
-                <Gauge className="w-5 h-5 md:w-6 md:h-6 text-orange-500" />
+              <div className="p-3 md:p-4 rounded-xl bg-orange-500 bg-opacity-20 shadow-lg">
+                <Thermometer className="w-6 h-6 md:w-8 md:h-8 text-orange-500" />
               </div>
               <div>
-                <h3 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Blood Pressure</h3>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Blood Pressure</h3>
+                  <div className={`p-1 rounded-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                    <Gauge className="w-3 h-3 text-gray-500" />
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-lg md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>120/80</span>
                   <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>mmHg</span>
@@ -361,7 +385,7 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-green-600 bg-green-50 px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium">
+              <span className="text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium">
                 Normal Range
               </span>
               <Clock className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
@@ -372,11 +396,16 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
             darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
           }`}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 md:p-3 rounded-xl bg-teal-500 bg-opacity-10">
-                <Target className="w-5 h-5 md:w-6 md:h-6 text-teal-500" />
+              <div className="p-3 md:p-4 rounded-xl bg-teal-500 bg-opacity-20 shadow-lg">
+                <Target className="w-6 h-6 md:w-8 md:h-8 text-teal-500" />
               </div>
               <div>
-                <h3 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>HRV Score</h3>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>HRV Score</h3>
+                  <div className={`p-1 rounded-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                    <ActivityIcon className="w-3 h-3 text-gray-500" />
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-lg md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>45</span>
                   <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>ms</span>
@@ -384,7 +413,7 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-blue-600 bg-blue-50 px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium">
+              <span className="text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400 px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium">
                 Good Recovery
               </span>
               <div className={`w-16 md:w-24 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} rounded-full h-2`}>
