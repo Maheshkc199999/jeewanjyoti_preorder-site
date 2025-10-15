@@ -140,18 +140,9 @@ function Register() {
 
       console.log('Registration successful:', response.data)
       
-      // Store tokens and user data if provided
-      if (response.data.access && response.data.refresh) {
-        storeTokens(response.data.access, response.data.refresh, response.data.user)
-      }
-      
-      // If backend requires OTP, show popup; else go to dashboard
-      if (response?.data?.requires_otp || response?.data?.otp_required) {
-        setRegisteredEmail(data.email)
-        setShowOtpPopup(true)
-      } else {
-        navigate('/dashboard')
-      }
+      // Always show OTP popup after successful registration
+      setRegisteredEmail(data.email)
+      setShowOtpPopup(true)
       
     } catch (error) {
       console.error('Full error:', error)

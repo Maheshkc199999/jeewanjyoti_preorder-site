@@ -8,6 +8,7 @@ import AppointmentsTab from './dashboard/Appointments';
 import ErrorBoundary from '../components/ErrorBoundary';
 import ChatTab from './dashboard/Chat';
 import ProfileTab from './dashboard/Profile';
+import SettingsTab from './dashboard/Settings';
 import { auth } from '../lib/firebase';
 import { isAuthenticated, getUserData, clearTokens } from '../lib/tokenManager';
 import { logoutUser } from '../lib/api';
@@ -137,6 +138,8 @@ const Dashboard = () => {
         return <ChatTab darkMode={darkMode} onChatRoomStateChange={handleChatRoomStateChange} />;
       case 'profile':
         return <ProfileTab darkMode={darkMode} />;
+      case 'settings':
+        return <SettingsTab darkMode={darkMode} />;
       default:
         return <HomeTab darkMode={darkMode} selectedPeriod={selectedPeriod} setSelectedPeriod={setSelectedPeriod} />;
     }
@@ -382,11 +385,13 @@ const Dashboard = () => {
                   }`}>
                     <Bell className="w-5 h-5 text-gray-500" />
                   </button>
-                  <button className={`p-2 rounded-lg transition-colors ${
-                    darkMode 
-                      ? 'hover:bg-gray-700' 
-                      : 'hover:bg-gray-100'
-                  }`}>
+                  <button 
+                    onClick={() => setActiveTab('settings')}
+                    className={`p-2 rounded-lg transition-colors ${
+                      darkMode 
+                        ? 'hover:bg-gray-700' 
+                        : 'hover:bg-gray-100'
+                    }`}>
                     <Settings className="w-5 h-5 text-gray-500" />
                   </button>
                   <button 
@@ -484,7 +489,7 @@ const Dashboard = () => {
             </button>
             <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-2">
               <button
-                onClick={() => { setIsMobileMenuOpen(false); }}
+                onClick={() => { setActiveTab('settings'); setIsMobileMenuOpen(false); }}
                 className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
                   darkMode 
                     ? 'text-gray-300 hover:bg-gray-800' 
