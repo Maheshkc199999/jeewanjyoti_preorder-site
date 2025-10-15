@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Bell, Send, Paperclip, Mic, Video, Phone, X, Smile, Image, 
   File, Download, Search, MoreHorizontal, Circle, ArrowLeft
@@ -27,130 +27,45 @@ const EmojiPicker = ({ onEmojiClick, theme, height, width }) => {
   );
 };
 
+import { getAccessToken } from '../../lib/tokenManager';
+
 const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
-  const [selectedChat, setSelectedChat] = useState('dr-smith');
+  const [selectedChat, setSelectedChat] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showChatRoom, setShowChatRoom] = useState(false);
   
-  const [chatUsers] = useState([
-    {
-      id: 'dr-smith',
-      name: 'Dr. Sarah Smith',
-      role: 'Cardiologist',
-      avatar: 'SS',
-      lastMessage: 'Your latest test results look great!',
-      time: '2:30 PM',
-      unread: 3,
-      online: true,
-      messages: [
-        { 
-          id: 1, 
-          sender: 'Dr. Smith', 
-          message: 'Your latest test results look great! Keep up the good work with your exercise routine.', 
-          time: '2:30 PM', 
-          type: 'received',
-          avatar: 'SS'
-        },
-        { 
-          id: 2, 
-          sender: 'You', 
-          message: 'Thank you! Should I continue with the same medication dosage?', 
-          time: '2:45 PM', 
-          type: 'sent'
-        },
-        { 
-          id: 3, 
-          sender: 'Dr. Smith', 
-          message: 'Yes, continue with the current dosage. Let\'s schedule a follow-up in 2 weeks.', 
-          time: '3:00 PM', 
-          type: 'received',
-          avatar: 'SS'
-        },
-        {
-          id: 4,
-          sender: 'Dr. Smith',
-          message: 'Here are the documents I mentioned during our last visit.',
-          time: '3:15 PM',
-          type: 'received',
-          avatar: 'SS',
-          files: [
-            { name: 'Test_Results.pdf', size: '2.4 MB', type: 'pdf' },
-            { name: 'Exercise_Plan.pdf', size: '1.8 MB', type: 'pdf' }
-          ]
-        }
-      ]
-    },
-    {
-      id: 'dr-johnson',
-      name: 'Dr. Michael Johnson',
-      role: 'General Physician',
-      avatar: 'MJ',
-      lastMessage: 'How are you feeling today?',
-      time: '1:15 PM',
-      unread: 1,
-      online: true,
-      messages: [
-        { 
-          id: 1, 
-          sender: 'Dr. Johnson', 
-          message: 'How are you feeling today? Any symptoms to report?', 
-          time: '1:15 PM', 
-          type: 'received',
-          avatar: 'MJ'
-        },
-        { 
-          id: 2, 
-          sender: 'You', 
-          message: 'I\'m feeling much better, thank you!', 
-          time: '1:20 PM', 
-          type: 'sent'
-        }
-      ]
-    },
-    {
-      id: 'dr-wilson',
-      name: 'Dr. Emily Wilson',
-      role: 'Dermatologist',
-      avatar: 'EW',
-      lastMessage: 'Your skin condition is improving well.',
-      time: '11:30 AM',
-      unread: 0,
-      online: false,
-      messages: [
-        { 
-          id: 1, 
-          sender: 'Dr. Wilson', 
-          message: 'Your skin condition is improving well. Continue with the prescribed cream.', 
-          time: '11:30 AM', 
-          type: 'received',
-          avatar: 'EW'
-        }
-      ]
-    },
-    {
-      id: 'nurse-patel',
-      name: 'Nurse Priya Patel',
-      role: 'Nurse',
-      avatar: 'PP',
-      lastMessage: 'Your appointment is confirmed for tomorrow.',
-      time: '10:45 AM',
-      unread: 0,
-      online: true,
-      messages: [
-        { 
-          id: 1, 
-          sender: 'Nurse Patel', 
-          message: 'Your appointment is confirmed for tomorrow at 2 PM.', 
-          time: '10:45 AM', 
-          type: 'received',
-          avatar: 'PP'
-        }
-      ]
-    }
-  ]);
+  // Conversations from backend
+  const [conversations, setConversations] = useState([]);
+  const [wsError, setWsError] = useState(null);
+  const [wsConnected, setWsConnected] = useState(false);
+  const wsRef = useRef(null);
+  const userDataRef = useRef(null);
+
+  // Derived chat users list for UI from conversations
+  const chatUsers = useMemo(() => {
+    return (conversations || []).map((c) => {
+      const user = c.user || {};
+      const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || `User ${user.id}`;
+      const initials = `${(user.first_name || '').charAt(0)}${(user.last_name || '').charAt(0)}`.toUpperCase() || 'U';
+      const lastMsg = c.last_message?.message || '';
+      const time = c.last_message_time ? new Date(c.last_message_time).toLocaleString() : '';
+      return {
+        id: String(user.id),
+        name,
+        role: user.username || '',
+        avatar: initials,
+        photoUrl: user.profile_image || null,
+        lastMessage: lastMsg,
+        time,
+        unread: c.unread_count || 0,
+        online: user.status === 'online',
+        messages: [],
+      };
+    });
+  }, [conversations]);
 
   const currentChat = chatUsers.find(chat => chat.id === selectedChat);
-  const [messages, setMessages] = useState(currentChat?.messages || []);
+  const [messages, setMessages] = useState([]);
   
   const [newMessage, setNewMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -249,7 +164,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
 
   const filteredChats = chatUsers.filter(chat => 
     chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    chat.role.toLowerCase().includes(searchQuery.toLowerCase())
+    (chat.role || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Handle profile click for mobile
@@ -269,6 +184,124 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
       onChatRoomStateChange(showChatRoom);
     }
   }, [showChatRoom, onChatRoomStateChange]);
+
+  // Initialize userData
+  useEffect(() => {
+    try {
+      userDataRef.current = JSON.parse(localStorage.getItem('user_data') || '{}');
+    } catch {
+      userDataRef.current = {};
+    }
+  }, []);
+
+  // WebSocket: connect and listen
+  useEffect(() => {
+    const token = getAccessToken();
+    if (!token) return;
+    const wsUrl = `wss://jeewanjyoti-backend.smart.org.np/ws/conversations/?token=${token}`;
+    let socket;
+    try {
+      socket = new WebSocket(wsUrl);
+    } catch (e) {
+      setWsError('Failed to initialize WebSocket');
+      return;
+    }
+
+    socket.onopen = () => {
+      setWsConnected(true);
+      setWsError(null);
+      wsRef.current = socket;
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data?.type === 'conversation_list' && Array.isArray(data.conversations)) {
+          setConversations(data.conversations);
+          // Set a default selection if none
+          if (!selectedChat && data.conversations.length > 0) {
+            const firstId = String(data.conversations[0]?.user?.id);
+            if (firstId) setSelectedChat(firstId);
+          }
+        } else if ((data?.type === 'conversation_messages' || data?.type === 'message_list') && Array.isArray(data.messages)) {
+          // Map messages for current selected chat
+          const currentUserId = userDataRef.current?.id;
+          const mapped = data.messages.map((m) => ({
+            id: m.id,
+            sender: m.sender_id === currentUserId ? 'You' : (m.sender_name || 'User'),
+            message: m.message || '',
+            time: m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+            type: m.sender_id === currentUserId ? 'sent' : 'received',
+            files: m.has_media ? m.files || [] : undefined,
+          }));
+          setMessages(mapped);
+        } else if (data?.type === 'new_message' && data.message) {
+          // Append live new message if it belongs to the current chat
+          const currentUserId = userDataRef.current?.id;
+          const fromUserId = String(data.message.sender_id === currentUserId ? data.message.receiver_id : data.message.sender_id);
+          if (fromUserId === selectedChat) {
+            const newMsg = {
+              id: data.message.id,
+              sender: data.message.sender_id === currentUserId ? 'You' : (data.message.sender_name || 'User'),
+              message: data.message.message || '',
+              time: data.message.timestamp ? new Date(data.message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+              type: data.message.sender_id === currentUserId ? 'sent' : 'received',
+              files: data.message.has_media ? data.message.files || [] : undefined,
+            };
+            setMessages((prev) => [...prev, newMsg]);
+          }
+        }
+      } catch (err) {
+        console.error('WS message parse error:', err);
+      }
+    };
+
+    socket.onerror = () => {
+      setWsConnected(false);
+      setWsError('WebSocket connection error');
+    };
+
+    socket.onclose = () => {
+      setWsConnected(false);
+    };
+
+    return () => {
+      try { socket && socket.close(); } catch {}
+      wsRef.current = null;
+    };
+  }, []);
+
+  // Request messages for selected chat
+  useEffect(() => {
+    if (!selectedChat || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    try {
+      // Send multiple request formats for compatibility
+      const uid = Number(selectedChat);
+      wsRef.current.send(JSON.stringify({ type: 'get_conversation_messages', user_id: uid }));
+      wsRef.current.send(JSON.stringify({ type: 'get_messages', user_id: uid }));
+    } catch (e) {
+      console.error('Failed to request messages:', e);
+    }
+  }, [selectedChat]);
+
+  // Provisional fill: if we have no messages yet, show the last_message from conversation list
+  useEffect(() => {
+    if (!selectedChat) return;
+    if (messages && messages.length > 0) return;
+    const conv = (conversations || []).find(c => String(c?.user?.id) === String(selectedChat));
+    if (conv && conv.last_message) {
+      const currentUserId = userDataRef.current?.id;
+      const lm = conv.last_message;
+      const mapped = [{
+        id: lm.id,
+        sender: lm.sender_id === currentUserId ? 'You' : (conv.user?.first_name || 'User'),
+        message: lm.message || '',
+        time: lm.timestamp ? new Date(lm.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+        type: lm.sender_id === currentUserId ? 'sent' : 'received',
+      }];
+      setMessages(mapped);
+    }
+  }, [selectedChat, conversations, messages]);
 
   return (
     <div className="h-full flex overflow-hidden">
@@ -376,36 +409,31 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
                         : 'hover:bg-gray-50 border-gray-200'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${
-                        chat.id === 'dr-smith' ? 'bg-gradient-to-r from-blue-500 to-purple-500' :
-                        chat.id === 'dr-johnson' ? 'bg-gradient-to-r from-green-500 to-teal-500' :
-                        chat.id === 'dr-wilson' ? 'bg-gradient-to-r from-pink-500 to-rose-500' :
-                        'bg-gradient-to-r from-orange-500 to-yellow-500'
-                      }`}>
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    {chat.photoUrl ? (
+                      <img src={chat.photoUrl} alt={chat.name} className="w-12 h-12 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold bg-gradient-to-r from-blue-500 to-purple-500">
                         {chat.avatar}
                       </div>
-                      {chat.online && (
-                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
-                      )}
-                    </div>
+                    )}
+                    {chat.online && (
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+                    )}
+                  </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <h3 className={`font-semibold truncate ${darkMode ? 'text-white' : 'text-gray-800'}`}>
                           {chat.name}
                         </h3>
                         <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {chat.time}
+                        {chat.time}
                         </span>
                       </div>
-                      <p className={`text-sm truncate ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {chat.lastMessage}
-                      </p>
+                    <p className={`text-sm truncate ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{chat.lastMessage}</p>
                       <div className="flex items-center justify-between mt-1">
-                        <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                          {chat.role}
-                        </span>
+                      <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{chat.role}</span>
                         {chat.unread > 0 && (
                           <div className="bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                             {chat.unread}
@@ -646,14 +674,13 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
               >
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm ${
-                      chat.id === 'dr-smith' ? 'bg-gradient-to-r from-blue-500 to-purple-500' :
-                      chat.id === 'dr-johnson' ? 'bg-gradient-to-r from-green-500 to-teal-500' :
-                      chat.id === 'dr-wilson' ? 'bg-gradient-to-r from-pink-500 to-rose-500' :
-                      'bg-gradient-to-r from-orange-500 to-yellow-500'
-                    }`}>
-                      {chat.avatar}
-                    </div>
+                    {chat.photoUrl ? (
+                      <img src={chat.photoUrl} alt={chat.name} className="w-12 h-12 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-r from-blue-500 to-purple-500">
+                        {chat.avatar}
+                      </div>
+                    )}
                     {chat.online && (
                       <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
                     )}
@@ -664,16 +691,10 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
                       <h3 className={`font-semibold text-sm ${darkMode ? 'text-white' : 'text-gray-800'} truncate`}>
                         {chat.name}
                       </h3>
-                      <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                        {chat.time}
-                      </span>
+                      <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{chat.time}</span>
                     </div>
-                    <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'} truncate`}>
-                      {chat.role}
-                    </p>
-                    <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'} truncate mt-1`}>
-                      {chat.lastMessage}
-                    </p>
+                    <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'} truncate`}>{chat.role}</p>
+                    <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'} truncate mt-1`}>{chat.lastMessage}</p>
                   </div>
                   
                   {chat.unread > 0 && (
