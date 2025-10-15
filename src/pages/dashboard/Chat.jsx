@@ -40,6 +40,8 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef(null);
   const userDataRef = useRef(null);
+  const chatWsRef = useRef(null);
+  const [chatWsConnected, setChatWsConnected] = useState(false);
 
   // Derived chat users list for UI from conversations
   const chatUsers = useMemo(() => {
@@ -76,11 +78,10 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  // Update messages when chat changes
+  // Do not use any dummy messages on chat change
   useEffect(() => {
-    const chat = chatUsers.find(chat => chat.id === selectedChat);
-    setMessages(chat?.messages || []);
-  }, [selectedChat, chatUsers]);
+    setMessages([]);
+  }, [selectedChat]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -92,27 +93,27 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   };
 
   const handleSendMessage = () => {
-    if (newMessage.trim() || selectedFile) {
-      const message = {
-        id: messages.length + 1,
+    if (!newMessage.trim() && !selectedFile) return;
+    const text = newMessage.trim();
+    if (text) {
+      const optimistic = {
+        id: Date.now(),
         sender: 'You',
-        message: newMessage,
+        message: text,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        type: 'sent'
+        type: 'sent',
       };
-
-      if (selectedFile) {
-        message.files = [{
-          name: selectedFile.name,
-          size: `${(selectedFile.size / 1024 / 1024).toFixed(1)} MB`,
-          type: selectedFile.type.split('/')[1] || 'file'
-        }];
-      }
-
-      setMessages([...messages, message]);
-      setNewMessage('');
-      setSelectedFile(null);
+      setMessages((prev) => [...prev, optimistic]);
     }
+    try {
+      if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
+        chatWsRef.current.send(JSON.stringify({ type: 'text_message', message: text }));
+      }
+    } catch (e) {
+      console.error('Failed to send WS message', e);
+    }
+    setNewMessage('');
+    setSelectedFile(null);
   };
 
   const handleKeyPress = (e) => {
@@ -313,6 +314,58 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
       wsRef.current = null;
     };
   }, []);
+
+  // Open per-chat WebSocket for sending/receiving live messages
+  useEffect(() => {
+    const token = getAccessToken();
+    if (!selectedChat || !token) {
+      if (chatWsRef.current) {
+        try { chatWsRef.current.close(); } catch {}
+      }
+      setChatWsConnected(false);
+      return;
+    }
+    if (chatWsRef.current) {
+      try { chatWsRef.current.close(); } catch {}
+    }
+    const url = `wss://jeewanjyoti-backend.smart.org.np/ws/chat/${selectedChat}/?token=${token}`;
+    let sock;
+    try {
+      sock = new WebSocket(url);
+    } catch (e) {
+      console.error('Chat WS init failed', e);
+      setChatWsConnected(false);
+      return;
+    }
+    chatWsRef.current = sock;
+    sock.onopen = () => setChatWsConnected(true);
+    sock.onclose = () => setChatWsConnected(false);
+    sock.onerror = () => setChatWsConnected(false);
+    sock.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const currentUserId = Number(userDataRef.current?.id);
+        const payload = data?.message ? data.message : data;
+        if (!payload) return;
+        const senderId = Number(payload.sender || payload.sender_id);
+        const text = payload.message || '';
+        const ts = payload.timestamp || payload.time || new Date().toISOString();
+        const mapped = {
+          id: payload.id || Date.now(),
+          sender: senderId === currentUserId ? 'You' : (currentChat?.name || 'User'),
+          message: text,
+          time: new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          type: senderId === currentUserId ? 'sent' : 'received',
+        };
+        setMessages((prev) => [...prev, mapped]);
+      } catch (e) {
+        console.error('Chat WS message parse error', e);
+      }
+    };
+    return () => {
+      try { sock && sock.close(); } catch {}
+    };
+  }, [selectedChat, currentChat]);
 
   // Request messages for selected chat via WebSocket (fallback) and HTTP (primary)
   useEffect(() => {
