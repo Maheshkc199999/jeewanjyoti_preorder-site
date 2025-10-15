@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Edit3, Mail, Phone, MapPin, Calendar, Users, Award, Star, Heart, Camera, Trash2, AlertTriangle, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { clearTokens } from '../../lib/tokenManager';
@@ -16,6 +16,8 @@ const ProfileTab = ({ darkMode }) => {
   const [stressData, setStressData] = useState(null);
   const [hrvData, setHrvData] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const fileInputRef = useRef(null);
   
   // Check if user is admin/superuser
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
@@ -156,6 +158,57 @@ const ProfileTab = ({ darkMode }) => {
     }
   };
 
+  // Handle profile image upload
+  const handleProfileImageSelect = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleProfileImageChange = async (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    try {
+      const token = localStorage.getItem('access_token');
+      const formData = new FormData();
+      formData.append('profile_image', file);
+
+      const response = await fetch('https://jeewanjyoti-backend.smart.org.np/api/profile-image/', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to update profile image');
+      }
+
+      const data = await response.json().catch(() => ({}));
+      const newImageUrl = data.profile_image || (data.user && data.user.profile_image) || null;
+
+      if (newImageUrl) {
+        setUserProfile((prev) => ({ ...(prev || {}), profile_image: newImageUrl }));
+        // Persist in localStorage if user_data exists
+        try {
+          const existing = JSON.parse(localStorage.getItem('user_data') || '{}');
+          localStorage.setItem('user_data', JSON.stringify({ ...existing, profile_image: newImageUrl }));
+        } catch {}
+      }
+
+      alert('Profile image updated successfully.');
+    } catch (error) {
+      console.error('Error updating profile image:', error);
+      alert(error.message || 'Failed to update profile image');
+    } finally {
+      // Reset input to allow re-selecting the same file if needed
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -175,23 +228,35 @@ const ProfileTab = ({ darkMode }) => {
             <div className="text-center mb-6">
               <div className="relative mx-auto w-16 h-16 md:w-24 md:h-24 mb-4">
                 {userProfile && userProfile.profile_image ? (
-                  <img 
-                    src={userProfile.profile_image} 
-                    alt="Profile" 
-                    className="w-16 h-16 md:w-24 md:h-24 rounded-full object-cover border-2 border-gray-200"
-                  />
+                  <button onClick={() => setShowImageModal(true)} className="block">
+                    <img 
+                      src={userProfile.profile_image} 
+                      alt="Profile" 
+                      className="w-16 h-16 md:w-24 md:h-24 rounded-full object-cover border-2 border-gray-200"
+                    />
+                  </button>
                 ) : (
                   <div className="w-16 h-16 md:w-24 md:h-24 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-lg md:text-2xl font-bold">
                     {userProfile ? `${userProfile.first_name?.[0] || ''}${userProfile.last_name?.[0] || ''}` : 'JD'}
                   </div>
                 )}
-                <button className={`absolute bottom-0 right-0 border-2 rounded-full p-1 md:p-2 ${
-                  darkMode 
-                    ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' 
-                    : 'bg-white border-gray-200 hover:bg-gray-50'
-                } transition-colors`}>
+                <button
+                  onClick={handleProfileImageSelect}
+                  className={`absolute bottom-0 right-0 border-2 rounded-full p-1 md:p-2 ${
+                    darkMode 
+                      ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' 
+                      : 'bg-white border-gray-200 hover:bg-gray-50'
+                  } transition-colors`}
+                >
                   <Camera className="w-3 h-3 md:w-4 md:h-4 text-gray-600" />
                 </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProfileImageChange}
+                  className="hidden"
+                />
               </div>
               <h3 className={`text-lg md:text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
                 {userProfile ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || 'User' : 'John Doe'}
@@ -614,6 +679,21 @@ const ProfileTab = ({ darkMode }) => {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full Image Modal */}
+      {showImageModal && userProfile?.profile_image && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowImageModal(false)}>
+          <div className="relative max-w-3xl w-full" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowImageModal(false)}
+              className="absolute -top-3 -right-3 bg-white text-gray-700 rounded-full p-2 shadow-lg"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img src={userProfile.profile_image} alt="Profile Full" className="w-full h-auto rounded-xl" />
           </div>
         </div>
       )}

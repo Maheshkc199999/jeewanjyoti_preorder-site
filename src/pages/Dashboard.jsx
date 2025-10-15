@@ -173,14 +173,14 @@ const Dashboard = () => {
         darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-100'
       } ${isChatRoomOpen ? 'md:block hidden' : ''}`}>
         <div className="max-w-7xl mx-auto px-4 md:px-6">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4 md:gap-8">
+          <div className="flex items-center justify-between flex-wrap gap-2 py-3">
+            <div className="flex items-center gap-4 md:gap-8 min-w-0">
               <button 
                 onClick={() => setActiveTab('home')}
                 className="flex items-center gap-3 hover:opacity-80 transition-opacity duration-200"
               >
                 <img src={jjlogo} alt="JJ Logo" className="w-8 h-8" />
-                <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent whitespace-nowrap truncate">
                   DIGITAL CARE
                 </h1>
               </button>
@@ -250,20 +250,20 @@ const Dashboard = () => {
                 </button>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className={`hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg ${
+            <div className="flex items-center gap-4 flex-shrink-0">
+              <div className={`hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap ${
                 darkMode 
                   ? 'bg-gray-800 text-gray-300' 
                   : 'bg-gray-100 text-gray-700'
               }`}>
                 <User className="w-4 h-4 text-gray-500" />
-                <span className="text-sm font-medium truncate max-w-32">
+                <span className="text-sm font-medium truncate max-w-[8rem]">
                   {backendUser?.first_name || user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}
                 </span>
               </div>
               
               {/* Date Display */}
-              <div className={`hidden md:flex items-center gap-2 px-3 py-2 rounded-lg ${
+              <div className={`hidden md:flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap ${
                 darkMode 
                   ? 'bg-gray-800 text-gray-300' 
                   : 'bg-gray-100 text-gray-700'
