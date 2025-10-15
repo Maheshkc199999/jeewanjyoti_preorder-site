@@ -247,8 +247,8 @@ function Register() {
     }
   }
 
-  // Google Sign-Up handler
-  const handleGoogleSignUp = async () => {
+  // Google Sign-In handler (same as login page)
+  const handleGoogleSignIn = async () => {
     setGoogleLoading(true)
     try {
       const result = await signInWithPopup(auth, googleProvider)
@@ -257,10 +257,10 @@ function Register() {
       // Get the ID token
       const idToken = await user.getIdToken()
       
-      // Send to your backend for registration
+      // Send to your backend (same as login page)
       const apiUrl = type === 'individual' 
-        ? 'https://jeewanjyoti-backend.smart.org.np/api/firebase-register/'
-        : 'https://jeewanjyoti-backend.smart.org.np/api/ins/firebase-register/'
+        ? 'https://jeewanjyoti-backend.smart.org.np/api/firebase-login/'
+        : 'https://jeewanjyoti-backend.smart.org.np/api/ins/firebase-login/'
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -268,30 +268,27 @@ function Register() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          id_token: idToken,
-          user_type: type,
-          role: role // Include the selected role for individual users
+          id_token: idToken
         })
       })
       
       if (!response.ok) {
-        throw new Error(`Google registration failed with status: ${response.status}`)
+        throw new Error(`Google login failed with status: ${response.status}`)
       }
       
       const data = await response.json()
-      console.log('Google registration successful:', data)
+      console.log('Google login successful:', data)
       
       // Store tokens and user data
       storeTokens(data.access, data.refresh, data.user)
       
-      // Navigate to dashboard
       navigate('/dashboard')
       
     } catch (error) {
-      console.error('Google registration error:', error)
+      console.error('Google login error:', error)
       console.error('Error details:', error.message)
       console.error('Error code:', error.code)
-      alert(`Google registration failed: ${error.message}. Please check the console for more details.`)
+      alert(`Google login failed: ${error.message}. Please check the console for more details.`)
     } finally {
       setGoogleLoading(false)
     }
@@ -852,30 +849,32 @@ function Register() {
               <div className="flex-1 border-t border-gray-200"></div>
             </div>
 
-            {/* Google Sign-Up Button */}
-            <button 
-              onClick={handleGoogleSignUp}
-              disabled={googleLoading}
-              className={`w-full py-3 px-8 rounded-2xl font-bold text-lg shadow-xl transition-all duration-300 transform ${
-                googleLoading
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-white border-2 border-gray-200 hover:border-gray-300 text-gray-700 hover:shadow-2xl hover:scale-105 active:scale-95'
-              }`}
-            >
-              {googleLoading ? (
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
-                  Signing up with Google...
+            {/* Social login buttons */}
+            <div className="flex justify-center gap-4">
+              <button 
+                onClick={handleGoogleSignIn}
+                disabled={googleLoading}
+                className={`flex items-center justify-center w-12 h-12 border-2 border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 ${
+                  googleLoading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">G</span>
                 </div>
-              ) : (
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">G</span>
-                  </div>
-                  Sign up with Google
+              </button>
+              
+              <button className="flex items-center justify-center w-12 h-12 border-2 border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-300">
+                <div className="w-6 h-6 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">f</span>
                 </div>
-              )}
-            </button>
+              </button>
+
+              <button className="flex items-center justify-center w-12 h-12 border-2 border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-300">
+                <div className="w-6 h-6 bg-gradient-to-r from-blue-400 to-blue-500 rounded-lg flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">in</span>
+                </div>
+              </button>
+            </div>
 
             {/* Footer */}
             <div className="text-center mt-8 text-gray-500 text-sm">

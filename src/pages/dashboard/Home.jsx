@@ -1,25 +1,88 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Heart, Moon, Activity, Zap, Brain, Gauge, Target, TrendingUp, Clock, Droplets, Thermometer, BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Activity as ActivityIcon } from 'lucide-react';
+import SleepDataComponent from '../../components/SleepDataComponent';
+import SpO2DataComponent from '../../components/SpO2DataComponent';
+import HeartRateDataComponent from '../../components/HeartRateDataComponent';
+import { getBloodPressureData, getStressData, getHRVData } from '../../lib/api';
 
 const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
-  // Sample data for different metrics
-  const heartRateData = [
-    { time: '00:00', value: 65 },
-    { time: '04:00', value: 58 },
-    { time: '08:00', value: 72 },
-    { time: '12:00', value: 85 },
-    { time: '16:00', value: 78 },
-    { time: '20:00', value: 68 },
-    { time: '24:00', value: 62 }
-  ];
+  const [sleepData, setSleepData] = useState(null);
+  const [spo2Data, setSpO2Data] = useState(null);
+  const [heartRateData, setHeartRateData] = useState(null);
+  const [bloodPressureData, setBloodPressureData] = useState(null);
+  const [stressApiData, setStressApiData] = useState(null);
+  const [hrvApiData, setHrvApiData] = useState(null);
 
-  const sleepData = [
-    { stage: 'Deep', value: 2.5, color: '#3B82F6' },
-    { stage: 'Light', value: 4.2, color: '#60A5FA' },
-    { stage: 'REM', value: 1.8, color: '#93C5FD' },
-    { stage: 'Awake', value: 0.3, color: '#E5E7EB' }
-  ];
+  // Calculate sleep score based on data (same as SleepDataComponent)
+  const calculateSleepScore = (data) => {
+    if (!data) return 0;
+    
+    let score = 0;
+    
+    // Duration score (optimal: 7-9 hours)
+    const duration = data.duration;
+    if (duration >= 7 && duration <= 9) {
+      score += 30;
+    } else if (duration >= 6 && duration <= 10) {
+      score += 20;
+    } else {
+      score += 10;
+    }
+    
+    // Deep sleep percentage (optimal: 15-20%)
+    const deepSleep = data.deep_sleep_percentage;
+    if (deepSleep >= 15 && deepSleep <= 20) {
+      score += 25;
+    } else if (deepSleep >= 10 && deepSleep <= 25) {
+      score += 15;
+    } else {
+      score += 5;
+    }
+    
+    // Light sleep percentage (optimal: 45-55%)
+    const lightSleep = data.light_sleep_percentage;
+    if (lightSleep >= 45 && lightSleep <= 55) {
+      score += 25;
+    } else if (lightSleep >= 40 && lightSleep <= 60) {
+      score += 15;
+    } else {
+      score += 5;
+    }
+    
+    // Awake percentage (optimal: <5%)
+    const awake = data.awake_percentage;
+    if (awake < 5) {
+      score += 20;
+    } else if (awake < 10) {
+      score += 10;
+    } else {
+      score += 5;
+    }
+    
+    return Math.min(score, 100);
+  };
+
+  // Fetch health data
+  useEffect(() => {
+    const fetchHealthData = async () => {
+      try {
+        const [bloodPressureDataResult, stressDataResult, hrvDataResult] = await Promise.all([
+          getBloodPressureData(),
+          getStressData(),
+          getHRVData()
+        ]);
+        setBloodPressureData(bloodPressureDataResult);
+        setStressApiData(stressDataResult);
+        setHrvApiData(hrvDataResult);
+      } catch (error) {
+        console.error('Error fetching health data:', error);
+      }
+    };
+    fetchHealthData();
+  }, []);
+
+  // Sample data for different metrics
 
   const activityData = [
     { day: 'Mon', steps: 8420, calories: 320 },
@@ -115,7 +178,12 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-red-100 text-xs md:text-sm">Heart Rate</p>
-              <p className="text-xl md:text-3xl font-bold">72 BPM</p>
+              <p className="text-xl md:text-3xl font-bold">
+                {heartRateData && heartRateData.length > 0 
+                  ? heartRateData[heartRateData.length - 1].once_heart_value
+                  : '72'
+                } BPM
+              </p>
             </div>
             <Heart className="w-8 h-8 md:w-12 md:h-12 text-red-200" />
           </div>
@@ -125,7 +193,12 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-xs md:text-sm">Sleep Score</p>
-              <p className="text-xl md:text-3xl font-bold">85/100</p>
+              <p className="text-xl md:text-3xl font-bold">
+                {sleepData && sleepData.length > 0 
+                  ? calculateSleepScore(sleepData[0])
+                  : '85'
+                }/100
+              </p>
             </div>
             <Moon className="w-8 h-8 md:w-12 md:h-12 text-blue-200" />
           </div>
@@ -144,10 +217,15 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
         <div className="bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl md:rounded-2xl p-4 md:p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-purple-100 text-xs md:text-sm">Stress Level</p>
-              <p className="text-xl md:text-3xl font-bold">Low</p>
+              <p className="text-purple-100 text-xs md:text-sm">Blood Oxygen</p>
+              <p className="text-xl md:text-3xl font-bold">
+                {spo2Data && spo2Data.length > 0 
+                  ? spo2Data[spo2Data.length - 1].Blood_oxygen
+                  : '98'
+                }%
+              </p>
             </div>
-            <Brain className="w-8 h-8 md:w-12 md:h-12 text-purple-200" />
+            <Droplets className="w-8 h-8 md:w-12 md:h-12 text-purple-200" />
           </div>
         </div>
       </div>
@@ -155,133 +233,25 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
       {/* Main Metrics Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
         {/* Heart Rate */}
-        <MetricCard
-          icon={Heart}
-          title="Heart Rate"
-          value="72"
-          unit="BPM"
-          trend="+2%"
-          color="bg-red-500"
-          chartType="area"
-        >
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={heartRateData}>
-              {darkMode ? (
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} vertical={false} />
-              ) : (
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              )}
-              <XAxis 
-                dataKey="time" 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <YAxis 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Area 
-                type="monotone" 
-                dataKey="value" 
-                stroke="#ef4444" 
-                fill="#ef4444" 
-                fillOpacity={0.1}
-                strokeWidth={3}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </MetricCard>
+        <HeartRateDataComponent 
+          darkMode={darkMode} 
+          onHeartRateDataUpdate={setHeartRateData}
+        />
 
         {/* Blood Oxygen */}
-        <MetricCard
-          icon={Droplets}
-          title="Blood Oxygen"
-          value="98"
-          unit="%"
-          trend="Normal"
-          color="bg-blue-500"
-          chartType="line"
-        >
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={bloodOxygenData}>
-              {darkMode ? (
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} vertical={false} />
-              ) : (
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              )}
-              <XAxis 
-                dataKey="time" 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <YAxis 
-                domain={[95, 100]} 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Line 
-                type="monotone" 
-                dataKey="value" 
-                stroke="#3b82f6" 
-                strokeWidth={3}
-                dot={{ fill: '#3b82f6', strokeWidth: 2, r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </MetricCard>
+        <SpO2DataComponent 
+          darkMode={darkMode} 
+          onSpO2DataUpdate={setSpO2Data}
+        />
       </div>
 
       {/* Sleep and Activity Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
         {/* Sleep Analysis */}
-        <MetricCard
-          icon={Moon}
-          title="Sleep Analysis"
-          value="8.8"
-          unit="hours"
-          trend="Excellent"
-          color="bg-indigo-500"
-          chartType="pie"
-        >
-          <div className="flex items-center justify-between">
-            <ResponsiveContainer width="60%" height={200}>
-              <PieChart>
-                <Pie
-                  data={sleepData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={80}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {sleepData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="w-35% space-y-2">
-              {sleepData.map((item, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: item.color }}
-                  ></div>
-                  <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>{item.stage}</span>
-                  <span className={`text-xs md:text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{item.value}h</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </MetricCard>
+        <SleepDataComponent 
+          darkMode={darkMode} 
+          onSleepDataUpdate={setSleepData}
+        />
 
         {/* Activity Tracking */}
         <MetricCard
@@ -324,14 +294,43 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
         <MetricCard
           icon={Brain}
           title="Stress Level"
-          value="32"
-          unit="Low"
-          trend="Improving"
+          value={stressApiData && stressApiData.length > 0 
+            ? stressApiData[stressApiData.length - 1].stress
+            : '32'
+          }
+          unit={stressApiData && stressApiData.length > 0 
+            ? (() => {
+                const stress = stressApiData[stressApiData.length - 1].stress;
+                if (stress < 30) return 'Low';
+                if (stress < 60) return 'Moderate';
+                return 'High';
+              })()
+            : 'Low'
+          }
+          trend={stressApiData && stressApiData.length > 0 
+            ? (() => {
+                const stress = stressApiData[stressApiData.length - 1].stress;
+                if (stress < 30) return 'Excellent';
+                if (stress < 60) return 'Good';
+                return 'High';
+              })()
+            : 'Improving'
+          }
           color="bg-purple-500"
           chartType="area"
         >
           <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={stressData}>
+            <AreaChart data={stressApiData && stressApiData.length > 0 
+              ? stressApiData.map(item => ({
+                  time: new Date(item.date).toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: true 
+                  }),
+                  level: item.stress
+                }))
+              : stressData
+            }>
               {darkMode ? (
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} vertical={false} />
               ) : (
@@ -379,14 +378,55 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-lg md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>120/80</span>
+                  <span className={`text-lg md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {bloodPressureData && bloodPressureData.length > 0 
+                      ? `${bloodPressureData[bloodPressureData.length - 1].sbp}/${bloodPressureData[bloodPressureData.length - 1].dbp}`
+                      : '120/80'
+                    }
+                  </span>
                   <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>mmHg</span>
                 </div>
+                {bloodPressureData && bloodPressureData.length > 0 && (
+                  <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'} mt-1`}>
+                    {new Date(bloodPressureData[bloodPressureData.length - 1].date).toLocaleDateString()} • {new Date(bloodPressureData[bloodPressureData.length - 1].date).toLocaleTimeString('en-US', { 
+                      hour: '2-digit', 
+                      minute: '2-digit',
+                      hour12: true 
+                    })}
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium">
-                Normal Range
+              <span className={`px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium ${
+                bloodPressureData && bloodPressureData.length > 0 
+                  ? (() => {
+                      const latest = bloodPressureData[bloodPressureData.length - 1];
+                      const sbp = latest.sbp;
+                      const dbp = latest.dbp;
+                      
+                      if (sbp < 120 && dbp < 80) {
+                        return 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400';
+                      } else if (sbp < 140 && dbp < 90) {
+                        return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400';
+                      } else {
+                        return 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400';
+                      }
+                    })()
+                  : 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400'
+              }`}>
+                {bloodPressureData && bloodPressureData.length > 0 
+                  ? (() => {
+                      const latest = bloodPressureData[bloodPressureData.length - 1];
+                      const sbp = latest.sbp;
+                      const dbp = latest.dbp;
+                      
+                      if (sbp < 120 && dbp < 80) return 'Normal Range';
+                      if (sbp < 140 && dbp < 90) return 'Elevated';
+                      return 'High';
+                    })()
+                  : 'Normal Range'
+                }
               </span>
               <Clock className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
             </div>
@@ -407,17 +447,56 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-lg md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>45</span>
+                  <span className={`text-lg md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {hrvApiData && hrvApiData.length > 0 
+                      ? hrvApiData[hrvApiData.length - 1].hrv
+                      : '45'
+                    }
+                  </span>
                   <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>ms</span>
                 </div>
+                {hrvApiData && hrvApiData.length > 0 && (
+                  <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'} mt-1`}>
+                    {new Date(hrvApiData[hrvApiData.length - 1].date).toLocaleDateString()} • {new Date(hrvApiData[hrvApiData.length - 1].date).toLocaleTimeString('en-US', { 
+                      hour: '2-digit', 
+                      minute: '2-digit',
+                      hour12: true 
+                    })}
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400 px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium">
-                Good Recovery
+              <span className={`px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium ${
+                hrvApiData && hrvApiData.length > 0 
+                  ? (() => {
+                      const hrv = hrvApiData[hrvApiData.length - 1].hrv;
+                      if (hrv >= 50) {
+                        return 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400';
+                      } else if (hrv >= 30) {
+                        return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400';
+                      } else {
+                        return 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400';
+                      }
+                    })()
+                  : 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400'
+              }`}>
+                {hrvApiData && hrvApiData.length > 0 
+                  ? (() => {
+                      const hrv = hrvApiData[hrvApiData.length - 1].hrv;
+                      if (hrv >= 50) return 'Good Recovery';
+                      if (hrv >= 30) return 'Moderate';
+                      return 'Poor Recovery';
+                    })()
+                  : 'Good Recovery'
+                }
               </span>
               <div className={`w-16 md:w-24 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} rounded-full h-2`}>
-                <div className="bg-teal-500 h-2 rounded-full" style={{ width: '75%' }}></div>
+                <div className="bg-teal-500 h-2 rounded-full" style={{ 
+                  width: hrvApiData && hrvApiData.length > 0 
+                    ? `${Math.min((hrvApiData[hrvApiData.length - 1].hrv / 100) * 100, 100)}%`
+                    : '75%'
+                }}></div>
               </div>
             </div>
           </div>

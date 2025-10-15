@@ -150,6 +150,104 @@ export async function getDoctorList() {
 }
 
 /**
+ * Get sleep data
+ * @returns {Promise<Array>} List of sleep data records
+ */
+export async function getSleepData() {
+  const response = await apiRequest('/api/sleep-data/')
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch sleep data')
+  }
+  
+  return await response.json()
+}
+
+/**
+ * Get SpO2/Blood Oxygen data
+ * @returns {Promise<Array>} List of SpO2 data records
+ */
+export async function getSpO2Data() {
+  const response = await apiRequest('/api/Spo2-data/')
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch SpO2 data')
+  }
+  
+  return await response.json()
+}
+
+/**
+ * Get Heart Rate data
+ * @returns {Promise<Array>} List of Heart Rate data records
+ */
+export async function getHeartRateData() {
+  const response = await apiRequest('/api/HeartRate_Data/')
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch Heart Rate data')
+  }
+  
+  return await response.json()
+}
+
+/**
+ * Get Blood Pressure data
+ * @returns {Promise<Array>} List of Blood Pressure data records
+ */
+export async function getBloodPressureData() {
+  const response = await apiRequest('/api/BloodPressure_Data/')
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch Blood Pressure data')
+  }
+  
+  return await response.json()
+}
+
+/**
+ * Get Stress data
+ * @returns {Promise<Array>} List of Stress data records
+ */
+export async function getStressData() {
+  const response = await apiRequest('/api/Stress_Data/')
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch Stress data')
+  }
+  
+  return await response.json()
+}
+
+/**
+ * Get HRV (Heart Rate Variability) data
+ * @returns {Promise<Array>} List of HRV data records
+ */
+export async function getHRVData() {
+  const response = await apiRequest('/api/HRV_Iso_Data/')
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch HRV data')
+  }
+  
+  return await response.json()
+}
+
+/**
+ * Get user profile data
+ * @returns {Promise<object>} User profile data
+ */
+export async function getUserEmailProfile() {
+  const response = await apiRequest('/api/useremailprofile/')
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch user profile')
+  }
+  
+  return await response.json()
+}
+
+/**
  * Logout user
  * @returns {Promise<void>}
  */

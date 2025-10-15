@@ -275,9 +275,9 @@ const Dashboard = () => {
                 </span>
               </div>
 
-              {/* Period Filter - Only show on Home tab */}
+              {/* Period Filter - Hidden by default, show as popup button */}
               {activeTab === 'home' && (
-                <div className="hidden md:block relative filter-dropdown">
+                <div className="hidden lg:block relative filter-dropdown">
                   <button
                     onClick={() => setShowFilterDropdown(!showFilterDropdown)}
                     className={`p-2 rounded-lg transition-all duration-200 ${

@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, Video, Phone, MapPin, X, Search, Star, GraduationCap, Building, Mail, User, CreditCard } from 'lucide-react';
 import { getDoctorList } from '../../lib/api';
+import KhaltiPayment from '../../components/KhaltiPayment';
 
 const AppointmentsTab = ({ darkMode }) => {
   console.log('AppointmentsTab component rendering...', { darkMode });
   
   const [showDoctorModal, setShowDoctorModal] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [pendingAppointment, setPendingAppointment] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [filteredDoctors, setFilteredDoctors] = useState([]);
   const [appointments, setAppointments] = useState([]);
@@ -20,7 +23,8 @@ const AppointmentsTab = ({ darkMode }) => {
     appointment_date: '',
     appointment_time: '',
     problem_description: '',
-    is_immediate: false
+    is_immediate: false,
+    user_report: null
   });
 
   // API base URL
@@ -120,6 +124,45 @@ const AppointmentsTab = ({ darkMode }) => {
     }
   };
 
+  // Initialize payment with backend
+  const initializePayment = async (invoiceNo, amountInRupees) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      
+      // Convert rupees to paisa (multiply by 100)
+      const amountInPaisa = Math.round(amountInRupees * 100);
+      
+      const payload = {
+        invoice_no: invoiceNo,
+        amount: amountInPaisa.toString() // Convert to string as required
+      };
+      
+      console.log('Initializing payment with payload:', payload);
+      
+      const response = await fetch(`${API_BASE}/initialize_payment/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Payment initialization response:', data);
+        return data;
+      } else {
+        const errorData = await response.json();
+        console.error('Payment initialization failed:', errorData);
+        throw new Error(errorData.detail || 'Failed to initialize payment');
+      }
+    } catch (err) {
+      console.error('Error initializing payment:', err);
+      throw err;
+    }
+  };
+
   // Handle doctor selection for booking
   const handleSelectDoctor = (doctor) => {
     setSelectedDoctor(doctor);
@@ -129,31 +172,51 @@ const AppointmentsTab = ({ darkMode }) => {
 
   // Handle booking form input changes
   const handleBookingInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value, type, checked, files } = e.target;
     setBookingData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : type === 'file' ? files[0] : value
     }));
   };
 
   // Submit booking form
   const handleBookAppointment = async (e) => {
     e.preventDefault();
+    console.log('Form submitted! Booking data:', bookingData);
+    
+    // Validate required fields
+    if (!bookingData.problem_description.trim()) {
+      setError('Please provide a problem description');
+      return;
+    }
+    
+    if (!bookingData.is_immediate && (!bookingData.appointment_date || !bookingData.appointment_time)) {
+      setError('Please select appointment date and time');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     
     try {
       const token = localStorage.getItem('access_token');
       
-      // Format the date and time according to API requirements
-      let appointmentDateTime = null;
-      let appointmentTime = null;
+      // Prepare the payload according to the API requirements
+      const payload = {
+        doctor_id: selectedDoctor.id,
+        problem_description: bookingData.problem_description,
+        is_immediate: bookingData.is_immediate
+      };
       
+      // Add appointment date and time only if it's not an immediate appointment
       if (!bookingData.is_immediate && bookingData.appointment_date && bookingData.appointment_time) {
-        // Combine date and time into ISO format: "2025-09-25T10:30:00Z"
-        appointmentDateTime = `${bookingData.appointment_date}T${bookingData.appointment_time}:00Z`;
-        appointmentTime = bookingData.appointment_time;
+        // Format the date and time according to API requirements
+        const appointmentDateTime = `${bookingData.appointment_date}T${bookingData.appointment_time}:00Z`;
+        payload.appointment_date = appointmentDateTime;
+        payload.appointment_time = `${bookingData.appointment_time}:00`;
       }
+      
+      console.log('Booking appointment with payload:', payload);
       
       const response = await fetch(`${API_BASE}/book_appointment/`, {
         method: 'POST',
@@ -161,35 +224,63 @@ const AppointmentsTab = ({ darkMode }) => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          doctor_id: selectedDoctor.id,
-          appointment_date: appointmentDateTime,
-          appointment_time: appointmentTime,
-          is_immediate: bookingData.is_immediate,
-          problem_description: bookingData.problem_description
-        })
+        body: JSON.stringify(payload)
       });
       
       if (response.ok) {
         const data = await response.json();
+        console.log('Appointment booking response:', data);
+        
         setShowBookingModal(false);
         setSelectedDoctor(null);
+        
+        // Store pending appointment for payment
+        setPendingAppointment({
+          ...data,
+          amount: 1000 // Default amount in rupees (will be converted to paisa)
+        });
+        
+        console.log('Setting payment modal to true, pending appointment:', {
+          ...data,
+          amount: 1000
+        });
+        
+        // Initialize payment and get pidx
+        try {
+          const paymentData = await initializePayment(data.invoice_no, 1000);
+          
+          // Update pending appointment with pidx
+          setPendingAppointment(prev => ({
+            ...prev,
+            pidx: paymentData.pidx
+          }));
+          
+          setShowPaymentModal(true);
+        } catch (paymentError) {
+          console.error('Payment initialization failed:', paymentError);
+          setError(`Appointment booked but payment initialization failed: ${paymentError.message}. Please try payment later.`);
+          
+          // Still show success message for appointment booking
+          alert('Appointment booked successfully! Please complete payment later.');
+          fetchAppointments(); // Refresh appointments list
+        }
+        
         // Reset booking form
         setBookingData({
           appointment_date: '',
           appointment_time: '',
           problem_description: '',
-          is_immediate: false
+          is_immediate: false,
+          user_report: null
         });
-        alert('Appointment booked successfully!');
-        fetchAppointments(); // Refresh appointments list
       } else {
         const errorData = await response.json();
+        console.error('Appointment booking failed:', errorData);
         setError(errorData.detail || 'Failed to book appointment');
       }
     } catch (err) {
       console.error('Error booking appointment:', err);
-      setError('Failed to book appointment. Please try again.');
+      setError(`Failed to book appointment: ${err.message}. Please try again.`);
     } finally {
       setLoading(false);
     }
@@ -218,17 +309,40 @@ const AppointmentsTab = ({ darkMode }) => {
     }
   };
 
+  // Handle payment success
+  const handlePaymentSuccess = () => {
+    setShowPaymentModal(false);
+    setPendingAppointment(null);
+    alert('Payment successful! Your appointment has been confirmed.');
+    fetchAppointments(); // Refresh appointments list
+  };
+
+  // Handle payment error
+  const handlePaymentError = (error) => {
+    console.error('Payment error:', error);
+    setError('Payment failed. Please try again or contact support.');
+  };
+
+  // Handle payment cancellation
+  const handlePaymentCancel = () => {
+    setShowPaymentModal(false);
+    setPendingAppointment(null);
+    setError('Payment cancelled. Your appointment is still pending.');
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Appointments</h2>
-        <button 
-          onClick={() => setShowDoctorModal(true)}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm md:text-base"
-        >
-          <Plus className="w-4 h-4 md:w-5 md:h-5" />
-          <span className="hidden md:inline">Book Appointment</span>
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setShowDoctorModal(true)}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm md:text-base"
+          >
+            <Plus className="w-4 h-4 md:w-5 md:h-5" />
+            <span className="hidden md:inline">Book Appointment</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -256,22 +370,20 @@ const AppointmentsTab = ({ darkMode }) => {
         <div className="grid gap-4 md:gap-6">
           {appointments.map((appointment) => {
           // Add null checks for appointment data
-          if (!appointment || !appointment.doctor) {
+          if (!appointment) {
             console.warn('Invalid appointment data:', appointment);
             return null;
           }
           
-          const doctor = appointment.doctor;
-          const doctorInitials = doctor.first_name && doctor.last_name 
-            ? `${doctor.first_name[0]}${doctor.last_name[0]}` 
+          // Handle new response format
+          const doctorName = appointment.doctor_name || 'Doctor';
+          const doctorInitials = appointment.doctor_name 
+            ? appointment.doctor_name.split(' ').map(name => name[0]).join('').toUpperCase()
             : 'DR';
-          const doctorName = doctor.first_name && doctor.last_name 
-            ? `Dr. ${doctor.first_name} ${doctor.last_name}` 
-            : 'Doctor';
-          const specialization = doctor.specialization || 'General Practice';
+          const specialization = appointment.doctor_specialization || 'General Practice';
           
           return (
-            <div key={appointment.id || Math.random()} className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border hover:shadow-xl transition-all duration-300 ${
+            <div key={appointment.appointment_id || Math.random()} className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border hover:shadow-xl transition-all duration-300 ${
               darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
             }`}>
               <div className="flex flex-col md:flex-row md:items-center justify-between">
@@ -286,24 +398,42 @@ const AppointmentsTab = ({ darkMode }) => {
                     <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       {specialization}
                     </p>
+                    {appointment.user_name && (
+                      <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Patient: {appointment.user_name}
+                      </p>
+                    )}
+                    {appointment.invoice_no && (
+                      <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Invoice: {appointment.invoice_no}
+                      </p>
+                    )}
                   <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mt-2">
                     <div className={`flex items-center gap-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                       <Calendar className="w-3 h-3 md:w-4 md:h-4" />
                         <span className="text-xs md:text-sm">
-                          {appointment.appointment_date ? formatDate(appointment.appointment_date) : 'Date not set'}
+                          {appointment.appointment_date ? formatDate(appointment.appointment_date) : appointment.is_immediate ? 'Immediate' : 'Date not set'}
                         </span>
                     </div>
-                    <div className={`flex items-center gap-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                      <Clock className="w-3 h-3 md:w-4 md:h-4" />
-                        <span className="text-xs md:text-sm">
-                          {appointment.appointment_time ? formatTime(appointment.appointment_time) : 'Time not set'}
-                        </span>
-                    </div>
+                    {!appointment.is_immediate && (
+                      <div className={`flex items-center gap-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                        <Clock className="w-3 h-3 md:w-4 md:h-4" />
+                          <span className="text-xs md:text-sm">
+                            {appointment.appointment_time ? formatTime(appointment.appointment_time) : 'Time not set'}
+                          </span>
+                      </div>
+                    )}
+                    {appointment.is_immediate && (
+                      <div className={`flex items-center gap-1 ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
+                        <Clock className="w-3 h-3 md:w-4 md:h-4" />
+                        <span className="text-xs md:text-sm font-medium">Immediate</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
               <div className="flex items-center justify-between md:justify-end gap-3">
-                <div className="flex flex-col items-center gap-2">
+                  <div className="flex flex-col items-center gap-2">
                   <span className={`px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium ${
                       appointment.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' : 
                       appointment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
@@ -312,16 +442,20 @@ const AppointmentsTab = ({ darkMode }) => {
                   }`}>
                     {appointment.status || 'UNKNOWN'}
                   </span>
-                  <div className={`flex items-center gap-1 text-xs md:text-sm ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                  <div className={`flex items-center gap-1 text-xs md:text-sm ${
+                    appointment.is_paid 
+                      ? (darkMode ? 'text-green-400' : 'text-green-600')
+                      : (darkMode ? 'text-orange-400' : 'text-orange-600')
+                  }`}>
                       {appointment.is_paid ? (
                         <>
                           <CreditCard className="w-3 h-3 md:w-4 md:h-4" />
-                          <span>Paid</span>
+                          <span className="font-medium">Paid</span>
                         </>
                       ) : (
                         <>
                           <CreditCard className="w-3 h-3 md:w-4 md:h-4" />
-                          <span>Payment Pending</span>
+                          <span className="font-medium">Payment Required</span>
                         </>
                       )}
                     </div>
@@ -332,6 +466,22 @@ const AppointmentsTab = ({ darkMode }) => {
                 <div className={`mt-4 p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
                   <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     <strong>Reason: </strong>{appointment.problem_description}
+                  </p>
+                </div>
+              )}
+              
+              {appointment.user_report_url && (
+                <div className={`mt-4 p-3 rounded-lg ${darkMode ? 'bg-blue-900' : 'bg-blue-50'}`}>
+                  <p className={`text-sm ${darkMode ? 'text-blue-200' : 'text-blue-800'}`}>
+                    <strong>Medical Report: </strong>
+                    <a 
+                      href={appointment.user_report_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="underline hover:no-underline ml-1"
+                    >
+                      View Report
+                    </a>
                   </p>
                 </div>
               )}
@@ -714,6 +864,7 @@ const AppointmentsTab = ({ darkMode }) => {
                     value={bookingData.problem_description}
                     onChange={handleBookingInputChange}
                     rows={4}
+                    required
                     className={`w-full p-3 rounded-xl border ${
                       darkMode 
                         ? 'bg-gray-700 border-gray-600 text-white' 
@@ -722,8 +873,6 @@ const AppointmentsTab = ({ darkMode }) => {
                     placeholder="Please describe your symptoms or reason for the appointment"
                   ></textarea>
                 </div>
-
-                {/* File upload would go here */}
 
                 <div className="flex justify-end gap-4 mt-6">
                   <button
@@ -754,9 +903,40 @@ const AppointmentsTab = ({ darkMode }) => {
         </div>
       )}
 
+      {/* Payment Modal */}
+      {console.log('Payment modal state:', { showPaymentModal, pendingAppointment })}
+      {showPaymentModal && pendingAppointment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className={`w-full max-w-md rounded-2xl shadow-2xl ${darkMode ? 'bg-gray-800' : 'bg-white'} p-6`}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                Complete Payment
+              </h3>
+              <button
+                onClick={handlePaymentCancel}
+                className={`p-2 rounded-lg hover:bg-gray-100 ${
+                  darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <KhaltiPayment
+              invoiceNo={pendingAppointment.invoice_no}
+              amount={pendingAppointment.amount}
+              pidx={pendingAppointment.pidx}
+              onPaymentSuccess={handlePaymentSuccess}
+              onPaymentError={handlePaymentError}
+              onCancel={handlePaymentCancel}
+              darkMode={darkMode}
+            />
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
 
 export default AppointmentsTab;
-
