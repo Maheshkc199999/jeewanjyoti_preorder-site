@@ -66,6 +66,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
 
   const currentChat = chatUsers.find(chat => chat.id === selectedChat);
   const [messages, setMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   
   const [newMessage, setNewMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -194,6 +195,48 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     }
   }, []);
 
+  // Fetch conversation history via HTTP
+  const fetchHistory = async (userId) => {
+    if (!userId) return;
+    setLoadingMessages(true);
+    try {
+      const token = getAccessToken();
+      const response = await fetch(`https://jeewanjyoti-backend.smart.org.np/api/history/${userId}/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to load messages: ${response.status}`);
+      }
+      const data = await response.json();
+      const currentUserId = Number(userDataRef.current?.id);
+      const partnerId = Number(userId);
+      const nameForPartner = currentChat?.name || 'User';
+      const arr = Array.isArray(data) ? data : [];
+
+      // Sort by timestamp ascending
+      arr.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+      const mapped = arr.map((m) => {
+        const isSentByMe = Number(m.sender) === currentUserId;
+        return {
+          id: m.id,
+          sender: isSentByMe ? 'You' : nameForPartner,
+          message: m.message || '',
+          time: m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+          type: isSentByMe ? 'sent' : 'received',
+          files: m.has_media ? (m.file || m.image ? [{ name: m.file || 'image', type: (m.image ? 'image' : 'file') }] : []) : undefined,
+        };
+      });
+      setMessages(mapped);
+    } catch (e) {
+      console.error('History fetch failed', e);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
   // WebSocket: connect and listen
   useEffect(() => {
     const token = getAccessToken();
@@ -271,37 +314,24 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     };
   }, []);
 
-  // Request messages for selected chat
+  // Request messages for selected chat via WebSocket (fallback) and HTTP (primary)
   useEffect(() => {
-    if (!selectedChat || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-    try {
-      // Send multiple request formats for compatibility
-      const uid = Number(selectedChat);
-      wsRef.current.send(JSON.stringify({ type: 'get_conversation_messages', user_id: uid }));
-      wsRef.current.send(JSON.stringify({ type: 'get_messages', user_id: uid }));
-    } catch (e) {
-      console.error('Failed to request messages:', e);
+    if (!selectedChat) return;
+    // Try HTTP immediately (primary)
+    fetchHistory(selectedChat);
+    // Optionally ask WS too if connected
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try {
+        const uid = Number(selectedChat);
+        wsRef.current.send(JSON.stringify({ type: 'get_conversation_messages', user_id: uid }));
+        wsRef.current.send(JSON.stringify({ type: 'get_messages', user_id: uid }));
+      } catch (e) {
+        console.error('Failed to request messages via WS:', e);
+      }
     }
   }, [selectedChat]);
 
-  // Provisional fill: if we have no messages yet, show the last_message from conversation list
-  useEffect(() => {
-    if (!selectedChat) return;
-    if (messages && messages.length > 0) return;
-    const conv = (conversations || []).find(c => String(c?.user?.id) === String(selectedChat));
-    if (conv && conv.last_message) {
-      const currentUserId = userDataRef.current?.id;
-      const lm = conv.last_message;
-      const mapped = [{
-        id: lm.id,
-        sender: lm.sender_id === currentUserId ? 'You' : (conv.user?.first_name || 'User'),
-        message: lm.message || '',
-        time: lm.timestamp ? new Date(lm.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-        type: lm.sender_id === currentUserId ? 'sent' : 'received',
-      }];
-      setMessages(mapped);
-    }
-  }, [selectedChat, conversations, messages]);
+  // Removed provisional last_message fill to ensure full history renders when available
 
   return (
     <div className="h-full flex overflow-hidden">
@@ -499,39 +529,32 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
             </div>
 
             {/* Messages Container - Scrollable middle section */}
-            <div className="pt-20 pb-24 px-4 space-y-4 overflow-y-auto flex-1">
+            <div className="pt-20 pb-24 px-4 space-y-3 overflow-y-auto flex-1">
               {messages.map((message) => (
                 <div key={message.id} className={`flex ${message.type === 'sent' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] px-4 py-2 rounded-2xl ${
+                  <div className={`max-w-[80%] md:max-w-[65%] px-4 py-2 rounded-2xl ${
                     message.type === 'sent' 
-                      ? 'bg-blue-500 text-white' 
-                      : darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800'
+                      ? 'bg-blue-600 text-white rounded-br-sm' 
+                      : 'bg-green-600 text-white rounded-bl-sm'
                   }`}>
-                    {message.type === 'received' && (
-                      <div className="text-xs font-semibold mb-1">{message.sender}</div>
-                    )}
-                    <p className="text-sm">{message.message}</p>
-                    
+                    <p className="text-sm leading-relaxed break-words">{message.message}</p>
                     {message.files && message.files.length > 0 && (
-                      <div className={`mt-2 space-y-2 ${message.type === 'sent' ? 'bg-blue-400' : darkMode ? 'bg-gray-600' : 'bg-gray-200'} p-2 rounded-lg`}>
+                      <div className={`mt-2 space-y-2 ${message.type === 'sent' ? 'bg-blue-500/40' : 'bg-green-500/40'} p-2 rounded-lg`}>
                         {message.files.map((file, index) => (
                           <div key={index} className="flex items-center gap-2 text-xs">
                             {renderFileIcon(file.type)}
                             <div className="flex-1 min-w-0">
                               <div className="truncate">{file.name}</div>
-                              <div className="text-gray-500">{file.size}</div>
+                              {file.size && <div className="opacity-80">{file.size}</div>}
                             </div>
-                            <button className="text-blue-500 hover:text-blue-600">
+                            <button className="opacity-80 hover:opacity-100">
                               <Download className="w-4 h-4" />
                             </button>
                           </div>
                         ))}
                       </div>
                     )}
-                    
-                    <div className={`text-xs mt-1 ${message.type === 'sent' ? 'text-blue-100' : darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {message.time}
-                    </div>
+                    <div className={`text-[10px] mt-1 ${message.type === 'sent' ? 'text-blue-100' : 'text-green-100'}`}>{message.time}</div>
                   </div>
                 </div>
               ))}
@@ -760,27 +783,23 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 p-4 space-y-4 overflow-y-auto min-h-0 pb-4">
+              <div className="flex-1 p-4 space-y-3 overflow-y-auto min-h-0 pb-4">
                 {messages.map((message) => (
                   <div key={message.id} className={`flex ${message.type === 'sent' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
+                    <div className={`max-w-md lg:max-w-2xl px-4 py-2 rounded-2xl ${
                       message.type === 'sent' 
-                        ? 'bg-blue-500 text-white' 
-                        : darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800'
+                        ? 'bg-blue-600 text-white rounded-br-sm' 
+                        : 'bg-green-600 text-white rounded-bl-sm'
                     }`}>
-                      {message.type === 'received' && (
-                        <div className="text-xs font-semibold mb-1">{message.sender}</div>
-                      )}
-                      <p className="text-sm">{message.message}</p>
-                      
+                      <p className="text-sm leading-relaxed break-words">{message.message}</p>
                       {message.files && message.files.length > 0 && (
-                        <div className={`mt-2 space-y-2 ${message.type === 'sent' ? 'bg-blue-400' : darkMode ? 'bg-gray-600' : 'bg-gray-200'} p-2 rounded-lg`}>
+                        <div className={`mt-2 space-y-2 ${message.type === 'sent' ? 'bg-blue-500/40' : 'bg-green-500/40'} p-2 rounded-lg`}>
                           {message.files.map((file, index) => (
                             <div key={index} className="flex items-center gap-2 text-xs">
                               {renderFileIcon(file.type)}
                               <div className="flex-1 min-w-0">
                                 <div className="truncate">{file.name}</div>
-                                <div className="text-gray-500">{file.size}</div>
+                                {file.size && <div className="opacity-80">{file.size}</div>}
                               </div>
                               <button className={`p-1 rounded ${darkMode ? 'hover:bg-gray-500' : 'hover:bg-gray-300'}`}>
                                 <Download className="w-3 h-3" />
@@ -789,12 +808,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
                           ))}
                         </div>
                       )}
-                      
-                      <p className={`text-xs mt-1 text-right ${
-                        message.type === 'sent' ? 'text-blue-100' : darkMode ? 'text-gray-400' : 'text-gray-500'
-                      }`}>
-                        {message.time}
-                      </p>
+                      <p className={`text-[10px] mt-1 ${message.type === 'sent' ? 'text-blue-100 text-right' : 'text-green-100'}`}>{message.time}</p>
                     </div>
                   </div>
                 ))}
