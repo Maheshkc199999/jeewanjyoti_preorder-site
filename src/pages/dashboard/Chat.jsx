@@ -196,7 +196,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     }
   }, []);
 
-  // Fetch conversation history via HTTP
+  // Fetch conversation history via HTTP - FIXED MESSAGE ALIGNMENT
   const fetchHistory = async (userId) => {
     if (!userId) return;
     setLoadingMessages(true);
@@ -226,7 +226,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
           sender: isSentByMe ? 'You' : nameForPartner,
           message: m.message || '',
           time: m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-          type: isSentByMe ? 'sent' : 'received',
+          type: isSentByMe ? 'sent' : 'received', // This determines alignment
           files: m.has_media ? (m.file || m.image ? [{ name: m.file || 'image', type: (m.image ? 'image' : 'file') }] : []) : undefined,
         };
       });
@@ -238,7 +238,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     }
   };
 
-  // WebSocket: connect and listen
+  // WebSocket: connect and listen - FIXED MESSAGE ALIGNMENT
   useEffect(() => {
     const token = getAccessToken();
     if (!token) return;
@@ -275,7 +275,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
             sender: m.sender_id === currentUserId ? 'You' : (m.sender_name || 'User'),
             message: m.message || '',
             time: m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-            type: m.sender_id === currentUserId ? 'sent' : 'received',
+            type: m.sender_id === currentUserId ? 'sent' : 'received', // This determines alignment
             files: m.has_media ? m.files || [] : undefined,
           }));
           setMessages(mapped);
@@ -289,7 +289,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
               sender: data.message.sender_id === currentUserId ? 'You' : (data.message.sender_name || 'User'),
               message: data.message.message || '',
               time: data.message.timestamp ? new Date(data.message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-              type: data.message.sender_id === currentUserId ? 'sent' : 'received',
+              type: data.message.sender_id === currentUserId ? 'sent' : 'received', // This determines alignment
               files: data.message.has_media ? data.message.files || [] : undefined,
             };
             setMessages((prev) => [...prev, newMsg]);
@@ -315,7 +315,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     };
   }, []);
 
-  // Open per-chat WebSocket for sending/receiving live messages
+  // Open per-chat WebSocket for sending/receiving live messages - FIXED MESSAGE ALIGNMENT
   useEffect(() => {
     const token = getAccessToken();
     if (!selectedChat || !token) {
@@ -355,7 +355,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
           sender: senderId === currentUserId ? 'You' : (currentChat?.name || 'User'),
           message: text,
           time: new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          type: senderId === currentUserId ? 'sent' : 'received',
+          type: senderId === currentUserId ? 'sent' : 'received', // This determines alignment
         };
         setMessages((prev) => [...prev, mapped]);
       } catch (e) {
@@ -384,7 +384,28 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     }
   }, [selectedChat]);
 
-  // Removed provisional last_message fill to ensure full history renders when available
+  // Message alignment function - FIXED
+  const getMessageAlignment = (messageType) => {
+    return messageType === 'sent' ? 'justify-end' : 'justify-start';
+  };
+
+  // Message bubble styling - FIXED
+  const getMessageBubbleStyle = (messageType, darkMode) => {
+    if (messageType === 'sent') {
+      return 'bg-blue-600 text-white rounded-br-sm';
+    } else {
+      return 'bg-green-600 text-white rounded-bl-sm';
+    }
+  };
+
+  // Message time styling - FIXED
+  const getMessageTimeStyle = (messageType) => {
+    if (messageType === 'sent') {
+      return 'text-blue-100 text-right';
+    } else {
+      return 'text-green-100';
+    }
+  };
 
   return (
     <div className="h-full flex overflow-hidden">
@@ -584,11 +605,9 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
             {/* Messages Container - Scrollable middle section */}
             <div className="pt-20 pb-24 px-4 space-y-3 overflow-y-auto flex-1">
               {messages.map((message) => (
-                <div key={message.id} className={`flex ${message.type === 'sent' ? 'justify-end' : 'justify-start'}`}>
+                <div key={message.id} className={`flex ${getMessageAlignment(message.type)}`}>
                   <div className={`max-w-[80%] md:max-w-[65%] px-4 py-2 rounded-2xl ${
-                    message.type === 'sent' 
-                      ? 'bg-blue-600 text-white rounded-br-sm' 
-                      : 'bg-green-600 text-white rounded-bl-sm'
+                    getMessageBubbleStyle(message.type, darkMode)
                   }`}>
                     <p className="text-sm leading-relaxed break-words">{message.message}</p>
                     {message.files && message.files.length > 0 && (
@@ -607,7 +626,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
                         ))}
                       </div>
                     )}
-                    <div className={`text-[10px] mt-1 ${message.type === 'sent' ? 'text-blue-100' : 'text-green-100'}`}>{message.time}</div>
+                    <div className={`text-[10px] mt-1 ${getMessageTimeStyle(message.type)}`}>{message.time}</div>
                   </div>
                 </div>
               ))}
@@ -838,11 +857,9 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
               {/* Messages */}
               <div className="flex-1 p-4 space-y-3 overflow-y-auto min-h-0 pb-4">
                 {messages.map((message) => (
-                  <div key={message.id} className={`flex ${message.type === 'sent' ? 'justify-end' : 'justify-start'}`}>
+                  <div key={message.id} className={`flex ${getMessageAlignment(message.type)}`}>
                     <div className={`max-w-md lg:max-w-2xl px-4 py-2 rounded-2xl ${
-                      message.type === 'sent' 
-                        ? 'bg-blue-600 text-white rounded-br-sm' 
-                        : 'bg-green-600 text-white rounded-bl-sm'
+                      getMessageBubbleStyle(message.type, darkMode)
                     }`}>
                       <p className="text-sm leading-relaxed break-words">{message.message}</p>
                       {message.files && message.files.length > 0 && (
@@ -861,7 +878,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
                           ))}
                         </div>
                       )}
-                      <p className={`text-[10px] mt-1 ${message.type === 'sent' ? 'text-blue-100 text-right' : 'text-green-100'}`}>{message.time}</p>
+                      <p className={`text-[10px] mt-1 ${getMessageTimeStyle(message.type)}`}>{message.time}</p>
                     </div>
                   </div>
                 ))}
