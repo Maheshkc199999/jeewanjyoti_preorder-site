@@ -404,22 +404,24 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     };
   }, [selectedChat, currentChat]);
 
-  // Request messages for selected chat via WebSocket (fallback) and HTTP (primary)
-  useEffect(() => {
-    if (!selectedChat) return;
-    // Try HTTP immediately (primary)
-    fetchHistory(selectedChat);
-    // Optionally ask WS too if connected
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      try {
-        const uid = Number(selectedChat);
-        wsRef.current.send(JSON.stringify({ type: 'get_conversation_messages', user_id: uid }));
-        wsRef.current.send(JSON.stringify({ type: 'get_messages', user_id: uid }));
-      } catch (e) {
-        console.error('Failed to request messages via WS:', e);
-      }
+ // Request messages for selected chat via WebSocket (fallback) and HTTP (primary)
+ useEffect(() => {
+  if (!selectedChat) return;
+  
+  // HTTP fetch is now called from the WebSocket onopen handler
+  // to ensure connection is established first
+  
+  // Optionally ask WS too if connected
+  if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    try {
+      const uid = Number(selectedChat);
+      wsRef.current.send(JSON.stringify({ type: 'get_conversation_messages', user_id: uid }));
+      wsRef.current.send(JSON.stringify({ type: 'get_messages', user_id: uid }));
+    } catch (e) {
+      console.error('Failed to request messages via WS:', e);
     }
-  }, [selectedChat]);
+  }
+}, [selectedChat]);
 
   // Message alignment function - FIXED: Sent messages on right (blue), received on left (green)
   // Message alignment: sent = RIGHT, received = LEFT
