@@ -95,16 +95,9 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   const handleSendMessage = () => {
     if (!newMessage.trim() && !selectedFile) return;
     const text = newMessage.trim();
-    if (text) {
-      const optimistic = {
-        id: Date.now(),
-        sender: 'You',
-        message: text,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        type: 'sent', // This will align to right with blue color
-      };
-      setMessages((prev) => [...prev, optimistic]);
-    }
+    
+    // Send via WebSocket without adding optimistic message
+    // The message will be added when WebSocket confirms it
     try {
       if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
         chatWsRef.current.send(JSON.stringify({ type: 'text_message', message: text }));
@@ -315,6 +308,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   }, []);
 
   // Open per-chat WebSocket for sending/receiving live messages - FIXED MESSAGE ALIGNMENT
+  // Open per-chat WebSocket for sending/receiving live messages - FIXED MESSAGE ALIGNMENT
   useEffect(() => {
     const token = getAccessToken();
     if (!selectedChat || !token) {
@@ -324,9 +318,15 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
       setChatWsConnected(false);
       return;
     }
+    
+    // Close existing connection
     if (chatWsRef.current) {
       try { chatWsRef.current.close(); } catch {}
     }
+    
+    // Clear messages when switching chats
+    setMessages([]);
+    
     const url = `wss://jeewanjyoti-backend.smart.org.np/ws/chat/${selectedChat}/?token=${token}`;
     let sock;
     try {
@@ -337,26 +337,64 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
       return;
     }
     chatWsRef.current = sock;
-    sock.onopen = () => setChatWsConnected(true);
-    sock.onclose = () => setChatWsConnected(false);
-    sock.onerror = () => setChatWsConnected(false);
+    
+    sock.onopen = () => {
+      console.log('Chat WebSocket connected for user:', selectedChat);
+      setChatWsConnected(true);
+      // Fetch history after WebSocket connects
+      fetchHistory(selectedChat);
+    };
+    
+    sock.onclose = () => {
+      console.log('Chat WebSocket disconnected');
+      setChatWsConnected(false);
+    };
+    
+    sock.onerror = (err) => {
+      console.error('Chat WebSocket error:', err);
+      setChatWsConnected(false);
+    };
+    
     sock.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('Chat WS received:', data);
+        
         const currentUserId = Number(userDataRef.current?.id);
-        const payload = data?.message ? data.message : data;
-        if (!payload) return;
-        const senderId = Number(payload.sender || payload.sender_id);
-        const text = payload.message || '';
-        const ts = payload.timestamp || payload.time || new Date().toISOString();
-        const mapped = {
-          id: payload.id || Date.now(),
-          sender: senderId === currentUserId ? 'You' : (currentChat?.name || 'User'),
-          message: text,
-          time: new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          type: senderId === currentUserId ? 'sent' : 'received', // This determines alignment
-        };
-        setMessages((prev) => [...prev, mapped]);
+        
+        // Handle the message structure from your backend
+        let messageData = null;
+        
+        if (data.type === 'message' && data.data) {
+          // Format: {"type": "message", "data": {...}}
+          messageData = data.data;
+        } else if (data.message || data.sender_id) {
+          // Direct message format
+          messageData = data;
+        }
+        
+        if (!messageData) return;
+        
+        const senderId = Number(messageData.sender_id || messageData.sender);
+        const text = messageData.message || '';
+        const ts = messageData.timestamp || messageData.time || new Date().toISOString();
+        const messageId = messageData.id || Date.now();
+        
+        // Check if message already exists to prevent duplicates
+        setMessages((prev) => {
+          const exists = prev.some(m => m.id === messageId);
+          if (exists) return prev;
+          
+          const mapped = {
+            id: messageId,
+            sender: senderId === currentUserId ? 'You' : (currentChat?.name || 'User'),
+            message: text,
+            time: new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            type: senderId === currentUserId ? 'sent' : 'received',
+          };
+          
+          return [...prev, mapped];
+        });
       } catch (e) {
         console.error('Chat WS message parse error', e);
       }
