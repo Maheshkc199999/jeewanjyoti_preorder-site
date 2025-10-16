@@ -137,7 +137,7 @@ function Login() {
     setForgotPasswordLoading(true)
     try {
       const apiUrl = loginType === 'individual' 
-        ? 'https://jeewanjyoti-backend.smart.org.np/api/verify-otp/'
+        ? 'https://jeewanjyoti-backend.smart.org.np/api/resetotpVerification/'
         : 'https://jeewanjyoti-backend.smart.org.np/api/ins/verify-otp/'
       
       const response = await fetch(apiUrl, {
