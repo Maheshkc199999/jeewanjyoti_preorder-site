@@ -101,7 +101,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
         sender: 'You',
         message: text,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        type: 'sent',
+        type: 'sent', // This will align to right with blue color
       };
       setMessages((prev) => [...prev, optimistic]);
     }
@@ -211,22 +211,21 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
         throw new Error(`Failed to load messages: ${response.status}`);
       }
       const data = await response.json();
-      const currentUserId = Number(userDataRef.current?.id);
-      const partnerId = Number(userId);
+      const myUserId = Number(data.me || userDataRef.current?.id);  // ← CHANGED: use data.me
       const nameForPartner = currentChat?.name || 'User';
-      const arr = Array.isArray(data) ? data : [];
-
+      const arr = Array.isArray(data.chat) ? data.chat : [];  // ← CHANGED: use data.chat
+  
       // Sort by timestamp ascending
       arr.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
+  
       const mapped = arr.map((m) => {
-        const isSentByMe = Number(m.sender) === currentUserId;
+        const isSentByMe = Number(m.sender) === myUserId;
         return {
           id: m.id,
           sender: isSentByMe ? 'You' : nameForPartner,
           message: m.message || '',
           time: m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-          type: isSentByMe ? 'sent' : 'received', // This determines alignment
+          type: isSentByMe ? 'sent' : 'received',  // This determines alignment
           files: m.has_media ? (m.file || m.image ? [{ name: m.file || 'image', type: (m.image ? 'image' : 'file') }] : []) : undefined,
         };
       });
@@ -384,28 +383,29 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     }
   }, [selectedChat]);
 
-  // Message alignment function - FIXED
-  const getMessageAlignment = (messageType) => {
-    return messageType === 'sent' ? 'justify-end' : 'justify-start';
-  };
+  // Message alignment function - FIXED: Sent messages on right (blue), received on left (green)
+  // Message alignment: sent = RIGHT, received = LEFT
+const getMessageAlignment = (messageType) => {
+  return messageType === 'sent' ? 'justify-end' : 'justify-start';
+};
 
-  // Message bubble styling - FIXED
-  const getMessageBubbleStyle = (messageType, darkMode) => {
-    if (messageType === 'sent') {
-      return 'bg-blue-600 text-white rounded-br-sm';
-    } else {
-      return 'bg-green-600 text-white rounded-bl-sm';
-    }
-  };
+// Message bubble styling: sent = BLUE (right), received = GREEN (left)
+const getMessageBubbleStyle = (messageType, darkMode) => {
+  if (messageType === 'sent') {
+    return 'bg-blue-600 text-white rounded-br-sm';
+  } else {
+    return 'bg-green-600 text-white rounded-bl-sm';
+  }
+};
 
-  // Message time styling - FIXED
-  const getMessageTimeStyle = (messageType) => {
-    if (messageType === 'sent') {
-      return 'text-blue-100 text-right';
-    } else {
-      return 'text-green-100';
-    }
-  };
+// Message time styling
+const getMessageTimeStyle = (messageType) => {
+  if (messageType === 'sent') {
+    return 'text-blue-100 text-right';
+  } else {
+    return 'text-green-100';
+  }
+};
 
   return (
     <div className="h-full flex overflow-hidden">
