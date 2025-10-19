@@ -27,7 +27,7 @@ const EmojiPicker = ({ onEmojiClick, theme, height, width }) => {
   );
 };
 
-import { getAccessToken } from '../../lib/tokenManager';
+import { getAccessToken, getUserData } from '../../lib/tokenManager';
 
 const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   const [selectedChat, setSelectedChat] = useState(null);
@@ -96,8 +96,20 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     if (!newMessage.trim() && !selectedFile) return;
     const text = newMessage.trim();
     
-    // Send via WebSocket without adding optimistic message
-    // The message will be added when WebSocket confirms it
+    // Add optimistic message immediately with unique identifier
+    const optimisticId = `temp_${Date.now()}_${Math.random()}`;
+    const optimisticMessage = {
+      id: optimisticId,
+      sender: 'You',
+      message: text,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: 'sent', // This ensures it appears on the right with blue color
+      isOptimistic: true, // Flag to identify optimistic messages
+    };
+    
+    setMessages((prev) => [...prev, optimisticMessage]);
+    
+    // Send via WebSocket
     try {
       if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
         chatWsRef.current.send(JSON.stringify({ type: 'text_message', message: text }));
@@ -183,8 +195,11 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   // Initialize userData
   useEffect(() => {
     try {
-      userDataRef.current = JSON.parse(localStorage.getItem('user_data') || '{}');
-    } catch {
+      const userData = getUserData();
+      userDataRef.current = userData || {};
+      console.log('Initialized user data:', userDataRef.current);
+    } catch (error) {
+      console.error('Error getting user data:', error);
       userDataRef.current = {};
     }
   }, []);
@@ -261,7 +276,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
           }
         } else if ((data?.type === 'conversation_messages' || data?.type === 'message_list') && Array.isArray(data.messages)) {
           // Map messages for current selected chat
-          const currentUserId = userDataRef.current?.id;
+          const currentUserId = Number(userDataRef.current?.id);
           const mapped = data.messages.map((m) => ({
             id: m.id,
             sender: m.sender_id === currentUserId ? 'You' : (m.sender_name || 'User'),
@@ -273,7 +288,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
           setMessages(mapped);
         } else if (data?.type === 'new_message' && data.message) {
           // Append live new message if it belongs to the current chat
-          const currentUserId = userDataRef.current?.id;
+          const currentUserId = Number(userDataRef.current?.id);
           const fromUserId = String(data.message.sender_id === currentUserId ? data.message.receiver_id : data.message.sender_id);
           if (fromUserId === selectedChat) {
             const newMsg = {
@@ -360,7 +375,9 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
         const data = JSON.parse(event.data);
         console.log('Chat WS received:', data);
         
+        // Get current user ID from userDataRef
         const currentUserId = Number(userDataRef.current?.id);
+        console.log('Current user ID:', currentUserId, 'User data:', userDataRef.current);
         
         // Handle the message structure from your backend
         let messageData = null;
@@ -380,18 +397,72 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
         const ts = messageData.timestamp || messageData.time || new Date().toISOString();
         const messageId = messageData.id || Date.now();
         
+        console.log('=== MESSAGE DEBUG ===');
+        console.log('Sender ID:', senderId, 'Type:', typeof senderId);
+        console.log('Current User ID:', currentUserId, 'Type:', typeof currentUserId);
+        console.log('Are they equal?', senderId === currentUserId);
+        console.log('Message data:', messageData);
+        console.log('User data ref:', userDataRef.current);
+        console.log('========================');
+        
         // Check if message already exists to prevent duplicates
         setMessages((prev) => {
           const exists = prev.some(m => m.id === messageId);
           if (exists) return prev;
           
+          // AGGRESSIVE FIX: If this message matches any optimistic message, force it to be sent
+          const matchesOptimistic = prev.some(msg => 
+            msg.isOptimistic && msg.message === text && msg.sender === 'You'
+          );
+          
+          if (matchesOptimistic) {
+            console.log('AGGRESSIVE FIX: Message matches optimistic, forcing to sent side');
+          }
+          
+          const isSentByMe = senderId === currentUserId;
+          
+          // FALLBACK: If user ID comparison fails, check if message content matches recent optimistic messages
+          let forceSent = false;
+          if (!isSentByMe || matchesOptimistic) {
+            // Check if this message matches any recent optimistic message
+            const recentOptimistic = prev.some(msg => 
+              msg.isOptimistic && msg.message === text && msg.sender === 'You'
+            );
+            if (recentOptimistic || matchesOptimistic) {
+              console.log('FORCING message to be sent (matches optimistic):', text);
+              forceSent = true;
+            }
+          }
+          
+          const finalIsSentByMe = isSentByMe || forceSent;
+          
           const mapped = {
             id: messageId,
-            sender: senderId === currentUserId ? 'You' : (currentChat?.name || 'User'),
+            sender: finalIsSentByMe ? 'You' : (currentChat?.name || 'User'),
             message: text,
             time: new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            type: senderId === currentUserId ? 'sent' : 'received',
+            type: finalIsSentByMe ? 'sent' : 'received',
           };
+          
+          console.log('Mapped message:', mapped, 'Alignment:', finalIsSentByMe ? 'RIGHT (sent)' : 'LEFT (received)');
+          
+          // If this is a message sent by the current user, replace the optimistic message
+          if (finalIsSentByMe) {
+            // Find and replace the optimistic message with the real one
+            const updatedMessages = prev.map(msg => {
+              // Replace optimistic message with matching content
+              if (msg.isOptimistic && msg.message === text && msg.sender === 'You') {
+                console.log('Replacing optimistic message with real message:', msg, '->', mapped);
+                return mapped;
+              }
+              return msg;
+            });
+            
+            // Remove any remaining optimistic messages that weren't replaced
+            return updatedMessages.filter(msg => 
+              !(msg.isOptimistic && msg.message === text && msg.sender === 'You')
+            );
+          }
           
           return [...prev, mapped];
         });
