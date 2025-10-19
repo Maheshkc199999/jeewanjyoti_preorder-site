@@ -40,6 +40,8 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef(null);
   const userDataRef = useRef(null);
+  // store "me" (own user id) returned by history API for reliable identification
+  const myIdRef = useRef(null);
   const chatWsRef = useRef(null);
   const [chatWsConnected, setChatWsConnected] = useState(false);
   const [lastMessageTime, setLastMessageTime] = useState(0);
@@ -109,7 +111,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     if (!newMessage.trim() && !selectedFile) return;
     const text = newMessage.trim();
     
-    // Add optimistic message immediately with unique identifier
+    // Add optimistic message immediately with unique identifier and local timestamp
     const optimisticId = `temp_${Date.now()}_${Math.random()}`;
     const optimisticMessage = {
       id: optimisticId,
@@ -118,14 +120,20 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       type: 'sent', // This ensures it appears on the right with blue color
       isOptimistic: true, // Flag to identify optimistic messages
+      localTimestamp: Date.now(),
     };
     
     setMessages((prev) => [...prev, optimisticMessage]);
     
-    // Send via WebSocket
+    // Send via WebSocket and include temp id so server can echo it back if supported
     try {
       if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
-        chatWsRef.current.send(JSON.stringify({ type: 'text_message', message: text }));
+        const payload = {
+          type: 'text_message',
+          message: text,
+          temp_id: optimisticId,
+        };
+        chatWsRef.current.send(JSON.stringify(payload));
       }
     } catch (e) {
       console.error('Failed to send WS message', e);
@@ -232,6 +240,9 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
         throw new Error(`Failed to load messages: ${response.status}`);
       }
         const data = await response.json();
+        // save "me" returned by API so websocket handling can identify our own messages
+        myIdRef.current = Number(data.me || userDataRef.current?.id || 0);
+        console.log('Saved my id from history API:', myIdRef.current);
         const myUserId = Number(data.me || userDataRef.current?.id);  // ← CHANGED: use data.me
         const nameForPartner = currentChat?.name || 'User';
         const arr = Array.isArray(data.chat) ? data.chat : [];  // ← CHANGED: use data.chat
@@ -364,9 +375,10 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
         const data = JSON.parse(event.data);
         console.log('Chat WS received:', data.type || 'message');
         
-        // Get current user ID from userDataRef
-        const currentUserId = Number(userDataRef.current?.id);
-        
+        // Determine current user id using saved "me" from history API if available,
+        // fallback to token-stored userDataRef
+        const currentUserId = Number(myIdRef.current || userDataRef.current?.id || 0);
+
         // Extract message data
         let messageData = null;
         if (data.type === 'message' && data.data) {
@@ -607,6 +619,13 @@ const getMessageTimeStyle = (messageType) => {
                   </div>
                 </div>
               ))}
+
+              {/* Fallback empty state for mobile chat list */}
+              {filteredChats.length === 0 && (
+                <div className="p-4 text-center text-gray-500">
+                  No conversations found.
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -683,6 +702,13 @@ const getMessageTimeStyle = (messageType) => {
                             </button>
                           </div>
                         ))}
+
+                        {/* Fallback empty state for message files */}
+                        {message.files.length === 0 && (
+                          <div className="text-center text-gray-500 text-xs py-2">
+                            No files attached.
+                          </div>
+                        )}
                       </div>
                     )}
                     <div className={`text-[10px] mt-1 ${getMessageTimeStyle(message.type)}`}>{message.time}</div>
