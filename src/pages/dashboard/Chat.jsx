@@ -338,9 +338,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
       try { chatWsRef.current.close(); } catch {}
     }
     
-  // Clear messages when switching chats
-  setMessages([]);
-  setProcessedMessageIds(new Set());
+    // messages are cleared by the selectedChat effect above (do NOT clear here)
     
     const url = `wss://jeewanjyoti-backend.smart.org.np/ws/chat/${selectedChat}/?token=${token}`;
     let sock;
@@ -449,7 +447,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
         chatWsRef.current.close();
         chatWsRef.current = null;
       }
-      setMessages([]);
+      // do not clear messages here; selectedChat effect handles that
       setChatWsConnected(false);
     };
   }, [selectedChat, currentChat]);
