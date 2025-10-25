@@ -395,6 +395,57 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     }
   };
 
+  // Wait for images under messages container to load (resolve early on timeout)
+  const waitForImagesToLoad = (container, timeout = 2000) => {
+    return new Promise((resolve) => {
+      if (!container) return resolve();
+      const imgs = Array.from(container.querySelectorAll('img'));
+      if (imgs.length === 0) return resolve();
+
+      let settled = 0;
+      const onSettled = () => {
+        settled += 1;
+        if (settled >= imgs.length) resolve();
+      };
+
+      const t = setTimeout(() => {
+        // cleanup listeners and resolve anyway
+        imgs.forEach(img => {
+          img.removeEventListener('load', onSettled);
+          img.removeEventListener('error', onSettled);
+        });
+        resolve();
+      }, timeout);
+
+      imgs.forEach((img) => {
+        if (img.complete) {
+          onSettled();
+        } else {
+          img.addEventListener('load', () => { clearTimeout(t); onSettled(); });
+          img.addEventListener('error', () => { clearTimeout(t); onSettled(); });
+        }
+      });
+    });
+  };
+
+  // When user focuses the message input, reload the absolute latest messages for the selected chat.
+  const lastFocusLoadRef = useRef(0);
+  const loadLatestMessagesOnFocus = async () => {
+    if (!selectedChat || loadingMessages) return;
+    // throttle to avoid rapid repeated loads (1.5s)
+    const now = Date.now();
+    if (now - lastFocusLoadRef.current < 1500) return;
+    lastFocusLoadRef.current = now;
+    try {
+      await fetchHistory(selectedChat);
+      // wait for images to render so scrollToBottom lands at the real bottom
+      await waitForImagesToLoad(messagesContainerRef.current, 2500);
+      requestAnimationFrame(() => scrollToBottom());
+    } catch (err) {
+      console.error('Failed to load latest messages on focus', err);
+    }
+  };
+  
   const handleEmojiClick = (emojiData) => {
     console.log('Emoji clicked:', emojiData);
     
@@ -609,10 +660,11 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
             sender: isSentByMe ? 'You' : nameForPartner,
             message: m.message || '',
             time: m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+            timestampISO: m.timestamp || new Date().toISOString(),
             type: isSentByMe ? 'sent' : 'received',  // This determines alignment
             hasMedia: m.has_media,
-            fileUrl: m.file_url,
-            imageUrl: m.image_url,
+            fileUrl: m.file_url || m.file || null,
+            imageUrl: m.image_url || m.image || null,
             files: m.has_media ? [{
               name: (m.file_url || m.file) ? (m.file_url || m.file).split('/').pop() : ((m.image_url || m.image) ? (m.image_url || m.image).split('/').pop() : 'file'),
               type: (m.image_url || m.image) ? 'image' : ((m.file_url || m.file) ? getFileTypeFromUrl(m.file_url || m.file) : 'file'),
@@ -1294,6 +1346,7 @@ const getMessageTimeStyle = (messageType) => {
                     }`}
                     onKeyPress={handleKeyPress}
                     onPaste={handlePaste}
+                    onFocus={loadLatestMessagesOnFocus} // Reload latest messages on focus
                   />
                   
                   <button
@@ -1628,6 +1681,7 @@ const getMessageTimeStyle = (messageType) => {
                     }`}
                     onKeyPress={handleKeyPress}
                     onPaste={handlePaste}
+                    onFocus={loadLatestMessagesOnFocus} // Reload latest messages on focus
                   />
                   
                   <button
