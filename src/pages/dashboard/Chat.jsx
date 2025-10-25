@@ -4,20 +4,66 @@ import {
   File, Download, Search, MoreHorizontal, Circle, ArrowLeft
 } from 'lucide-react';
 
-// Mock EmojiPicker component since it's not available
-const EmojiPicker = ({ onEmojiClick, theme, height, width }) => {
-  const emojis = ['😀', '😂', '😍', '🤔', '👍', '❤️', '🎉', '🔥', '👋', '💯'];
+// Enhanced EmojiPicker component
+const EmojiPicker = ({ onEmojiClick, theme, height, width, emojiAsFile, setEmojiAsFile, onClose }) => {
+  const emojis = [
+    '😀', '😂', '😍', '🤔', '👍', '❤️', '🎉', '🔥', '👋', '💯',
+    '😊', '😢', '😡', '🤗', '👏', '🙌', '💪', '🎯', '⭐', '🌟',
+    '💯', '🔥', '💖', '💝', '🎊', '🎈', '🎁', '🏆', '🥇', '✨'
+  ];
   
   return (
     <div className={`p-3 rounded-lg shadow-lg border ${
       theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
     }`} style={{ width: width || 280, height: height || 200 }}>
+      {/* Header with close button */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm text-gray-600 dark:text-gray-400">Emoji Mode:</span>
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setEmojiAsFile(false)}
+              className={`px-2 py-1 text-xs rounded ${
+                !emojiAsFile 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+              }`}
+            >
+              Text
+            </button>
+            <button
+              onClick={() => setEmojiAsFile(true)}
+              className={`px-2 py-1 text-xs rounded ${
+                emojiAsFile 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+              }`}
+            >
+              File
+            </button>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-500 dark:text-gray-400"
+            title="Close emoji picker"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      
       <div className="grid grid-cols-5 gap-2">
         {emojis.map((emoji, index) => (
           <button
             key={index}
-            onClick={() => onEmojiClick({ emoji })}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-xl"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Emoji button clicked:', emoji);
+              onEmojiClick({ emoji });
+            }}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-xl transition-colors"
+            type="button"
           >
             {emoji}
           </button>
@@ -80,8 +126,17 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   const [callStatus, setCallStatus] = useState(null);
   const [callType, setCallType] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [isProcessingScreenshot, setIsProcessingScreenshot] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [modalImageUrl, setModalImageUrl] = useState('');
+  const [modalImageName, setModalImageName] = useState('');
+  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [emojiAsFile, setEmojiAsFile] = useState(false); // Toggle for emoji as file
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
 
   // Do not use any dummy messages on chat change
   useEffect(() => {
@@ -93,6 +148,79 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Facebook Messenger-style scroll behavior
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop } = container;
+      
+      // Load older messages when scrolled to top
+      if (scrollTop < 100 && hasMoreMessages && !isLoadingOlderMessages) {
+        loadOlderMessages();
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [hasMoreMessages, isLoadingOlderMessages]);
+
+  // Load older messages function
+  const loadOlderMessages = async () => {
+    if (!selectedChat || isLoadingOlderMessages) return;
+    
+    setIsLoadingOlderMessages(true);
+    try {
+      const token = getAccessToken();
+      const nextPage = currentPage + 1;
+      const response = await fetch(`https://jeewanjyoti-backend.smart.org.np/api/history/${selectedChat}/?page=${nextPage}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const newMessages = data.chat || [];
+        
+        if (newMessages.length === 0) {
+          setHasMoreMessages(false);
+        } else {
+          // Prepend older messages to the beginning
+          const myUserId = Number(myIdRef.current || userDataRef.current?.id || 0);
+          const nameForPartner = currentChat?.name || 'User';
+          
+          const mappedNewMessages = newMessages.map((m) => {
+            const isSentByMe = Number(m.sender) === myUserId;
+            return {
+              id: m.id,
+              sender: isSentByMe ? 'You' : nameForPartner,
+              message: m.message || '',
+              time: m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+              type: isSentByMe ? 'sent' : 'received',
+              hasMedia: m.has_media,
+              fileUrl: m.file_url,
+              imageUrl: m.image_url,
+              files: m.has_media ? [{
+                name: (m.file_url || m.file) ? (m.file_url || m.file).split('/').pop() : ((m.image_url || m.image) ? (m.image_url || m.image).split('/').pop() : 'file'),
+                type: (m.image_url || m.image) ? 'image' : ((m.file_url || m.file) ? getFileTypeFromUrl(m.file_url || m.file) : 'file'),
+                url: m.file_url || m.image_url || m.file || m.image
+              }] : undefined,
+            };
+          });
+          
+          setMessages(prev => [...mappedNewMessages, ...prev]);
+          setCurrentPage(nextPage);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load older messages:', error);
+    } finally {
+      setIsLoadingOlderMessages(false);
+    }
+  };
   
   // Cleanup processed message IDs periodically to prevent memory leaks
   useEffect(() => {
@@ -103,15 +231,101 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     return () => clearInterval(cleanup);
   }, []);
 
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showEmojiPicker && !event.target.closest('.emoji-picker-container')) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    if (showEmojiPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showEmojiPicker]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleSendMessage = () => {
+  // File upload API function
+  const uploadFile = async (file, receiverId, message = '') => {
+    const token = getAccessToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    if (message.trim()) {
+      formData.append('message', message.trim());
+    }
+
+    try {
+      const response = await fetch(`https://jeewanjyoti-backend.smart.org.np/api/upload_file/${receiverId}/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`File upload failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('File upload successful:', result);
+      return result;
+    } catch (error) {
+      console.error('File upload error:', error);
+      throw error;
+    }
+  };
+
+  const handleSendMessage = async () => {
     if (!newMessage.trim() && !selectedFile) return;
     const text = newMessage.trim();
     
-    // Add optimistic message immediately with unique identifier and local timestamp
+    // If there's a file, upload it first
+    if (selectedFile) {
+      try {
+        // Add optimistic message for file upload
+        const optimisticId = `temp_file_${Date.now()}_${Math.random()}`;
+        const fileType = getFileTypeFromUrl(selectedFile.name);
+        const optimisticMessage = {
+          id: optimisticId,
+          sender: 'You',
+          message: text || '',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          type: 'sent',
+          isOptimistic: true,
+          localTimestamp: Date.now(),
+          hasMedia: true,
+          files: [{
+            name: selectedFile.name,
+            type: fileType,
+            url: URL.createObjectURL(selectedFile), // Create temporary URL for preview
+            size: selectedFile.size
+          }]
+        };
+        
+        setMessages((prev) => [...prev, optimisticMessage]);
+        
+        // Upload file to API
+        await uploadFile(selectedFile, selectedChat, text);
+        
+        // Clear form
+        setNewMessage('');
+        setSelectedFile(null);
+        return;
+      } catch (error) {
+        console.error('File upload failed:', error);
+        // Remove optimistic message on error
+        setMessages((prev) => prev.filter(msg => msg.id !== optimisticId));
+        alert('Failed to upload file. Please try again.');
+        return;
+      }
+    }
+    
+    // Handle text-only messages (existing logic)
     const optimisticId = `temp_${Date.now()}_${Math.random()}`;
     const optimisticMessage = {
       id: optimisticId,
@@ -149,9 +363,107 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     }
   };
 
+  // Handle paste events for screenshots
+  const handlePaste = async (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf('image') !== -1) {
+        e.preventDefault();
+        
+        const file = item.getAsFile();
+        if (file) {
+          console.log('Screenshot pasted:', file);
+          setIsProcessingScreenshot(true);
+          
+          // Set the pasted image as selected file
+          setSelectedFile(file);
+          
+          // Auto-send the screenshot (like WhatsApp behavior)
+          setTimeout(async () => {
+            try {
+              await handleSendMessage();
+            } finally {
+              setIsProcessingScreenshot(false);
+            }
+          }, 100);
+        }
+        break;
+      }
+    }
+  };
+
   const handleEmojiClick = (emojiData) => {
-    setNewMessage(prev => prev + emojiData.emoji);
-    setShowEmojiPicker(false);
+    console.log('Emoji clicked:', emojiData);
+    
+    if (emojiAsFile) {
+      // Send emoji as file
+      sendEmojiAsFile(emojiData.emoji);
+    } else {
+      // Send emoji as text (standard approach)
+      setNewMessage(prev => prev + emojiData.emoji);
+    }
+    
+    // Keep emoji picker open for multiple selections
+    // setShowEmojiPicker(false); // Removed this line
+  };
+
+  // Alternative: Send emoji as file (if you prefer this approach)
+  const sendEmojiAsFile = async (emoji) => {
+    try {
+      // Create a canvas with the emoji
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = 64;
+      canvas.height = 64;
+      
+      // Set font and draw emoji
+      ctx.font = '48px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(emoji, 32, 32);
+      
+      // Convert to blob
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const file = new File([blob], `emoji_${emoji}.png`, { type: 'image/png' });
+      
+      // Set as selected file and send
+      setSelectedFile(file);
+      setTimeout(() => handleSendMessage(), 100);
+    } catch (error) {
+      console.error('Failed to create emoji file:', error);
+      // Fallback to text emoji
+      setNewMessage(prev => prev + emoji);
+    }
+  };
+
+  // Smooth download function
+  const handleDownload = async (url, filename) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Download failed:', error);
+      // Fallback to opening in new tab
+      window.open(url, '_blank');
+    }
+  };
+
+  // Handle image click for modal
+  const handleImageClick = (url, name) => {
+    setModalImageUrl(url);
+    setModalImageName(name);
+    setShowImageModal(true);
   };
 
   const handleFileSelect = (e) => {
@@ -180,12 +492,21 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     setCallType(null);
   };
 
+  const getFileTypeFromUrl = (url) => {
+    if (!url) return 'file';
+    const extension = url.split('.').pop()?.toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension)) {
+      return 'image';
+    }
+    return extension || 'file';
+  };
+
   const renderFileIcon = (type) => {
     switch(type) {
       case 'pdf': return <File className="w-4 h-4 text-red-500" />;
       case 'doc': case 'docx': return <File className="w-4 h-4 text-blue-500" />;
       case 'xls': case 'xlsx': return <File className="w-4 h-4 text-green-500" />;
-      case 'jpg': case 'jpeg': case 'png': case 'gif': return <Image className="w-4 h-4 text-purple-500" />;
+      case 'jpg': case 'jpeg': case 'png': case 'gif': case 'image': return <Image className="w-4 h-4 text-purple-500" />;
       default: return <File className="w-4 h-4 text-gray-500" />;
     }
   };
@@ -240,26 +561,71 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
         throw new Error(`Failed to load messages: ${response.status}`);
       }
         const data = await response.json();
+        console.log('Full history API response:', data);
+        
         // save "me" returned by API so websocket handling can identify our own messages
         myIdRef.current = Number(data.me || userDataRef.current?.id || 0);
         console.log('Saved my id from history API:', myIdRef.current);
         const myUserId = Number(data.me || userDataRef.current?.id);  // ← CHANGED: use data.me
         const nameForPartner = currentChat?.name || 'User';
         const arr = Array.isArray(data.chat) ? data.chat : [];  // ← CHANGED: use data.chat
+        
+        console.log('Chat messages from history:', arr);
   
         // Sort by timestamp ascending
         arr.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   
         const mapped = arr.map((m) => {
           const isSentByMe = Number(m.sender) === myUserId;
-          return {
+          
+          // Debug logging for media messages
+          if (m.has_media) {
+            console.log('History message with media:', {
+              id: m.id,
+              has_media: m.has_media,
+              file_url: m.file_url,
+              image_url: m.image_url,
+              message: m.message,
+              full_message_object: m
+            });
+          }
+          
+          // Debug all message properties
+          console.log('Processing history message:', {
+            id: m.id,
+            sender: m.sender,
+            message: m.message,
+            has_media: m.has_media,
+            file_url: m.file_url,
+            image_url: m.image_url,
+            file: m.file,
+            image: m.image,
+            timestamp: m.timestamp,
+            all_keys: Object.keys(m)
+          });
+          
+          const mappedMessage = {
             id: m.id,
             sender: isSentByMe ? 'You' : nameForPartner,
             message: m.message || '',
             time: m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
             type: isSentByMe ? 'sent' : 'received',  // This determines alignment
-            files: m.has_media ? (m.file || m.image ? [{ name: m.file || 'image', type: (m.image ? 'image' : 'file') }] : []) : undefined,
+            hasMedia: m.has_media,
+            fileUrl: m.file_url,
+            imageUrl: m.image_url,
+            files: m.has_media ? [{
+              name: (m.file_url || m.file) ? (m.file_url || m.file).split('/').pop() : ((m.image_url || m.image) ? (m.image_url || m.image).split('/').pop() : 'file'),
+              type: (m.image_url || m.image) ? 'image' : ((m.file_url || m.file) ? getFileTypeFromUrl(m.file_url || m.file) : 'file'),
+              url: m.file_url || m.image_url || m.file || m.image
+            }] : undefined,
           };
+          
+          // Debug the final mapped message
+          if (m.has_media) {
+            console.log('Final mapped message with media:', mappedMessage);
+          }
+          
+          return mappedMessage;
         });
         setMessages(mapped);
     } catch (e) {
@@ -372,6 +738,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
       try {
         const data = JSON.parse(event.data);
         console.log('Chat WS received:', data.type || 'message');
+        console.log('Full WebSocket data:', data);
         
         // Determine current user id using saved "me" from history API if available,
         // fallback to token-stored userDataRef
@@ -391,6 +758,16 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
         const text = messageData.message || '';
         const timestamp = messageData.timestamp || messageData.time || new Date().toISOString();
         const messageId = messageData.id || `msg_${Date.now()}`;
+        const hasMedia = messageData.has_media || false;
+        const fileUrl = messageData.file_url || null;
+        const imageUrl = messageData.image_url || null;
+        
+        console.log('Message data details:', {
+          hasMedia,
+          fileUrl,
+          imageUrl,
+          messageData
+        });
         
         // Check if this is our own message (optimistic update replacement)
         const isSentByMe = senderId === currentUserId;
@@ -405,9 +782,12 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
           
           // If this is our own message, replace the optimistic version
           if (isSentByMe) {
-            // Find and replace optimistic message
+            // Find and replace optimistic message - look for recent optimistic messages
             const optimisticIndex = prev.findIndex(msg => 
-              msg.isOptimistic && msg.message === text
+              msg.isOptimistic && (
+                (hasMedia && msg.hasMedia) || // Both have media
+                (!hasMedia && !msg.hasMedia && msg.message === text) // Both are text messages
+              )
             );
             
             if (optimisticIndex !== -1) {
@@ -419,6 +799,14 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
                 message: text,
                 time: new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 type: 'sent',
+                hasMedia,
+                fileUrl,
+                imageUrl,
+                files: hasMedia ? [{
+                  name: fileUrl ? fileUrl.split('/').pop() : (imageUrl ? imageUrl.split('/').pop() : 'file'),
+                  type: imageUrl ? 'image' : (fileUrl ? getFileTypeFromUrl(fileUrl) : 'file'),
+                  url: fileUrl || imageUrl
+                }] : undefined,
               };
               return newMessages;
             }
@@ -431,9 +819,17 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
             message: text,
             time: new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             type: isSentByMe ? 'sent' : 'received',
+            hasMedia,
+            fileUrl,
+            imageUrl,
+            files: hasMedia ? [{
+              name: fileUrl ? fileUrl.split('/').pop() : (imageUrl ? imageUrl.split('/').pop() : 'file'),
+              type: imageUrl ? 'image' : (fileUrl ? getFileTypeFromUrl(fileUrl) : 'file'),
+              url: fileUrl || imageUrl
+            }] : undefined,
           };
           
-          console.log('Adding new message:', isSentByMe ? 'sent' : 'received');
+          console.log('Adding new message:', isSentByMe ? 'sent' : 'received', hasMedia ? 'with file' : '');
           return [...prev, newMessage];
         });
         
@@ -478,6 +874,39 @@ const getMessageTimeStyle = (messageType) => {
 
   return (
     <div className="h-full flex overflow-hidden">
+      {/* Image Modal */}
+      {showImageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-95" onClick={() => setShowImageModal(false)}>
+          <div className="relative w-[95%] h-[95%] flex items-center justify-center">
+            <img 
+              src={modalImageUrl}
+              alt={modalImageName}
+              className="max-w-full max-h-full object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button
+              onClick={() => setShowImageModal(false)}
+              className="absolute top-4 right-4 bg-black bg-opacity-60 text-white p-3 rounded-full hover:bg-opacity-80 transition-colors z-10"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-60 text-white p-3 rounded-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-sm truncate">{modalImageName}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownload(modalImageUrl, modalImageName);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                >
+                  Download
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Call Interface Overlay */}
       {callStatus && (
         <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center ${darkMode ? 'bg-gray-900' : 'bg-gray-800'} bg-opacity-95 text-white p-6`}>
@@ -679,37 +1108,101 @@ const getMessageTimeStyle = (messageType) => {
             </div>
 
             {/* Messages Container - Scrollable middle section */}
-            <div className="pt-20 pb-24 px-4 space-y-3 overflow-y-auto flex-1">
+            <div ref={messagesContainerRef} className="pt-20 pb-24 px-4 space-y-3 overflow-y-auto flex-1">
+              {/* Loading indicator for older messages */}
+              {isLoadingOlderMessages && (
+                <div className="flex justify-center py-4">
+                  <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                </div>
+              )}
               {messages.map((message) => (
                 <div key={message.id} className={`flex ${getMessageAlignment(message.type)}`}>
-                  <div className={`max-w-[80%] md:max-w-[65%] px-4 py-2 rounded-2xl ${
+                  <div className={`max-w-[80%] md:max-w-[65%] ${message.files && message.files.length > 0 ? 'p-0' : 'px-4 py-2'} rounded-2xl ${
                     getMessageBubbleStyle(message.type, darkMode)
                   }`}>
-                    <p className="text-sm leading-relaxed break-words">{message.message}</p>
+                    {/* Media files display */}
                     {message.files && message.files.length > 0 && (
-                      <div className={`mt-2 space-y-2 ${message.type === 'sent' ? 'bg-blue-500/40' : 'bg-green-500/40'} p-2 rounded-lg`}>
+                      <div className="space-y-1">
                         {message.files.map((file, index) => (
-                          <div key={index} className="flex items-center gap-2 text-xs">
-                            {renderFileIcon(file.type)}
-                            <div className="flex-1 min-w-0">
-                              <div className="truncate">{file.name}</div>
-                              {file.size && <div className="opacity-80">{file.size}</div>}
-                            </div>
-                            <button className="opacity-80 hover:opacity-100">
-                              <Download className="w-4 h-4" />
-                            </button>
+                          <div key={index}>
+                            {file.type === 'image' ? (
+                              <div className="relative group">
+                                <img 
+                                  src={file.url ? `https://jeewanjyoti-backend.smart.org.np${file.url}` : '#'}
+                                  alt={file.name}
+                                  className="w-full max-w-sm rounded-2xl cursor-pointer hover:opacity-90 transition-opacity"
+                                  onClick={() => handleImageClick(`https://jeewanjyoti-backend.smart.org.np${file.url}`, file.name)}
+                                  onLoad={() => console.log('Image loaded successfully:', file.url)}
+                                  onError={(e) => {
+                                    console.error('Image load error for URL:', `https://jeewanjyoti-backend.smart.org.np${file.url}`);
+                                    console.error('Error details:', e);
+                                    // Show fallback instead of hiding
+                                    e.target.style.display = 'none';
+                                    const fallback = document.createElement('div');
+                                    fallback.className = 'w-full max-w-sm rounded-2xl bg-gray-200 dark:bg-gray-700 flex items-center justify-center p-8 text-gray-500';
+                                    fallback.innerHTML = `
+                                      <div class="text-center">
+                                        <div class="text-4xl mb-2">📷</div>
+                                        <div class="text-sm">Image not loading</div>
+                                        <div class="text-xs mt-1">${file.name}</div>
+                                      </div>
+                                    `;
+                                    e.target.parentNode.appendChild(fallback);
+                                  }}
+                                />
+                                {/* Timestamp overlay in corner */}
+                                <div className="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white px-2 py-1 rounded-lg text-xs">
+                                  {message.time}
+                                </div>
+                                {/* Download button overlay */}
+                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownload(`https://jeewanjyoti-backend.smart.org.np${file.url}`, file.name);
+                                    }}
+                                    className="bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-colors"
+                                    title="Download image"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className={`p-3 ${message.type === 'sent' ? 'bg-blue-500/20' : 'bg-green-500/20'} rounded-2xl`}>
+                                <div className="flex items-center gap-3">
+                                  {renderFileIcon(file.type)}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium truncate">{file.name}</div>
+                                    {file.size && <div className="text-xs opacity-70">{file.size}</div>}
+                                  </div>
+                                  <a 
+                                    href={file.url ? `https://jeewanjyoti-backend.smart.org.np${file.url}` : '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </a>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
-
-                        {/* Fallback empty state for message files */}
-                        {message.files.length === 0 && (
-                          <div className="text-center text-gray-500 text-xs py-2">
-                            No files attached.
-                          </div>
-                        )}
                       </div>
                     )}
-                    <div className={`text-[10px] mt-1 ${getMessageTimeStyle(message.type)}`}>{message.time}</div>
+                    
+                    {/* Text message */}
+                    {message.message && (
+                      <div className={`px-4 py-2 ${message.files && message.files.length > 0 ? 'pt-2' : ''}`}>
+                        <p className="text-sm leading-relaxed break-words">{message.message}</p>
+                      </div>
+                    )}
+                    
+                    {/* Message time - only show for non-image messages */}
+                    {!(message.files && message.files.some(file => file.type === 'image')) && (
+                      <div className={`text-[10px] px-4 pb-2 ${getMessageTimeStyle(message.type)}`}>{message.time}</div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -740,25 +1233,36 @@ const getMessageTimeStyle = (messageType) => {
               )}
 
               <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                {/* Screenshot processing indicator */}
+                {isProcessingScreenshot && (
+                  <div className={`mb-2 p-2 rounded-lg ${darkMode ? 'bg-blue-900/50' : 'bg-blue-50'} flex items-center gap-2`}>
+                    <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                    <span className="text-sm text-blue-600 dark:text-blue-400">Processing screenshot...</span>
+                  </div>
+                )}
+                
                 <div className="flex items-center gap-2">
                   <div className="relative">
                     <button
-                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      onClick={() => {
+                        console.log('Emoji picker button clicked, current state:', showEmojiPicker);
+                        setShowEmojiPicker(!showEmojiPicker);
+                      }}
                       className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
                     >
                       <Smile className="w-5 h-5 text-gray-500" />
                     </button>
                     
                     {showEmojiPicker && (
-                      <div className="absolute bottom-full left-0 mb-2 z-20">
+                      <div className="absolute bottom-full left-0 mb-2 z-20 emoji-picker-container">
                         <EmojiPicker
-                          onEmojiClick={(emoji) => {
-                            setNewMessage(prev => prev + emoji.emoji);
-                            setShowEmojiPicker(false);
-                          }}
+                          onEmojiClick={handleEmojiClick}
                           theme={darkMode ? 'dark' : 'light'}
                           width={280}
                           height={350}
+                          emojiAsFile={emojiAsFile}
+                          setEmojiAsFile={setEmojiAsFile}
+                          onClose={() => setShowEmojiPicker(false)}
                         />
                       </div>
                     )}
@@ -789,6 +1293,7 @@ const getMessageTimeStyle = (messageType) => {
                         : 'border-gray-200'
                     }`}
                     onKeyPress={handleKeyPress}
+                    onPaste={handlePaste}
                   />
                   
                   <button
@@ -938,30 +1443,101 @@ const getMessageTimeStyle = (messageType) => {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 p-4 space-y-3 overflow-y-auto min-h-0 pb-4">
+              <div ref={messagesContainerRef} className="flex-1 p-4 space-y-3 overflow-y-auto min-h-0 pb-4">
+                {/* Loading indicator for older messages */}
+                {isLoadingOlderMessages && (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                  </div>
+                )}
                 {messages.map((message) => (
                   <div key={message.id} className={`flex ${getMessageAlignment(message.type)}`}>
-                    <div className={`max-w-md lg:max-w-2xl px-4 py-2 rounded-2xl ${
+                    <div className={`max-w-md lg:max-w-2xl ${message.files && message.files.length > 0 ? 'p-0' : 'px-4 py-2'} rounded-2xl ${
                       getMessageBubbleStyle(message.type, darkMode)
                     }`}>
-                      <p className="text-sm leading-relaxed break-words">{message.message}</p>
+                      {/* Media files display */}
                       {message.files && message.files.length > 0 && (
-                        <div className={`mt-2 space-y-2 ${message.type === 'sent' ? 'bg-blue-500/40' : 'bg-green-500/40'} p-2 rounded-lg`}>
+                        <div className="space-y-1">
                           {message.files.map((file, index) => (
-                            <div key={index} className="flex items-center gap-2 text-xs">
-                              {renderFileIcon(file.type)}
-                              <div className="flex-1 min-w-0">
-                                <div className="truncate">{file.name}</div>
-                                {file.size && <div className="opacity-80">{file.size}</div>}
-                              </div>
-                              <button className={`p-1 rounded ${darkMode ? 'hover:bg-gray-500' : 'hover:bg-gray-300'}`}>
-                                <Download className="w-3 h-3" />
-                              </button>
+                            <div key={index}>
+                              {file.type === 'image' ? (
+                                <div className="relative group">
+                                  <img 
+                                    src={file.url ? `https://jeewanjyoti-backend.smart.org.np${file.url}` : '#'}
+                                    alt={file.name}
+                                    className="w-full max-w-md rounded-2xl cursor-pointer hover:opacity-90 transition-opacity"
+                                    onClick={() => handleImageClick(`https://jeewanjyoti-backend.smart.org.np${file.url}`, file.name)}
+                                    onLoad={() => console.log('Image loaded successfully:', file.url)}
+                                    onError={(e) => {
+                                      console.error('Image load error for URL:', `https://jeewanjyoti-backend.smart.org.np${file.url}`);
+                                      console.error('Error details:', e);
+                                      // Show fallback instead of hiding
+                                      e.target.style.display = 'none';
+                                      const fallback = document.createElement('div');
+                                      fallback.className = 'w-full max-w-md rounded-2xl bg-gray-200 dark:bg-gray-700 flex items-center justify-center p-8 text-gray-500';
+                                      fallback.innerHTML = `
+                                        <div class="text-center">
+                                          <div class="text-4xl mb-2">📷</div>
+                                          <div class="text-sm">Image not loading</div>
+                                          <div class="text-xs mt-1">${file.name}</div>
+                                        </div>
+                                      `;
+                                      e.target.parentNode.appendChild(fallback);
+                                    }}
+                                  />
+                                  {/* Timestamp overlay in corner */}
+                                  <div className="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white px-2 py-1 rounded-lg text-xs">
+                                    {message.time}
+                                  </div>
+                                  {/* Download button overlay */}
+                                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDownload(`https://jeewanjyoti-backend.smart.org.np${file.url}`, file.name);
+                                      }}
+                                      className="bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-colors"
+                                      title="Download image"
+                                    >
+                                      <Download className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className={`p-3 ${message.type === 'sent' ? 'bg-blue-500/20' : 'bg-green-500/20'} rounded-2xl`}>
+                                  <div className="flex items-center gap-3">
+                                    {renderFileIcon(file.type)}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-sm font-medium truncate">{file.name}</div>
+                                      {file.size && <div className="text-xs opacity-70">{file.size}</div>}
+                                    </div>
+                                    <a 
+                                      href={file.url ? `https://jeewanjyoti-backend.smart.org.np${file.url}` : '#'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                    >
+                                      <Download className="w-4 h-4" />
+                                    </a>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
                       )}
-                      <p className={`text-[10px] mt-1 ${getMessageTimeStyle(message.type)}`}>{message.time}</p>
+                      
+                      {/* Text message */}
+                      {message.message && (
+                        <div className={`px-4 py-2 ${message.files && message.files.length > 0 ? 'pt-2' : ''}`}>
+                          <p className="text-sm leading-relaxed break-words">{message.message}</p>
+                        </div>
+                      )}
+                      
+                      {/* Message time - only show for non-image messages */}
+                      {!(message.files && message.files.some(file => file.type === 'image')) && (
+                        <div className={`text-[10px] px-4 pb-2 ${getMessageTimeStyle(message.type)}`}>{message.time}</div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -991,22 +1567,36 @@ const getMessageTimeStyle = (messageType) => {
 
               {/* Message Input */}
               <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex-shrink-0`}>
+                {/* Screenshot processing indicator */}
+                {isProcessingScreenshot && (
+                  <div className={`mb-2 p-2 rounded-lg ${darkMode ? 'bg-blue-900/50' : 'bg-blue-50'} flex items-center gap-2`}>
+                    <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                    <span className="text-sm text-blue-600 dark:text-blue-400">Processing screenshot...</span>
+                  </div>
+                )}
+                
                 <div className="flex items-center gap-2">
                   <div className="relative">
                     <button
-                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      onClick={() => {
+                        console.log('Desktop emoji picker button clicked, current state:', showEmojiPicker);
+                        setShowEmojiPicker(!showEmojiPicker);
+                      }}
                       className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-200'} transition-colors`}
                     >
                       <Smile className="w-5 h-5 text-gray-500" />
                     </button>
                     
                     {showEmojiPicker && (
-                      <div className="absolute bottom-full left-0 mb-2 z-10">
+                      <div className="absolute bottom-full left-0 mb-2 z-10 emoji-picker-container">
                         <EmojiPicker 
                           onEmojiClick={handleEmojiClick}
                           theme={darkMode ? 'dark' : 'light'}
                           height={350}
                           width={300}
+                          emojiAsFile={emojiAsFile}
+                          setEmojiAsFile={setEmojiAsFile}
+                          onClose={() => setShowEmojiPicker(false)}
                         />
                       </div>
                     )}
@@ -1037,6 +1627,7 @@ const getMessageTimeStyle = (messageType) => {
                         : 'border-gray-200'
                     }`}
                     onKeyPress={handleKeyPress}
+                    onPaste={handlePaste}
                   />
                   
                   <button
