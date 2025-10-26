@@ -100,7 +100,16 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
       const user = c.user || {};
       const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || `User ${user.id}`;
       const initials = `${(user.first_name || '').charAt(0)}${(user.last_name || '').charAt(0)}`.toUpperCase() || 'U';
-      const lastMsg = c.last_message?.message || '';
+      
+      // Handle last message - show text if available, otherwise show media indicator
+      let lastMsg = c.last_message?.message || '';
+      if (!lastMsg && c.last_message) {
+        // Check if the last message has media (photo/file)
+        if (c.last_message.has_media || c.last_message.file_url || c.last_message.image_url || c.last_message.file || c.last_message.image) {
+          lastMsg = '📷 Photo';
+        }
+      }
+      
       const time = c.last_message_time ? new Date(c.last_message_time).toLocaleString() : '';
       return {
         id: String(user.id),
@@ -146,7 +155,18 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    scrollToBottom();
+    // Use a small delay to ensure DOM is updated
+    setTimeout(() => {
+      scrollToBottom();
+    }, 100);
+    
+    // Also wait for images to load and scroll again to ensure we're at the very bottom
+    const timer = setTimeout(async () => {
+      await waitForImagesToLoad(messagesContainerRef.current, 2000);
+      scrollToBottom(true);
+    }, 500);
+    
+    return () => clearTimeout(timer);
   }, [messages]);
 
   // Facebook Messenger-style scroll behavior
@@ -245,8 +265,18 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     }
   }, [showEmojiPicker]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (force = false) => {
+    if (messagesEndRef.current) {
+      // Use scrollTop for more reliable scrolling to absolute bottom
+      const container = messagesContainerRef.current;
+      if (container) {
+        // Scroll to absolute bottom
+        container.scrollTop = container.scrollHeight;
+      } else {
+        // Fallback to scrollIntoView
+        messagesEndRef.current.scrollIntoView({ behavior: force ? "auto" : "smooth" });
+      }
+    }
   };
 
   // File upload API function
@@ -440,7 +470,12 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
       await fetchHistory(selectedChat);
       // wait for images to render so scrollToBottom lands at the real bottom
       await waitForImagesToLoad(messagesContainerRef.current, 2500);
-      requestAnimationFrame(() => scrollToBottom());
+      // Use multiple animation frames to ensure proper scrolling to absolute bottom
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          scrollToBottom(true); // Force scroll to absolute bottom
+        });
+      });
     } catch (err) {
       console.error('Failed to load latest messages on focus', err);
     }
@@ -623,19 +658,21 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
         
         console.log('Chat messages from history:', arr);
   
-        // Sort by timestamp ascending
+        // Sort by timestamp ascending (oldest first) to show latest messages at bottom
         arr.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   
         const mapped = arr.map((m) => {
           const isSentByMe = Number(m.sender) === myUserId;
           
           // Debug logging for media messages
-          if (m.has_media) {
+          if (m.has_media || m.file_url || m.image_url || m.file || m.image) {
             console.log('History message with media:', {
               id: m.id,
               has_media: m.has_media,
               file_url: m.file_url,
               image_url: m.image_url,
+              file: m.file,
+              image: m.image,
               message: m.message,
               full_message_object: m
             });
@@ -655,6 +692,11 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
             all_keys: Object.keys(m)
           });
           
+          // Enhanced media detection - check for any media indicators
+          const hasMedia = m.has_media || m.file_url || m.image_url || m.file || m.image;
+          const fileUrl = m.file_url || m.file || null;
+          const imageUrl = m.image_url || m.image || null;
+          
           const mappedMessage = {
             id: m.id,
             sender: isSentByMe ? 'You' : nameForPartner,
@@ -662,13 +704,13 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
             time: m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
             timestampISO: m.timestamp || new Date().toISOString(),
             type: isSentByMe ? 'sent' : 'received',  // This determines alignment
-            hasMedia: m.has_media,
-            fileUrl: m.file_url || m.file || null,
-            imageUrl: m.image_url || m.image || null,
-            files: m.has_media ? [{
-              name: (m.file_url || m.file) ? (m.file_url || m.file).split('/').pop() : ((m.image_url || m.image) ? (m.image_url || m.image).split('/').pop() : 'file'),
-              type: (m.image_url || m.image) ? 'image' : ((m.file_url || m.file) ? getFileTypeFromUrl(m.file_url || m.file) : 'file'),
-              url: m.file_url || m.image_url || m.file || m.image
+            hasMedia: hasMedia,
+            fileUrl: fileUrl,
+            imageUrl: imageUrl,
+            files: hasMedia ? [{
+              name: fileUrl ? fileUrl.split('/').pop() : (imageUrl ? imageUrl.split('/').pop() : 'file'),
+              type: imageUrl ? 'image' : (fileUrl ? getFileTypeFromUrl(fileUrl) : 'file'),
+              url: fileUrl || imageUrl
             }] : undefined,
           };
           
@@ -769,11 +811,18 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     }
     chatWsRef.current = sock;
     
-    sock.onopen = () => {
+    sock.onopen = async () => {
       console.log('Chat WebSocket connected for user:', selectedChat);
       setChatWsConnected(true);
       // Fetch history after WebSocket connects
-      fetchHistory(selectedChat);
+      await fetchHistory(selectedChat);
+      // Wait for images to load and scroll to bottom
+      await waitForImagesToLoad(messagesContainerRef.current, 2000);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          scrollToBottom(true);
+        });
+      });
     };
     
     sock.onclose = () => {
@@ -810,9 +859,10 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
         const text = messageData.message || '';
         const timestamp = messageData.timestamp || messageData.time || new Date().toISOString();
         const messageId = messageData.id || `msg_${Date.now()}`;
-        const hasMedia = messageData.has_media || false;
-        const fileUrl = messageData.file_url || null;
-        const imageUrl = messageData.image_url || null;
+        // Enhanced media detection for WebSocket messages
+        const hasMedia = messageData.has_media || messageData.file_url || messageData.image_url || messageData.file || messageData.image || false;
+        const fileUrl = messageData.file_url || messageData.file || null;
+        const imageUrl = messageData.image_url || messageData.image || null;
         
         console.log('Message data details:', {
           hasMedia,
