@@ -93,9 +93,16 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   const [lastMessageTime, setLastMessageTime] = useState(0);
   const [processingMessage, setProcessingMessage] = useState(false);
   const [processedMessageIds, setProcessedMessageIds] = useState(new Set());
+  
+  // User status WebSocket
+  const statusWsRef = useRef(null);
+  const [statusWsConnected, setStatusWsConnected] = useState(false);
+  const [userStatuses, setUserStatuses] = useState({}); // Store user statuses by user_id
+  const [statusUpdateTrigger, setStatusUpdateTrigger] = useState(0); // Force re-render on status updates
 
   // Derived chat users list for UI from conversations
   const chatUsers = useMemo(() => {
+    console.log('🔄 Recalculating chatUsers with latest userStatuses:', userStatuses);
     return (conversations || []).map((c) => {
       const user = c.user || {};
       const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || `User ${user.id}`;
@@ -111,6 +118,14 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
       }
       
       const time = c.last_message_time ? new Date(c.last_message_time).toLocaleString() : '';
+      
+      // Priority: real-time status from userStatuses, fallback to conversation data
+      const realTimeStatus = userStatuses[user.id];
+      const isOnline = realTimeStatus ? realTimeStatus.status === 'online' : user.status === 'online';
+      const lastSeen = realTimeStatus ? realTimeStatus.last_seen : user.last_seen;
+      
+      console.log(`👤 User ${user.id} (${name}): online=${isOnline}, lastSeen=${lastSeen}`);
+      
       return {
         id: String(user.id),
         name,
@@ -120,11 +135,12 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
         lastMessage: lastMsg,
         time,
         unread: c.unread_count || 0,
-        online: user.status === 'online',
+        online: isOnline,
+        lastSeen: lastSeen,
         messages: [],
       };
     });
-  }, [conversations]);
+  }, [conversations, userStatuses, statusUpdateTrigger]);
 
   const currentChat = chatUsers.find(chat => chat.id === selectedChat);
   const [messages, setMessages] = useState([]);
@@ -751,8 +767,24 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('Conversation WS received:', data);
+        
         if (data?.type === 'conversation_list' && Array.isArray(data.conversations)) {
           setConversations(data.conversations);
+          
+          // Update user statuses from conversation list
+          const statusUpdates = {};
+          data.conversations.forEach(conv => {
+            if (conv.user && conv.user.id) {
+              statusUpdates[conv.user.id] = {
+                status: conv.user.status,
+                last_seen: conv.user.last_seen
+              };
+            }
+          });
+          console.log('Updating user statuses from conversation list:', statusUpdates);
+          setUserStatuses(prev => ({ ...prev, ...statusUpdates }));
+          
           // Set a default selection if none
           if (!selectedChat && data.conversations.length > 0) {
             const firstId = String(data.conversations[0]?.user?.id);
@@ -778,6 +810,76 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     return () => {
       try { socket && socket.close(); } catch {}
       wsRef.current = null;
+    };
+  }, []);
+
+  // Status WebSocket: connect and listen for user status updates
+  useEffect(() => {
+    const token = getAccessToken();
+    if (!token) {
+      console.log('No token available for status WebSocket');
+      return;
+    }
+    
+    const statusWsUrl = `wss://jeewanjyoti-backend.smart.org.np/ws/status/?token=${token}`;
+    console.log('Attempting to connect to status WebSocket:', statusWsUrl);
+    
+    let statusSocket;
+    try {
+      statusSocket = new WebSocket(statusWsUrl);
+    } catch (e) {
+      console.error('Failed to initialize status WebSocket:', e);
+      return;
+    }
+
+    statusSocket.onopen = () => {
+      console.log('✅ Status WebSocket connected successfully');
+      setStatusWsConnected(true);
+      statusWsRef.current = statusSocket;
+    };
+
+    statusSocket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('📡 Status WS received:', data);
+        
+        if (data?.type === 'user_status') {
+          const { user_id, status, last_seen } = data;
+          console.log(`🔄 Updating user ${user_id} status to ${status}`, last_seen ? `(last seen: ${last_seen})` : '');
+          
+          // Update user statuses immutably to ensure React detects the change
+          setUserStatuses(prev => {
+            const newStatuses = {
+              ...prev,
+              [user_id]: {
+                status,
+                last_seen,
+                timestamp: Date.now() // Add timestamp to ensure uniqueness
+              }
+            };
+            console.log('📊 Updated user statuses:', newStatuses);
+            return newStatuses;
+          });
+        }
+      } catch (err) {
+        console.error('❌ Status WS message parse error:', err);
+      }
+    };
+
+    statusSocket.onerror = (error) => {
+      console.error('❌ Status WebSocket error:', error);
+      setStatusWsConnected(false);
+    };
+
+    statusSocket.onclose = (event) => {
+      console.log('🔌 Status WebSocket disconnected:', event.code, event.reason);
+      setStatusWsConnected(false);
+    };
+
+    return () => {
+      console.log('🧹 Cleaning up status WebSocket');
+      try { statusSocket && statusSocket.close(); } catch {}
+      statusWsRef.current = null;
     };
   }, []);
 
@@ -1187,7 +1289,11 @@ const getMessageTimeStyle = (messageType) => {
                     {currentChat?.name}
                   </h3>
                   <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {currentChat?.online ? 'Online' : 'Offline'} • {currentChat?.role}
+                    <span className={`inline-flex items-center gap-1`}>
+                      <div className={`w-2 h-2 rounded-full ${currentChat?.online ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                      {currentChat?.online ? 'Online' : currentChat?.lastSeen ? `Last seen ${new Date(currentChat.lastSeen).toLocaleString()}` : 'Offline'}
+                    </span>
+                    {currentChat?.role && ` • ${currentChat.role}`}
                   </span>
                 </div>
               </div>
@@ -1517,7 +1623,8 @@ const getMessageTimeStyle = (messageType) => {
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${currentChat.online ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                         <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {currentChat.online ? 'Online' : 'Offline'} • {currentChat.role}
+                          {currentChat.online ? 'Online' : currentChat.lastSeen ? `Last seen ${new Date(currentChat.lastSeen).toLocaleString()}` : 'Offline'}
+                          {currentChat.role && ` • ${currentChat.role}`}
                         </span>
                       </div>
                     </div>

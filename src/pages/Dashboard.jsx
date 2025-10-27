@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { Home, Calendar, MessageCircle, User, Moon, Sun, Bell, Settings, Menu, X, LogOut, Filter, SlidersHorizontal } from 'lucide-react';
 import jjlogo from '../assets/jjlogo.png';
@@ -15,7 +15,14 @@ import { logoutUser } from '../lib/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('home');
+  const location = useLocation();
+  
+  // Initialize activeTab from URL hash or localStorage, default to 'home'
+  const [activeTab, setActiveTab] = useState(() => {
+    const hash = location.hash.replace('#', '');
+    const savedTab = localStorage.getItem('dashboardActiveTab');
+    return hash || savedTab || 'home';
+  });
   const [darkMode, setDarkMode] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('today');
@@ -69,6 +76,14 @@ const Dashboard = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showFilterDropdown]);
+
+  // Handle tab change with persistence
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    localStorage.setItem('dashboardActiveTab', tab);
+    // Update URL hash without causing a page reload
+    window.history.replaceState(null, '', `#${tab}`);
+  };
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -176,7 +191,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-between flex-wrap gap-2 py-3">
             <div className="flex items-center gap-4 md:gap-8 min-w-0">
               <button 
-                onClick={() => setActiveTab('home')}
+                onClick={() => handleTabChange('home')}
                 className="flex items-center gap-3 hover:opacity-80 transition-opacity duration-200"
               >
                 <img src={jjlogo} alt="JJ Logo" className="w-8 h-8" />
@@ -188,7 +203,7 @@ const Dashboard = () => {
                 darkMode ? 'bg-gray-800' : 'bg-gray-100'
               }`}>
                 <button
-                  onClick={() => setActiveTab('home')}
+                  onClick={() => handleTabChange('home')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
                     activeTab === 'home' 
                       ? darkMode 
@@ -203,7 +218,7 @@ const Dashboard = () => {
                   <span className="font-medium">Home</span>
                 </button>
                 <button
-                  onClick={() => setActiveTab('appointments')}
+                  onClick={() => handleTabChange('appointments')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
                     activeTab === 'appointments' 
                       ? darkMode 
@@ -218,7 +233,7 @@ const Dashboard = () => {
                   <span className="font-medium">Appointments</span>
                 </button>
                 <button
-                  onClick={() => setActiveTab('chat')}
+                  onClick={() => handleTabChange('chat')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
                     activeTab === 'chat' 
                       ? darkMode 
@@ -234,7 +249,7 @@ const Dashboard = () => {
                   <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 ml-1">3</span>
                 </button>
                 <button
-                  onClick={() => setActiveTab('profile')}
+                  onClick={() => handleTabChange('profile')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
                     activeTab === 'profile' 
                       ? darkMode 
@@ -386,7 +401,7 @@ const Dashboard = () => {
                     <Bell className="w-5 h-5 text-gray-500" />
                   </button>
                   <button 
-                    onClick={() => setActiveTab('settings')}
+                    onClick={() => handleTabChange('settings')}
                     className={`p-2 rounded-lg transition-colors ${
                       darkMode 
                         ? 'hover:bg-gray-700' 
@@ -427,7 +442,7 @@ const Dashboard = () => {
         <div className={`md:hidden fixed inset-0 z-20 ${darkMode ? 'bg-gray-900' : 'bg-white'} pt-16`}>
           <div className="p-4 space-y-4">
             <button
-              onClick={() => { setActiveTab('home'); setIsMobileMenuOpen(false); }}
+              onClick={() => { handleTabChange('home'); setIsMobileMenuOpen(false); }}
               className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
                 activeTab === 'home' 
                   ? darkMode 
@@ -442,7 +457,7 @@ const Dashboard = () => {
               <span className="font-medium">Home</span>
             </button>
             <button
-              onClick={() => { setActiveTab('appointments'); setIsMobileMenuOpen(false); }}
+              onClick={() => { handleTabChange('appointments'); setIsMobileMenuOpen(false); }}
               className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
                 activeTab === 'appointments' 
                   ? darkMode 
@@ -457,7 +472,7 @@ const Dashboard = () => {
               <span className="font-medium">Appointments</span>
             </button>
             <button
-              onClick={() => { setActiveTab('chat'); setIsMobileMenuOpen(false); }}
+              onClick={() => { handleTabChange('chat'); setIsMobileMenuOpen(false); }}
               className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
                 activeTab === 'chat' 
                   ? darkMode 
@@ -473,7 +488,7 @@ const Dashboard = () => {
               <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 ml-auto">3</span>
             </button>
             <button
-              onClick={() => { setActiveTab('profile'); setIsMobileMenuOpen(false); }}
+              onClick={() => { handleTabChange('profile'); setIsMobileMenuOpen(false); }}
               className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
                 activeTab === 'profile' 
                   ? darkMode 
@@ -489,7 +504,7 @@ const Dashboard = () => {
             </button>
             <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-2">
               <button
-                onClick={() => { setActiveTab('settings'); setIsMobileMenuOpen(false); }}
+                onClick={() => { handleTabChange('settings'); setIsMobileMenuOpen(false); }}
                 className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
                   darkMode 
                     ? 'text-gray-300 hover:bg-gray-800' 
@@ -561,7 +576,7 @@ const Dashboard = () => {
       <div className={`md:hidden fixed bottom-0 left-0 right-0 z-10 border-t bg-white dark:bg-gray-900 dark:border-gray-800 ${isChatRoomOpen ? 'hidden' : ''}`}>
           <div className="grid grid-cols-4 h-16">
             <button
-              onClick={() => setActiveTab('home')}
+              onClick={() => handleTabChange('home')}
               className={`flex flex-col items-center justify-center p-2 transition-colors ${
                 activeTab === 'home' 
                   ? darkMode 
@@ -576,7 +591,7 @@ const Dashboard = () => {
               <span className="text-xs mt-1">Home</span>
             </button>
             <button
-              onClick={() => setActiveTab('appointments')}
+              onClick={() => handleTabChange('appointments')}
               className={`flex flex-col items-center justify-center p-2 transition-colors ${
                 activeTab === 'appointments' 
                   ? darkMode 
@@ -591,7 +606,7 @@ const Dashboard = () => {
               <span className="text-xs mt-1">Appointments</span>
             </button>
             <button
-              onClick={() => setActiveTab('chat')}
+              onClick={() => handleTabChange('chat')}
               className={`flex flex-col items-center justify-center p-2 transition-colors relative ${
                 activeTab === 'chat' 
                   ? darkMode 
@@ -607,7 +622,7 @@ const Dashboard = () => {
               <span className="absolute top-1 right-4 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">3</span>
             </button>
             <button
-              onClick={() => setActiveTab('profile')}
+              onClick={() => handleTabChange('profile')}
               className={`flex flex-col items-center justify-center p-2 transition-colors ${
                 activeTab === 'profile' 
                   ? darkMode 
