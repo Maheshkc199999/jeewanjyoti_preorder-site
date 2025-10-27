@@ -105,7 +105,10 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     console.log('🔄 Recalculating chatUsers with latest userStatuses:', userStatuses);
     return (conversations || []).map((c) => {
       const user = c.user || {};
-      const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || `User ${user.id}`;
+      const uid = Number(user.id);
+      const realTimeStatus = userStatuses[uid];
+      // keep other logic the same, but use uid for lookups
+      const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || `User ${uid}`;
       const initials = `${(user.first_name || '').charAt(0)}${(user.last_name || '').charAt(0)}`.toUpperCase() || 'U';
       
       // Handle last message - show text if available, otherwise show media indicator
@@ -120,14 +123,13 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
       const time = c.last_message_time ? new Date(c.last_message_time).toLocaleString() : '';
       
       // Priority: real-time status from userStatuses, fallback to conversation data
-      const realTimeStatus = userStatuses[user.id];
       const isOnline = realTimeStatus ? realTimeStatus.status === 'online' : user.status === 'online';
       const lastSeen = realTimeStatus ? realTimeStatus.last_seen : user.last_seen;
       
       console.log(`👤 User ${user.id} (${name}): online=${isOnline}, lastSeen=${lastSeen}`);
       
       return {
-        id: String(user.id),
+        id: String(uid),
         name,
         role: user.username || '',
         avatar: initials,
@@ -772,18 +774,20 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
         if (data?.type === 'conversation_list' && Array.isArray(data.conversations)) {
           setConversations(data.conversations);
           
-          // Update user statuses from conversation list
+          // Update user statuses from conversation list (normalize ids)
           const statusUpdates = {};
           data.conversations.forEach(conv => {
-            if (conv.user && conv.user.id) {
-              statusUpdates[conv.user.id] = {
+            if (conv.user && conv.user.id != null) {
+              const uid = Number(conv.user.id);
+              statusUpdates[uid] = {
                 status: conv.user.status,
                 last_seen: conv.user.last_seen
               };
             }
           });
-          console.log('Updating user statuses from conversation list:', statusUpdates);
+          console.log('Updating user statuses from conversation list (normalized):', statusUpdates);
           setUserStatuses(prev => ({ ...prev, ...statusUpdates }));
+          setStatusUpdateTrigger(s => s + 1);
           
           // Set a default selection if none
           if (!selectedChat && data.conversations.length > 0) {
