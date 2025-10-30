@@ -264,3 +264,14 @@ export async function logoutUser() {
     clearTokens()
   }
 } 
+
+export const initializePayment = async (token, invoiceNo, amount) => {
+  return await apiRequest('/initialize_payment/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ invoice_no: invoiceNo, amount })
+  });
+}; 

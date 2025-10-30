@@ -10,5 +10,12 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // Allow external connections
     port: 3001, // Use port 3001
+    proxy: {
+      '/api': {
+        target: 'https://103.118.16.251',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 })

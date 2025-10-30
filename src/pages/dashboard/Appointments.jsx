@@ -1,16 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, Video, Phone, MapPin, X, Search, Star, GraduationCap, Building, Mail, User, CreditCard } from 'lucide-react';
 import { getDoctorList } from '../../lib/api';
-import KhaltiPayment from '../../components/KhaltiPayment';
 
 const AppointmentsTab = ({ darkMode }) => {
   console.log('AppointmentsTab component rendering...', { darkMode });
   
   const [showDoctorModal, setShowDoctorModal] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
-  const [pendingAppointment, setPendingAppointment] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [filteredDoctors, setFilteredDoctors] = useState([]);
   const [appointments, setAppointments] = useState([]);
@@ -27,8 +24,8 @@ const AppointmentsTab = ({ darkMode }) => {
     user_report: null
   });
 
-  // API base URL
-  const API_BASE = 'https://103.118.16.251/api';
+  // API base URL (use dev proxy in development)
+  const API_BASE = import.meta.env.DEV ? '/api' : 'https://103.118.16.251/api';
 
   // Fetch appointments on component mount
   useEffect(() => {
@@ -124,42 +121,25 @@ const AppointmentsTab = ({ darkMode }) => {
     }
   };
 
-  // Initialize payment with backend
-  const initializePayment = async (invoiceNo, amountInRupees) => {
+  const initializePayment = async (invoiceNo) => {
     try {
-      const token = localStorage.getItem('access_token');
-      
-      // Convert rupees to paisa (multiply by 100)
-      const amountInPaisa = Math.round(amountInRupees * 100);
-      
-      const payload = {
-        invoice_no: invoiceNo,
-        amount: amountInPaisa.toString() // Convert to string as required
-      };
-      
-      console.log('Initializing payment with payload:', payload);
-      
-      const response = await fetch(`${API_BASE}/initialize_payment/`, {
-        method: 'POST',
+      const token = localStorage.getItem("access_token");
+      const amount = 100; // You can make this dynamic (doctor.fee or so)
+      const res = await fetch(`${API_BASE}/initialize_payment/`, {
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ invoice_no: invoiceNo, amount }),
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Payment initialization response:', data);
-        return data;
-      } else {
-        const errorData = await response.json();
-        console.error('Payment initialization failed:', errorData);
-        throw new Error(errorData.detail || 'Failed to initialize payment');
-      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Payment init failed");
+      // Redirect to Khalti test payment page
+      window.location.href = `https://test-pay.khalti.com/wallet?pidx=${data.pidx}`;
     } catch (err) {
-      console.error('Error initializing payment:', err);
-      throw err;
+      console.error("Payment init error:", err);
+      alert(err.message);
     }
   };
 
@@ -201,30 +181,33 @@ const AppointmentsTab = ({ darkMode }) => {
     try {
       const token = localStorage.getItem('access_token');
       
-      // Prepare the payload according to the API requirements
-      const payload = {
-        doctor_id: selectedDoctor.id,
-        problem_description: bookingData.problem_description,
-        is_immediate: bookingData.is_immediate
-      };
+      // Prepare multipart form data as required by API
+      const formData = new FormData();
+      formData.append('doctor_id', String(selectedDoctor.id));
+      formData.append('problem_description', bookingData.problem_description);
+      formData.append('is_immediate', bookingData.is_immediate ? 'true' : 'false');
       
-      // Add appointment date and time only if it's not an immediate appointment
       if (!bookingData.is_immediate && bookingData.appointment_date && bookingData.appointment_time) {
-        // Format the date and time according to API requirements
-        const appointmentDateTime = `${bookingData.appointment_date}T${bookingData.appointment_time}:00Z`;
-        payload.appointment_date = appointmentDateTime;
-        payload.appointment_time = `${bookingData.appointment_time}:00`;
+        const timeWithSeconds = bookingData.appointment_time.length === 5
+          ? `${bookingData.appointment_time}:00`
+          : bookingData.appointment_time;
+        formData.append('appointment_date', bookingData.appointment_date);
+        formData.append('appointment_time', timeWithSeconds);
       }
       
-      console.log('Booking appointment with payload:', payload);
+      if (bookingData.user_report) {
+        formData.append('user_report', bookingData.user_report);
+      }
+      
+      console.log('Booking appointment with FormData (keys):', Array.from(formData.keys()));
       
       const response = await fetch(`${API_BASE}/book_appointment/`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
+          // Note: Do not set Content-Type; the browser will set correct multipart boundary
         },
-        body: JSON.stringify(payload)
+        body: formData
       });
       
       if (response.ok) {
@@ -234,36 +217,8 @@ const AppointmentsTab = ({ darkMode }) => {
         setShowBookingModal(false);
         setSelectedDoctor(null);
         
-        // Store pending appointment for payment
-        setPendingAppointment({
-          ...data,
-          amount: 1000 // Default amount in rupees (will be converted to paisa)
-        });
-        
-        console.log('Setting payment modal to true, pending appointment:', {
-          ...data,
-          amount: 1000
-        });
-        
-        // Initialize payment and get pidx
-        try {
-          const paymentData = await initializePayment(data.invoice_no, 1000);
-          
-          // Update pending appointment with pidx
-          setPendingAppointment(prev => ({
-            ...prev,
-            pidx: paymentData.pidx
-          }));
-          
-          setShowPaymentModal(true);
-        } catch (paymentError) {
-          console.error('Payment initialization failed:', paymentError);
-          setError(`Appointment booked but payment initialization failed: ${paymentError.message}. Please try payment later.`);
-          
-          // Still show success message for appointment booking
-          alert('Appointment booked successfully! Please complete payment later.');
-          fetchAppointments(); // Refresh appointments list
-        }
+        // Begin Khalti redirect payment
+        initializePayment(data.invoice_no);
         
         // Reset booking form
         setBookingData({
@@ -311,8 +266,7 @@ const AppointmentsTab = ({ darkMode }) => {
 
   // Handle payment success
   const handlePaymentSuccess = () => {
-    setShowPaymentModal(false);
-    setPendingAppointment(null);
+    // This function is no longer needed as payment is handled by Khalti redirect
     alert('Payment successful! Your appointment has been confirmed.');
     fetchAppointments(); // Refresh appointments list
   };
@@ -325,8 +279,7 @@ const AppointmentsTab = ({ darkMode }) => {
 
   // Handle payment cancellation
   const handlePaymentCancel = () => {
-    setShowPaymentModal(false);
-    setPendingAppointment(null);
+    // This function is no longer needed as payment is handled by Khalti redirect
     setError('Payment cancelled. Your appointment is still pending.');
   };
 
@@ -874,6 +827,23 @@ const AppointmentsTab = ({ darkMode }) => {
                   ></textarea>
                 </div>
 
+                <div>
+                  <label htmlFor="user_report" className={`block mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                    Upload Medical Report (optional)
+                  </label>
+                  <input
+                    type="file"
+                    id="user_report"
+                    name="user_report"
+                    onChange={handleBookingInputChange}
+                    className={`w-full p-3 rounded-xl border ${
+                      darkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                  />
+                </div>
+
                 <div className="flex justify-end gap-4 mt-6">
                   <button
                     type="button"
@@ -904,36 +874,7 @@ const AppointmentsTab = ({ darkMode }) => {
       )}
 
       {/* Payment Modal */}
-      {console.log('Payment modal state:', { showPaymentModal, pendingAppointment })}
-      {showPaymentModal && pendingAppointment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className={`w-full max-w-md rounded-2xl shadow-2xl ${darkMode ? 'bg-gray-800' : 'bg-white'} p-6`}>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                Complete Payment
-              </h3>
-              <button
-                onClick={handlePaymentCancel}
-                className={`p-2 rounded-lg hover:bg-gray-100 ${
-                  darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                }`}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <KhaltiPayment
-              invoiceNo={pendingAppointment.invoice_no}
-              amount={pendingAppointment.amount}
-              pidx={pendingAppointment.pidx}
-              onPaymentSuccess={handlePaymentSuccess}
-              onPaymentError={handlePaymentError}
-              onCancel={handlePaymentCancel}
-              darkMode={darkMode}
-            />
-          </div>
-        </div>
-      )}
+      {/* No payment modal. */}
 
     </div>
   );
