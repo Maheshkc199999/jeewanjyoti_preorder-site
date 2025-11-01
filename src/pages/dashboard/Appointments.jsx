@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, Video, Phone, MapPin, X, Search, Star, GraduationCap, Building, Mail, User, CreditCard } from 'lucide-react';
-import { getDoctorList } from '../../lib/api';
+import { getDoctorList, API_BASE_URL } from '../../lib/api';
 
 const AppointmentsTab = ({ darkMode }) => {
   console.log('AppointmentsTab component rendering...', { darkMode });
@@ -24,8 +24,18 @@ const AppointmentsTab = ({ darkMode }) => {
     user_report: null
   });
 
-  // API base URL (use dev proxy in development)
-  const API_BASE = import.meta.env.DEV ? '/api' : 'https://103.118.16.251/api';
+  // API base URL - use environment variable or fallback to the API_BASE_URL from api.js
+  // In dev mode, use proxy '/api', in production use the full API URL
+  // If API_BASE_URL doesn't include '/api', we need to add it for the endpoints
+  const getApiBase = () => {
+    if (import.meta.env.DEV) {
+      return '/api';
+    }
+    const base = import.meta.env.VITE_API_BASE_URL || API_BASE_URL;
+    // If base doesn't end with /api, add it
+    return base.includes('/api') ? base : `${base}/api`;
+  };
+  const API_BASE = getApiBase();
 
   // Fetch appointments on component mount
   useEffect(() => {
@@ -79,10 +89,26 @@ const AppointmentsTab = ({ darkMode }) => {
     try {
       console.log('Fetching appointments...');
       setLoadingAppointments(true);
+      setError(null);
+      
       const token = localStorage.getItem('access_token');
       console.log('Token available:', !!token);
       
-      const response = await fetch(`${API_BASE}/appointment_list/`, {
+      if (!token) {
+        setError('Please log in to view appointments');
+        setLoadingAppointments(false);
+        return;
+      }
+      
+      // Construct the full URL
+      // API_BASE should already include '/api' (either as /api or https://domain.com/api)
+      const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+      const endpoint = 'appointment_list/';
+      const url = `${base}/${endpoint}`;
+      
+      console.log('Fetching from URL:', url);
+      
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -91,15 +117,54 @@ const AppointmentsTab = ({ darkMode }) => {
       
       console.log('Appointments response status:', response.status);
       
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Appointments data:', data);
+      if (!response.ok) {
+        // Try to get error message from response
+        let errorMessage = `Failed to fetch appointments (${response.status})`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+          
+          // Handle authentication errors
+          if (response.status === 401 || response.status === 403) {
+            errorMessage = 'Session expired. Please log in again.';
+            // Optionally redirect to login
+            // window.location.href = '/login';
+          }
+        } catch (parseError) {
+          console.error('Could not parse error response:', parseError);
+        }
+        
+        setError(errorMessage);
+        setAppointments([]);
+        console.error('Failed to fetch appointments:', response.status, errorMessage);
+        return;
+      }
+      
+      const data = await response.json();
+      console.log('Appointments data:', data);
+      
+      // Handle different response formats
+      if (Array.isArray(data)) {
         setAppointments(data);
+      } else if (data.results && Array.isArray(data.results)) {
+        // Paginated response
+        setAppointments(data.results);
+      } else if (data.appointments && Array.isArray(data.appointments)) {
+        // Nested appointments object
+        setAppointments(data.appointments);
+      } else if (data.data && Array.isArray(data.data)) {
+        // Nested data object
+        setAppointments(data.data);
       } else {
-        console.error('Failed to fetch appointments:', response.status);
+        console.warn('Unexpected appointments response format:', data);
+        setAppointments([]);
+        setError('Received unexpected data format from server');
       }
     } catch (err) {
       console.error('Error fetching appointments:', err);
+      const errorMessage = err.message || 'Network error. Please check your connection and try again.';
+      setError(errorMessage);
+      setAppointments([]);
     } finally {
       setLoadingAppointments(false);
     }
@@ -124,8 +189,19 @@ const AppointmentsTab = ({ darkMode }) => {
   const initializePayment = async (invoiceNo) => {
     try {
       const token = localStorage.getItem("access_token");
+      if (!token) {
+        setError('Please log in to proceed with payment');
+        return;
+      }
+      
       const amount = 100; // You can make this dynamic (doctor.fee or so)
-      const res = await fetch(`${API_BASE}/initialize_payment/`, {
+      
+      // Construct the full URL
+      const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+      const endpoint = 'initialize_payment/';
+      const url = `${base}/${endpoint}`;
+      
+      const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -133,13 +209,29 @@ const AppointmentsTab = ({ darkMode }) => {
         },
         body: JSON.stringify({ invoice_no: invoiceNo, amount }),
       });
+      
+      if (!res.ok) {
+        let errorMessage = "Payment initialization failed";
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+        } catch (parseError) {
+          errorMessage = `Payment failed with status ${res.status}`;
+        }
+        throw new Error(errorMessage);
+      }
+      
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Payment init failed");
+      if (!data.pidx) {
+        throw new Error("Invalid payment response from server");
+      }
+      
       // Redirect to Khalti test payment page
       window.location.href = `https://test-pay.khalti.com/wallet?pidx=${data.pidx}`;
     } catch (err) {
       console.error("Payment init error:", err);
-      alert(err.message);
+      setError(err.message || "Failed to initialize payment. Please try again.");
+      alert(err.message || "Failed to initialize payment. Please try again.");
     }
   };
 
@@ -201,7 +293,12 @@ const AppointmentsTab = ({ darkMode }) => {
       
       console.log('Booking appointment with FormData (keys):', Array.from(formData.keys()));
       
-      const response = await fetch(`${API_BASE}/book_appointment/`, {
+      // Construct the full URL
+      const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+      const endpoint = 'book_appointment/';
+      const url = `${base}/${endpoint}`;
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -213,6 +310,10 @@ const AppointmentsTab = ({ darkMode }) => {
       if (response.ok) {
         const data = await response.json();
         console.log('Appointment booking response:', data);
+        
+        if (!data.invoice_no) {
+          throw new Error('Invalid response from server: missing invoice number');
+        }
         
         setShowBookingModal(false);
         setSelectedDoctor(null);
@@ -229,9 +330,20 @@ const AppointmentsTab = ({ darkMode }) => {
           user_report: null
         });
       } else {
-        const errorData = await response.json();
-        console.error('Appointment booking failed:', errorData);
-        setError(errorData.detail || 'Failed to book appointment');
+        let errorMessage = 'Failed to book appointment';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+          
+          // Handle authentication errors
+          if (response.status === 401 || response.status === 403) {
+            errorMessage = 'Session expired. Please log in again.';
+          }
+        } catch (parseError) {
+          errorMessage = `Booking failed with status ${response.status}`;
+        }
+        console.error('Appointment booking failed:', errorMessage);
+        setError(errorMessage);
       }
     } catch (err) {
       console.error('Error booking appointment:', err);
