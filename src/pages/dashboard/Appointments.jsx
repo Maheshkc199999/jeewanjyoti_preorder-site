@@ -507,23 +507,26 @@ const AppointmentsTab = ({ darkMode }) => {
                   }`}>
                     {appointment.status || 'UNKNOWN'}
                   </span>
-                  <div className={`flex items-center gap-1 text-xs md:text-sm ${
-                    appointment.is_paid 
-                      ? (darkMode ? 'text-green-400' : 'text-green-600')
-                      : (darkMode ? 'text-orange-400' : 'text-orange-600')
-                  }`}>
-                      {appointment.is_paid ? (
-                        <>
-                          <CreditCard className="w-3 h-3 md:w-4 md:h-4" />
-                          <span className="font-medium">Paid</span>
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="w-3 h-3 md:w-4 md:h-4" />
-                          <span className="font-medium">Payment Required</span>
-                        </>
-                      )}
-                    </div>
+                  {/* Only show payment status if appointment is confirmed and paid, or if not confirmed */}
+                  {appointment.status !== 'CONFIRMED' && (
+                    <div className={`flex items-center gap-1 text-xs md:text-sm ${
+                      appointment.is_paid 
+                        ? (darkMode ? 'text-green-400' : 'text-green-600')
+                        : (darkMode ? 'text-orange-400' : 'text-orange-600')
+                    }`}>
+                        {appointment.is_paid ? (
+                          <>
+                            <CreditCard className="w-3 h-3 md:w-4 md:h-4" />
+                            <span className="font-medium">Paid</span>
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="w-3 h-3 md:w-4 md:h-4" />
+                            <span className="font-medium">Payment Required</span>
+                          </>
+                        )}
+                      </div>
+                  )}
                   </div>
                 </div>
               </div>
