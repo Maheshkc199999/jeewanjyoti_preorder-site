@@ -873,9 +873,6 @@ const AppointmentsTab = ({ darkMode }) => {
         </div>
       )}
 
-      {/* Payment Modal */}
-      {/* No payment modal. */}
-
     </div>
   );
 };
