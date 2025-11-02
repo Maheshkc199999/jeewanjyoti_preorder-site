@@ -9,9 +9,10 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import ChatTab from './dashboard/Chat';
 import ProfileTab from './dashboard/Profile';
 import SettingsTab from './dashboard/Settings';
+import ProfileCompletionForm from '../components/ProfileCompletionForm';
 import { auth } from '../lib/firebase';
 import { isAuthenticated, getUserData, clearTokens } from '../lib/tokenManager';
-import { logoutUser } from '../lib/api';
+import { logoutUser, getUserEmailProfile } from '../lib/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -32,6 +33,8 @@ const Dashboard = () => {
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [isChatRoomOpen, setIsChatRoomOpen] = useState(false);
   const [backendUser, setBackendUser] = useState(null);
+  const [showProfileForm, setShowProfileForm] = useState(false);
+  const [profileComplete, setProfileComplete] = useState(false);
 
   // Check authentication status
   useEffect(() => {
@@ -63,6 +66,89 @@ const Dashboard = () => {
     };
   }, [navigate]);
 
+  // Check if profile needs completion
+  useEffect(() => {
+    const checkProfileCompletion = async () => {
+      if (!backendUser && !user) return;
+      
+      try {
+        // Check if flag is set to show profile form (from login/register)
+        const shouldShowForm = localStorage.getItem('show_profile_form_on_dashboard');
+        
+        // Check if user data has required profile fields
+        const userData = getUserData();
+        
+        // If we have user data, check for missing profile fields
+        if (userData) {
+          const requiredFields = ['first_name', 'last_name', 'birthdate', 'gender', 'height', 'weight', 'blood_group'];
+          const missingFields = requiredFields.filter(field => !userData[field] || userData[field] === '');
+          
+          // If more than half the fields are missing, show the form
+          // This helps catch Google login users who might not have filled their profile
+          if (missingFields.length > 3) {
+            // If flag is set from login/register, always show the form (ignore skip)
+            if (shouldShowForm === 'true') {
+              setShowProfileForm(true);
+              setProfileComplete(false);
+              // Clear the flag after showing
+              localStorage.removeItem('show_profile_form_on_dashboard');
+            } else {
+              // Check if user has skipped the form before (to avoid showing it repeatedly)
+              const hasSkippedProfileForm = localStorage.getItem('profile_form_skipped');
+              if (!hasSkippedProfileForm) {
+                setShowProfileForm(true);
+                setProfileComplete(false);
+              } else {
+                setProfileComplete(false);
+              }
+            }
+          } else {
+            setProfileComplete(true);
+            // Clear flags if profile is complete
+            localStorage.removeItem('show_profile_form_on_dashboard');
+          }
+        } else {
+          // Try to fetch user profile from API
+          try {
+            const profileData = await getUserEmailProfile();
+            const requiredFields = ['first_name', 'last_name', 'birthdate', 'gender', 'height', 'weight', 'blood_group'];
+            const missingFields = requiredFields.filter(field => !profileData[field] || profileData[field] === '');
+            
+            if (missingFields.length > 3) {
+              // If flag is set from login/register, always show the form (ignore skip)
+              if (shouldShowForm === 'true') {
+                setShowProfileForm(true);
+                setProfileComplete(false);
+                // Clear the flag after showing
+                localStorage.removeItem('show_profile_form_on_dashboard');
+              } else {
+                const hasSkippedProfileForm = localStorage.getItem('profile_form_skipped');
+                if (!hasSkippedProfileForm) {
+                  setShowProfileForm(true);
+                  setProfileComplete(false);
+                } else {
+                  setProfileComplete(false);
+                }
+              }
+            } else {
+              setProfileComplete(true);
+              // Clear flags if profile is complete
+              localStorage.removeItem('show_profile_form_on_dashboard');
+            }
+          } catch (error) {
+            console.error('Error fetching user profile:', error);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking profile completion:', error);
+      }
+    };
+
+    if (!loading && (backendUser || user)) {
+      checkProfileCompletion();
+    }
+  }, [backendUser, user, loading]);
+
   // Close filter dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -93,6 +179,27 @@ const Dashboard = () => {
   // Show logout confirmation
   const handleLogoutClick = () => {
     setShowLogoutConfirm(true);
+  };
+
+  // Handle profile form close
+  const handleProfileFormClose = () => {
+    setShowProfileForm(false);
+    // Mark that user has seen the form (they can skip)
+    localStorage.setItem('profile_form_skipped', 'true');
+  };
+
+  // Handle profile form success
+  const handleProfileFormSuccess = () => {
+    setShowProfileForm(false);
+    setProfileComplete(true);
+    // Refresh user data
+    const userData = getUserData();
+    if (userData) {
+      setBackendUser(userData);
+    }
+    // Remove the skip flag and show form flag since they completed it
+    localStorage.removeItem('profile_form_skipped');
+    localStorage.removeItem('show_profile_form_on_dashboard');
   };
 
   // Handle logout confirmation
@@ -638,6 +745,14 @@ const Dashboard = () => {
             </button>
           </div>
         </div>
+
+      {/* Profile Completion Form Modal */}
+      {showProfileForm && (
+        <ProfileCompletionForm
+          onClose={handleProfileFormClose}
+          onSuccess={handleProfileFormSuccess}
+        />
+      )}
     </div>
   );
 };

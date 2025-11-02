@@ -206,6 +206,18 @@ function Register() {
       // Store tokens and user data if provided after OTP verification
       if (response.data.access && response.data.refresh) {
         storeTokens(response.data.access, response.data.refresh, response.data.user)
+        
+        // Check if profile is incomplete
+        if (response.data.user) {
+          const requiredFields = ['first_name', 'last_name', 'birthdate', 'gender', 'height', 'weight', 'blood_group'];
+          const missingFields = requiredFields.filter(field => !response.data.user[field] || response.data.user[field] === '');
+          
+          // If more than half the fields are missing, set flag to show profile form
+          if (missingFields.length > 3) {
+            localStorage.setItem('show_profile_form_on_dashboard', 'true');
+            localStorage.removeItem('profile_form_skipped'); // Clear skip flag if exists
+          }
+        }
       }
       
       // Close popup and optionally redirect to login
@@ -272,6 +284,18 @@ function Register() {
       
       // Store tokens and user data
       storeTokens(data.access, data.refresh, data.user)
+      
+      // Check if profile is incomplete
+      if (data.user) {
+        const requiredFields = ['first_name', 'last_name', 'birthdate', 'gender', 'height', 'weight', 'blood_group'];
+        const missingFields = requiredFields.filter(field => !data.user[field] || data.user[field] === '');
+        
+        // If more than half the fields are missing, set flag to show profile form
+        if (missingFields.length > 3) {
+          localStorage.setItem('show_profile_form_on_dashboard', 'true');
+          localStorage.removeItem('profile_form_skipped'); // Clear skip flag if exists
+        }
+      }
       
       navigate('/dashboard')
       

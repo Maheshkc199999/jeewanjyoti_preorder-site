@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Edit3, Mail, Phone, MapPin, Calendar, Users, Award, Star, Heart, Camera, Trash2, AlertTriangle, X } from 'lucide-react';
+import { Edit3, Mail, Phone, MapPin, Calendar, Users, Award, Star, Heart, Camera, Trash2, AlertTriangle, X, User, UserCircle, Ruler, Scale, Droplets } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { clearTokens } from '../../lib/tokenManager';
-import { getSleepData, getSpO2Data, getHeartRateData, getBloodPressureData, getStressData, getHRVData, getUserEmailProfile } from '../../lib/api';
+import { clearTokens, getUserData } from '../../lib/tokenManager';
+import { getSleepData, getSpO2Data, getHeartRateData, getBloodPressureData, getStressData, getHRVData, getUserEmailProfile, updateProfile } from '../../lib/api';
 
 const ProfileTab = ({ darkMode }) => {
   const navigate = useNavigate();
@@ -17,6 +17,7 @@ const ProfileTab = ({ darkMode }) => {
   const [hrvData, setHrvData] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const fileInputRef = useRef(null);
   
   // Check if user is admin/superuser
@@ -213,7 +214,10 @@ const ProfileTab = ({ darkMode }) => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Profile</h2>
-        <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm md:text-base">
+        <button 
+          onClick={() => setShowEditModal(true)}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm md:text-base"
+        >
           <Edit3 className="w-4 h-4" />
           <span className="hidden md:inline">Edit Profile</span>
         </button>
@@ -697,6 +701,312 @@ const ProfileTab = ({ darkMode }) => {
           </div>
         </div>
       )}
+
+      {/* Edit Profile Modal */}
+      {showEditModal && (
+        <EditProfileModal
+          darkMode={darkMode}
+          userProfile={userProfile}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={async () => {
+            // Refresh user profile data
+            try {
+              const updatedProfile = await getUserEmailProfile();
+              setUserProfile(updatedProfile);
+              
+              // Update localStorage
+              const userData = getUserData();
+              if (userData) {
+                const updatedUserData = { ...userData, ...updatedProfile };
+                localStorage.setItem('user_data', JSON.stringify(updatedUserData));
+              }
+            } catch (error) {
+              console.error('Error refreshing profile:', error);
+            }
+            setShowEditModal(false);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+// Edit Profile Modal Component
+const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    birthdate: '',
+    gender: '',
+    height: '',
+    weight: '',
+    blood_group: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  // Pre-fill with existing user data
+  useEffect(() => {
+    if (userProfile) {
+      setFormData({
+        first_name: userProfile.first_name || '',
+        last_name: userProfile.last_name || '',
+        birthdate: userProfile.birthdate ? userProfile.birthdate.split('T')[0] : '',
+        gender: userProfile.gender || '',
+        height: userProfile.height || '',
+        weight: userProfile.weight || '',
+        blood_group: userProfile.blood_group || ''
+      });
+    }
+  }, [userProfile]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    // Clear error for this field
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: null
+      }));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      // Prepare payload - only include fields that have values
+      const payload = {};
+      Object.keys(formData).forEach(key => {
+        if (formData[key] && formData[key].trim() !== '') {
+          payload[key] = formData[key].trim();
+        }
+      });
+
+      // If no data to update, just close
+      if (Object.keys(payload).length === 0) {
+        onSuccess?.();
+        onClose();
+        return;
+      }
+
+      await updateProfile(payload);
+      
+      // Update user data in localStorage
+      const userData = getUserData();
+      if (userData) {
+        const updatedUserData = { ...userData, ...payload };
+        localStorage.setItem('user_data', JSON.stringify(updatedUserData));
+      }
+
+      onSuccess?.();
+      alert('Profile updated successfully!');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      if (error.details) {
+        setErrors(error.details);
+      } else {
+        alert(`Failed to update profile: ${error.message}`);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const InputField = ({ icon: Icon, label, name, type = 'text', required = false, error, children }) => (
+    <div className="group relative">
+      <label className={`flex items-center gap-2 text-sm font-semibold mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+        <Icon className="w-4 h-4 text-violet-600" />
+        {label}
+        {required && <span className="text-red-500">*</span>}
+      </label>
+      <div className="relative">
+        {children || (
+          <input
+            type={type}
+            name={name}
+            value={formData[name] || ''}
+            onChange={handleChange}
+            className={`w-full p-4 border rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 backdrop-blur-sm placeholder-gray-400 ${
+              error ? 'border-red-500' : 'border-gray-200'
+            } ${darkMode ? 'bg-gray-700 text-white' : 'bg-white/80'}`}
+            placeholder={`Enter ${label.toLowerCase()}`}
+          />
+        )}
+      </div>
+      {error && (
+        <p className="text-red-500 text-xs mt-1 animate-pulse flex items-center gap-1">
+          <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+          {typeof error === 'string' ? error : error[0]}
+        </p>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className={`rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${
+        darkMode ? 'bg-gray-800' : 'bg-white'
+      }`}>
+        {/* Header */}
+        <div className={`sticky top-0 border-b px-6 py-4 rounded-t-3xl flex items-center justify-between ${
+          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-r from-violet-500 to-purple-600 rounded-full flex items-center justify-center">
+              <Edit3 className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Edit Profile</h2>
+              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Update your profile information</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className={`text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full ${
+              darkMode ? 'hover:bg-gray-700' : ''
+            }`}
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* First Name */}
+            <InputField
+              icon={User}
+              label="First Name"
+              name="first_name"
+              error={errors.first_name}
+            />
+
+            {/* Last Name */}
+            <InputField
+              icon={User}
+              label="Last Name"
+              name="last_name"
+              error={errors.last_name}
+            />
+
+            {/* Birthdate */}
+            <InputField
+              icon={Calendar}
+              label="Birthdate"
+              name="birthdate"
+              type="date"
+              error={errors.birthdate}
+            />
+
+            {/* Gender */}
+            <div className="group relative">
+              <label className={`flex items-center gap-2 text-sm font-semibold mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <UserCircle className="w-4 h-4 text-violet-600" />
+                Gender
+              </label>
+              <select
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+                className={`w-full p-4 border rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 backdrop-blur-sm ${
+                  errors.gender ? 'border-red-500' : 'border-gray-200'
+                } ${darkMode ? 'bg-gray-700 text-white' : 'bg-white/80'}`}
+              >
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+              {errors.gender && (
+                <p className="text-red-500 text-xs mt-1 animate-pulse flex items-center gap-1">
+                  <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+                  {typeof errors.gender === 'string' ? errors.gender : errors.gender[0]}
+                </p>
+              )}
+            </div>
+
+            {/* Height */}
+            <InputField
+              icon={Ruler}
+              label="Height (cm)"
+              name="height"
+              type="number"
+              error={errors.height}
+            />
+
+            {/* Weight */}
+            <InputField
+              icon={Scale}
+              label="Weight (kg)"
+              name="weight"
+              type="number"
+              error={errors.weight}
+            />
+
+            {/* Blood Group */}
+            <div className="group relative md:col-span-2">
+              <label className={`flex items-center gap-2 text-sm font-semibold mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <Droplets className="w-4 h-4 text-violet-600" />
+                Blood Group
+              </label>
+              <select
+                name="blood_group"
+                value={formData.blood_group}
+                onChange={handleChange}
+                className={`w-full p-4 border rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 backdrop-blur-sm ${
+                  errors.blood_group ? 'border-red-500' : 'border-gray-200'
+                } ${darkMode ? 'bg-gray-700 text-white' : 'bg-white/80'}`}
+              >
+                <option value="">Select Blood Group</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+              {errors.blood_group && (
+                <p className="text-red-500 text-xs mt-1 animate-pulse flex items-center gap-1">
+                  <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+                  {typeof errors.blood_group === 'string' ? errors.blood_group : errors.blood_group[0]}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={onClose}
+              className={`flex-1 px-6 py-3 border-2 rounded-2xl font-semibold transition-all duration-300 ${
+                darkMode 
+                  ? 'border-gray-600 text-gray-300 hover:bg-gray-700' 
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+              disabled={isLoading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl font-semibold text-white hover:shadow-lg hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

@@ -101,6 +101,30 @@ export async function updateUserProfile(profileData) {
 }
 
 /**
+ * Update user profile using profile-update endpoint
+ * @param {object} profileData - Profile data to update (first_name, last_name, birthdate, gender, height, weight, blood_group)
+ * @returns {Promise<object>} Updated profile data
+ */
+export async function updateProfile(profileData) {
+  const response = await apiRequest('/api/profile-update/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(profileData),
+  })
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    const error = new Error(errorData.detail || 'Failed to update profile')
+    error.details = errorData
+    throw error
+  }
+  
+  return await response.json()
+}
+
+/**
  * Get appointments
  * @returns {Promise<Array>} List of appointments
  */

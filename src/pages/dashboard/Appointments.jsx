@@ -403,15 +403,17 @@ const AppointmentsTab = ({ darkMode }) => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Appointments</h2>
-        <div className="flex gap-2">
-          <button 
-            onClick={() => setShowDoctorModal(true)}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm md:text-base"
-          >
-            <Plus className="w-4 h-4 md:w-5 md:h-5" />
-            <span className="hidden md:inline">Book Appointment</span>
-          </button>
-        </div>
+        {!isDoctor && (
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setShowDoctorModal(true)}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm md:text-base"
+            >
+              <Plus className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="hidden md:inline">Book Appointment</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -631,18 +633,20 @@ const AppointmentsTab = ({ darkMode }) => {
             </div>
           </div>
           
-          {/* Call to Action Button */}
-          <button 
-            onClick={() => setShowDoctorModal(true)}
-            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-8 py-4 rounded-xl flex items-center gap-3 transition-all duration-300 mx-auto shadow-lg hover:shadow-xl transform hover:scale-105"
-          >
-            <Plus className="w-6 h-6" />
-            <span className="text-lg font-semibold">Book Your First Appointment</span>
-          </button>
+          {/* Call to Action Button - Only show for non-doctors */}
+          {!isDoctor && (
+            <button 
+              onClick={() => setShowDoctorModal(true)}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-8 py-4 rounded-xl flex items-center gap-3 transition-all duration-300 mx-auto shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              <Plus className="w-6 h-6" />
+              <span className="text-lg font-semibold">Book Your First Appointment</span>
+            </button>
+          )}
           
           {/* Additional Info */}
           <p className={`mt-6 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            Need help? Contact our support team for assistance with booking.
+            {!isDoctor ? 'Need help? Contact our support team for assistance with booking.' : 'You have no appointments scheduled at the moment.'}
           </p>
         </div>
       )}

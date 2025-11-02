@@ -246,6 +246,18 @@ function Login() {
       // Store tokens and user data
       storeTokens(data.access, data.refresh, data.user)
       
+      // Check if profile is incomplete
+      if (data.user) {
+        const requiredFields = ['first_name', 'last_name', 'birthdate', 'gender', 'height', 'weight', 'blood_group'];
+        const missingFields = requiredFields.filter(field => !data.user[field] || data.user[field] === '');
+        
+        // If more than half the fields are missing, set flag to show profile form
+        if (missingFields.length > 3) {
+          localStorage.setItem('show_profile_form_on_dashboard', 'true');
+          localStorage.removeItem('profile_form_skipped'); // Clear skip flag if exists
+        }
+      }
+      
       navigate('/dashboard')
       
     } catch (error) {
@@ -295,6 +307,18 @@ function Login() {
       
       // Store tokens and user data
       storeTokens(data.access, data.refresh, data.user)
+      
+      // Check if profile is incomplete
+      if (data.user) {
+        const requiredFields = ['first_name', 'last_name', 'birthdate', 'gender', 'height', 'weight', 'blood_group'];
+        const missingFields = requiredFields.filter(field => !data.user[field] || data.user[field] === '');
+        
+        // If more than half the fields are missing, set flag to show profile form
+        if (missingFields.length > 3) {
+          localStorage.setItem('show_profile_form_on_dashboard', 'true');
+          localStorage.removeItem('profile_form_skipped'); // Clear skip flag if exists
+        }
+      }
       
       navigate('/dashboard')
       
