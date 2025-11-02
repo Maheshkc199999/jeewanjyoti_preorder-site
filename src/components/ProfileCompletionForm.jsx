@@ -97,7 +97,7 @@ const ProfileCompletionForm = ({ onClose, onSuccess }) => {
     onClose();
   };
 
-  const InputField = ({ icon: Icon, label, name, type = 'text', required = false, error, children }) => (
+  const InputField = ({ icon: Icon, label, name, type = 'text', required = false, error, children, min, max }) => (
     <div className="group relative">
       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
         <Icon className="w-4 h-4 text-violet-600" />
@@ -111,6 +111,8 @@ const ProfileCompletionForm = ({ onClose, onSuccess }) => {
             name={name}
             value={formData[name] || ''}
             onChange={handleChange}
+            min={min}
+            max={max}
             className={`w-full p-4 border rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400 ${
               error ? 'border-red-500' : 'border-gray-200'
             }`}
@@ -175,6 +177,8 @@ const ProfileCompletionForm = ({ onClose, onSuccess }) => {
               name="birthdate"
               type="date"
               error={errors.birthdate}
+              min="1900-01-01"
+              max={new Date().toISOString().split('T')[0]}
             />
 
             {/* Gender */}

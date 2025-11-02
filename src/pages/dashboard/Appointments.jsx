@@ -917,6 +917,7 @@ const AppointmentsTab = ({ darkMode }) => {
                         value={bookingData.appointment_date}
                         onChange={handleBookingInputChange}
                         min={new Date().toISOString().split('T')[0]}
+                        max="2100-12-31"
                         className={`w-full p-3 rounded-xl border ${
                           darkMode 
                             ? 'bg-gray-700 border-gray-600 text-white' 

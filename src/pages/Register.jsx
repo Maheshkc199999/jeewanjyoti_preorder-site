@@ -553,6 +553,8 @@ function Register() {
                       <input
                         type="date"
                         {...register('birthdate')}
+                        min="1900-01-01"
+                        max={new Date().toISOString().split('T')[0]}
                         className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 bg-white/80 backdrop-blur-sm"
                       />
                     </InputField>
