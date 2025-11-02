@@ -24,6 +24,10 @@ const AppointmentsTab = ({ darkMode }) => {
     user_report: null
   });
 
+  // Check if current user is a doctor
+  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+  const isDoctor = userData.role === 'DOCTOR';
+
   // API base URL - use environment variable or fallback to the API_BASE_URL from api.js
   // In dev mode, use proxy '/api', in production use the full API URL
   // If API_BASE_URL doesn't include '/api', we need to add it for the endpoints
@@ -442,10 +446,14 @@ const AppointmentsTab = ({ darkMode }) => {
           
           // Handle new response format
           const doctorName = appointment.doctor_name || 'Doctor';
-          const doctorInitials = appointment.doctor_name 
-            ? appointment.doctor_name.split(' ').map(name => name[0]).join('').toUpperCase()
-            : 'DR';
+          const patientName = appointment.user_name || 'Patient';
           const specialization = appointment.doctor_specialization || 'General Practice';
+          
+          // Determine what to show based on user role
+          const primaryName = isDoctor ? patientName : doctorName;
+          const primaryInitials = isDoctor 
+            ? (patientName !== 'Patient' ? patientName.split(' ').map(name => name[0]).join('').toUpperCase() : 'PT')
+            : (doctorName !== 'Doctor' ? doctorName.split(' ').map(name => name[0]).join('').toUpperCase() : 'DR');
           
           return (
             <div key={appointment.appointment_id || Math.random()} className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border hover:shadow-xl transition-all duration-300 ${
@@ -454,19 +462,32 @@ const AppointmentsTab = ({ darkMode }) => {
               <div className="flex flex-col md:flex-row md:items-center justify-between">
                 <div className="flex items-center gap-4 mb-4 md:mb-0">
                   <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg md:text-xl">
-                    {doctorInitials}
+                    {primaryInitials}
                   </div>
                   <div>
                     <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                      {doctorName}
+                      {primaryName}
                     </h3>
-                    <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {specialization}
-                    </p>
-                    {appointment.user_name && (
-                      <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Patient: {appointment.user_name}
-                      </p>
+                    {isDoctor ? (
+                      <>
+                        <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Doctor: {doctorName}
+                        </p>
+                        <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {specialization}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {specialization}
+                        </p>
+                        {appointment.user_name && (
+                          <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Patient: {appointment.user_name}
+                          </p>
+                        )}
+                      </>
                     )}
                     {appointment.invoice_no && (
                       <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
