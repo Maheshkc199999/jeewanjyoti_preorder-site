@@ -1,7 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { User, Calendar, UserCircle, Ruler, Scale, Droplets, X } from 'lucide-react';
 import { updateProfile } from '../lib/api';
 import { getUserData } from '../lib/tokenManager';
+
+// Move InputField outside to prevent recreation on every render
+const InputField = React.memo(({ icon: Icon, label, name, type = 'text', required = false, error, value, onChange, min, max }) => {
+  return (
+    <div className="group relative">
+      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+        <Icon className="w-4 h-4 text-violet-600" />
+        {label}
+        {required && <span className="text-red-500">*</span>}
+      </label>
+      <div className="relative">
+        <input
+          type={type}
+          name={name}
+          value={value ?? ''}
+          onChange={onChange}
+          min={min}
+          max={max}
+          className={`w-full p-4 border rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400 ${
+            error ? 'border-red-500' : 'border-gray-200'
+          }`}
+          placeholder={`Enter ${label.toLowerCase()}`}
+        />
+      </div>
+      {error && (
+        <p className="text-red-500 text-xs mt-1 animate-pulse flex items-center gap-1">
+          <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+          {typeof error === 'string' ? error : error[0]}
+        </p>
+      )}
+    </div>
+  );
+});
 
 const ProfileCompletionForm = ({ onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -33,20 +66,23 @@ const ProfileCompletionForm = ({ onClose, onSuccess }) => {
     }
   }, []);
 
-  const handleChange = (e) => {
+  // Use useCallback to memoize handleChange and prevent InputField from re-rendering unnecessarily
+  const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
     // Clear error for this field
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: null
-      }));
-    }
-  };
+    setErrors(prev => {
+      if (prev[name]) {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      }
+      return prev;
+    });
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -57,8 +93,28 @@ const ProfileCompletionForm = ({ onClose, onSuccess }) => {
       // Prepare payload - only include fields that have values
       const payload = {};
       Object.keys(formData).forEach(key => {
-        if (formData[key] && formData[key].trim() !== '') {
-          payload[key] = formData[key].trim();
+        const value = formData[key];
+        // Skip empty values
+        if (value === '' || value === null || value === undefined) {
+          return;
+        }
+        
+        // Handle different field types
+        if (key === 'height' || key === 'weight') {
+          // Convert height and weight to string with 2 decimal places
+          const numValue = parseFloat(value);
+          if (!isNaN(numValue)) {
+            payload[key] = numValue.toFixed(2);
+          }
+        } else if (typeof value === 'string') {
+          // Trim string values
+          const trimmedValue = value.trim();
+          if (trimmedValue !== '') {
+            payload[key] = trimmedValue;
+          }
+        } else {
+          // For other types (dates, etc.), use as-is
+          payload[key] = value;
         }
       });
 
@@ -69,7 +125,9 @@ const ProfileCompletionForm = ({ onClose, onSuccess }) => {
         return;
       }
 
-      await updateProfile(payload);
+      console.log('Sending payload to API:', payload); // Debug log
+      const result = await updateProfile(payload);
+      console.log('Profile update result:', result); // Debug log
       
       // Update user data in localStorage
       const userData = getUserData();
@@ -83,11 +141,30 @@ const ProfileCompletionForm = ({ onClose, onSuccess }) => {
       alert('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
+      console.error('Error details:', error.details);
+      console.error('Error response:', error.response);
+      
+      // Handle different error formats
       if (error.details) {
-        setErrors(error.details);
-      } else {
-        alert(`Failed to update profile: ${error.message}`);
+        // Django validation errors format
+        if (typeof error.details === 'object') {
+          const formattedErrors = {};
+          Object.keys(error.details).forEach(key => {
+            if (Array.isArray(error.details[key])) {
+              formattedErrors[key] = error.details[key][0];
+            } else {
+              formattedErrors[key] = error.details[key];
+            }
+          });
+          setErrors(formattedErrors);
+        } else {
+          setErrors({ general: error.details });
+        }
       }
+      
+      // Show error message to user
+      const errorMessage = error.details?.detail || error.details?.message || error.message || 'Failed to update profile. Please check your inputs and try again.';
+      alert(`Failed to update profile: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
@@ -96,38 +173,6 @@ const ProfileCompletionForm = ({ onClose, onSuccess }) => {
   const handleSkip = () => {
     onClose();
   };
-
-  const InputField = ({ icon: Icon, label, name, type = 'text', required = false, error, children, min, max }) => (
-    <div className="group relative">
-      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-        <Icon className="w-4 h-4 text-violet-600" />
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </label>
-      <div className="relative">
-        {children || (
-          <input
-            type={type}
-            name={name}
-            value={formData[name] || ''}
-            onChange={handleChange}
-            min={min}
-            max={max}
-            className={`w-full p-4 border rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 bg-white/80 backdrop-blur-sm placeholder-gray-400 ${
-              error ? 'border-red-500' : 'border-gray-200'
-            }`}
-            placeholder={`Enter ${label.toLowerCase()}`}
-          />
-        )}
-      </div>
-      {error && (
-        <p className="text-red-500 text-xs mt-1 animate-pulse flex items-center gap-1">
-          <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-          {typeof error === 'string' ? error : error[0]}
-        </p>
-      )}
-    </div>
-  );
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -159,6 +204,8 @@ const ProfileCompletionForm = ({ onClose, onSuccess }) => {
               icon={User}
               label="First Name"
               name="first_name"
+              value={formData.first_name}
+              onChange={handleChange}
               error={errors.first_name}
             />
 
@@ -167,6 +214,8 @@ const ProfileCompletionForm = ({ onClose, onSuccess }) => {
               icon={User}
               label="Last Name"
               name="last_name"
+              value={formData.last_name}
+              onChange={handleChange}
               error={errors.last_name}
             />
 
@@ -176,6 +225,8 @@ const ProfileCompletionForm = ({ onClose, onSuccess }) => {
               label="Birthdate"
               name="birthdate"
               type="date"
+              value={formData.birthdate}
+              onChange={handleChange}
               error={errors.birthdate}
               min="1900-01-01"
               max={new Date().toISOString().split('T')[0]}
@@ -214,6 +265,8 @@ const ProfileCompletionForm = ({ onClose, onSuccess }) => {
               label="Height (cm)"
               name="height"
               type="number"
+              value={formData.height}
+              onChange={handleChange}
               error={errors.height}
             />
 
@@ -223,6 +276,8 @@ const ProfileCompletionForm = ({ onClose, onSuccess }) => {
               label="Weight (kg)"
               name="weight"
               type="number"
+              value={formData.weight}
+              onChange={handleChange}
               error={errors.weight}
             />
 

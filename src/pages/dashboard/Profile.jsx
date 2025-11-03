@@ -1,8 +1,41 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Edit3, Mail, Phone, MapPin, Calendar, Users, Award, Star, Heart, Camera, Trash2, AlertTriangle, X, User, UserCircle, Ruler, Scale, Droplets } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { clearTokens, getUserData } from '../../lib/tokenManager';
 import { getSleepData, getSpO2Data, getHeartRateData, getBloodPressureData, getStressData, getHRVData, getUserEmailProfile, updateProfile } from '../../lib/api';
+
+// Move InputField outside to prevent recreation on every render
+const InputField = React.memo(({ icon: Icon, label, name, type = 'text', required = false, error, value, onChange, min, max, darkMode }) => {
+  return (
+    <div className="group relative">
+      <label className={`flex items-center gap-2 text-sm font-semibold mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+        <Icon className="w-4 h-4 text-violet-600" />
+        {label}
+        {required && <span className="text-red-500">*</span>}
+      </label>
+      <div className="relative">
+        <input
+          type={type}
+          name={name}
+          value={value ?? ''}
+          onChange={onChange}
+          min={min}
+          max={max}
+          className={`w-full p-4 border rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 backdrop-blur-sm placeholder-gray-400 ${
+            error ? 'border-red-500' : 'border-gray-200'
+          } ${darkMode ? 'bg-gray-700 text-white' : 'bg-white/80'}`}
+          placeholder={`Enter ${label.toLowerCase()}`}
+        />
+      </div>
+      {error && (
+        <p className="text-red-500 text-xs mt-1 animate-pulse flex items-center gap-1">
+          <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+          {typeof error === 'string' ? error : error[0]}
+        </p>
+      )}
+    </div>
+  );
+});
 
 const ProfileTab = ({ darkMode }) => {
   const navigate = useNavigate();
@@ -241,7 +274,7 @@ const ProfileTab = ({ darkMode }) => {
                   </button>
                 ) : (
                   <div className="w-16 h-16 md:w-24 md:h-24 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-lg md:text-2xl font-bold">
-                    {userProfile ? `${userProfile.first_name?.[0] || ''}${userProfile.last_name?.[0] || ''}` : 'JD'}
+                    {userProfile ? `${userProfile.first_name?.[0] || ''}${userProfile.last_name?.[0] || ''}`.toUpperCase() || 'U' : 'U'}
                   </div>
                 )}
                 <button
@@ -263,11 +296,13 @@ const ProfileTab = ({ darkMode }) => {
                 />
               </div>
               <h3 className={`text-lg md:text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                {userProfile ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || 'User' : 'John Doe'}
+                {userProfile ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || 'User' : 'User'}
               </h3>
-              <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                {userProfile ? `ID: #${userProfile.id}` : 'Patient ID: #12345'}
-              </p>
+              {userProfile?.id && (
+                <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  ID: #{userProfile.id}
+                </p>
+              )}
               {userProfile && userProfile.role === 'DOCTOR' && (
                 <p className={`text-xs ${darkMode ? 'text-blue-400' : 'text-blue-600'} font-medium mt-1`}>
                   {userProfile.specialization || 'Doctor'}
@@ -276,12 +311,14 @@ const ProfileTab = ({ darkMode }) => {
             </div>
 
             <div className="space-y-3 md:space-y-4">
-              <div className="flex items-center gap-3">
-                <Mail className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-                <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {userProfile?.email || 'john.doe@email.com'}
-                </span>
-              </div>
+              {userProfile?.email && (
+                <div className="flex items-center gap-3">
+                  <Mail className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
+                  <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {userProfile.email}
+                  </span>
+                </div>
+              )}
               {userProfile?.phone_number && (
                 <div className="flex items-center gap-3">
                   <Phone className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
@@ -345,7 +382,9 @@ const ProfileTab = ({ darkMode }) => {
                 <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Sleep Score</div>
               </div>
               <div className="text-center">
-                <div className="text-lg md:text-2xl font-bold text-purple-600">12,340</div>
+                <div className="text-lg md:text-2xl font-bold text-purple-600">
+                  {userProfile?.daily_steps || 'N/A'}
+                </div>
                 <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Daily Steps</div>
               </div>
               <div className="text-center">
@@ -465,13 +504,18 @@ const ProfileTab = ({ darkMode }) => {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <span className="inline-block bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs md:text-sm">
-                      Mild Hypertension
-                    </span>
-                    <br />
-                    <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs md:text-sm mt-2">
-                      Seasonal Allergies
-                    </span>
+                    {userProfile?.medical_conditions && userProfile.medical_conditions.length > 0 ? (
+                      userProfile.medical_conditions.map((condition, index) => (
+                        <span 
+                          key={index}
+                          className="inline-block bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs md:text-sm mr-2 mb-2"
+                        >
+                          {condition}
+                        </span>
+                      ))
+                    ) : (
+                      <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>No medical conditions recorded</span>
+                    )}
                   </div>
                 )}
               </div>
@@ -479,85 +523,70 @@ const ProfileTab = ({ darkMode }) => {
           </div>
 
           {/* Achievements */}
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Health Achievements</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-              <div className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl ${
-                darkMode 
-                  ? 'bg-gradient-to-r from-yellow-900 to-yellow-800' 
-                  : 'bg-gradient-to-r from-yellow-100 to-yellow-50'
-              }`}>
-                <Award className="w-6 h-6 md:w-8 md:h-8 text-yellow-600" />
-                <div>
-                  <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>7-Day Streak</div>
-                  <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Daily step goal</div>
-                </div>
-              </div>
-              <div className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl ${
-                darkMode 
-                  ? 'bg-gradient-to-r from-green-900 to-green-800' 
-                  : 'bg-gradient-to-r from-green-100 to-emerald-100'
-              }`}>
-                <Star className="w-6 h-6 md:w-8 md:h-8 text-green-600" />
-                <div>
-                  <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>Sleep Champion</div>
-                  <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>30 days good sleep</div>
-                </div>
-              </div>
-              <div className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl ${
-                darkMode 
-                  ? 'bg-gradient-to-r from-blue-900 to-blue-800' 
-                  : 'bg-gradient-to-r from-blue-100 to-cyan-100'
-              }`}>
-                <Heart className="w-6 h-6 md:w-8 md:h-8 text-blue-600" />
-                <div>
-                  <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>Heart Health</div>
-                  <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Optimal HR zone</div>
-                </div>
+          {userProfile?.achievements && userProfile.achievements.length > 0 && (
+            <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
+              darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+            }`}>
+              <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Health Achievements</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                {userProfile.achievements.map((achievement, index) => (
+                  <div key={index} className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl ${
+                    darkMode 
+                      ? 'bg-gradient-to-r from-yellow-900 to-yellow-800' 
+                      : 'bg-gradient-to-r from-yellow-100 to-yellow-50'
+                  }`}>
+                    <Award className="w-6 h-6 md:w-8 md:h-8 text-yellow-600" />
+                    <div>
+                      <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                        {achievement.title || 'Achievement'}
+                      </div>
+                      <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {achievement.description || ''}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
+          )}
 
           {/* Emergency Contacts */}
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
-            <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Emergency Contacts</h3>
-            <div className="space-y-3 md:space-y-4">
-              <div className={`flex items-center justify-between p-3 md:p-4 rounded-xl ${
-                darkMode ? 'bg-gray-700' : 'bg-gray-50'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <Users className="w-4 h-4 md:w-5 md:h-5 text-gray-500" />
-                  <div>
-                    <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>Sarah Doe</div>
-                    <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Spouse</div>
+          {userProfile?.emergency_contacts && userProfile.emergency_contacts.length > 0 && (
+            <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
+              darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+            }`}>
+              <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Emergency Contacts</h3>
+              <div className="space-y-3 md:space-y-4">
+                {userProfile.emergency_contacts.map((contact, index) => (
+                  <div key={index} className={`flex items-center justify-between p-3 md:p-4 rounded-xl ${
+                    darkMode ? 'bg-gray-700' : 'bg-gray-50'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <Users className="w-4 h-4 md:w-5 md:h-5 text-gray-500" />
+                      <div>
+                        <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                          {contact.name || 'Contact'}
+                        </div>
+                        {contact.relationship && (
+                          <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {contact.relationship}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {contact.phone && (
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {contact.phone}
+                        </span>
+                        <Phone className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />
+                      </div>
+                    )}
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>+1 (555) 987-6543</span>
-                  <Phone className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />
-                </div>
-              </div>
-              <div className={`flex items-center justify-between p-3 md:p-4 rounded-xl ${
-                darkMode ? 'bg-gray-700' : 'bg-gray-50'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <Users className="w-4 h-4 md:w-5 md:h-5 text-gray-500" />
-                  <div>
-                    <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>Dr. Sarah Smith</div>
-                    <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Primary Care</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>+1 (555) 246-8102</span>
-                  <Phone className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />
-                </div>
+                ))}
               </div>
             </div>
-          </div>
+          )}
 
           {/* Settings Section */}
           <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
@@ -760,20 +789,23 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
     }
   }, [userProfile]);
 
-  const handleChange = (e) => {
+  // Use useCallback to memoize handleChange and prevent InputField from re-rendering unnecessarily
+  const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
     // Clear error for this field
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: null
-      }));
-    }
-  };
+    setErrors(prev => {
+      if (prev[name]) {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      }
+      return prev;
+    });
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -784,8 +816,28 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
       // Prepare payload - only include fields that have values
       const payload = {};
       Object.keys(formData).forEach(key => {
-        if (formData[key] && formData[key].trim() !== '') {
-          payload[key] = formData[key].trim();
+        const value = formData[key];
+        // Skip empty values
+        if (value === '' || value === null || value === undefined) {
+          return;
+        }
+        
+        // Handle different field types
+        if (key === 'height' || key === 'weight') {
+          // Convert height and weight to string with 2 decimal places
+          const numValue = parseFloat(value);
+          if (!isNaN(numValue)) {
+            payload[key] = numValue.toFixed(2);
+          }
+        } else if (typeof value === 'string') {
+          // Trim string values
+          const trimmedValue = value.trim();
+          if (trimmedValue !== '') {
+            payload[key] = trimmedValue;
+          }
+        } else {
+          // For other types (dates, etc.), use as-is
+          payload[key] = value;
         }
       });
 
@@ -796,7 +848,9 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
         return;
       }
 
-      await updateProfile(payload);
+      console.log('Sending payload to API:', payload); // Debug log
+      const result = await updateProfile(payload);
+      console.log('Profile update result:', result); // Debug log
       
       // Update user data in localStorage
       const userData = getUserData();
@@ -809,47 +863,35 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
       alert('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
+      console.error('Error details:', error.details);
+      console.error('Error response:', error.response);
+      
+      // Handle different error formats
       if (error.details) {
-        setErrors(error.details);
-      } else {
-        alert(`Failed to update profile: ${error.message}`);
+        // Django validation errors format
+        if (typeof error.details === 'object') {
+          const formattedErrors = {};
+          Object.keys(error.details).forEach(key => {
+            if (Array.isArray(error.details[key])) {
+              formattedErrors[key] = error.details[key][0];
+            } else {
+              formattedErrors[key] = error.details[key];
+            }
+          });
+          setErrors(formattedErrors);
+        } else {
+          setErrors({ general: error.details });
+        }
       }
+      
+      // Show error message to user
+      const errorMessage = error.details?.detail || error.details?.message || error.message || 'Failed to update profile. Please check your inputs and try again.';
+      alert(`Failed to update profile: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const InputField = ({ icon: Icon, label, name, type = 'text', required = false, error, children, min, max }) => (
-    <div className="group relative">
-      <label className={`flex items-center gap-2 text-sm font-semibold mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-        <Icon className="w-4 h-4 text-violet-600" />
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </label>
-      <div className="relative">
-        {children || (
-          <input
-            type={type}
-            name={name}
-            value={formData[name] || ''}
-            onChange={handleChange}
-            min={min}
-            max={max}
-            className={`w-full p-4 border rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 backdrop-blur-sm placeholder-gray-400 ${
-              error ? 'border-red-500' : 'border-gray-200'
-            } ${darkMode ? 'bg-gray-700 text-white' : 'bg-white/80'}`}
-            placeholder={`Enter ${label.toLowerCase()}`}
-          />
-        )}
-      </div>
-      {error && (
-        <p className="text-red-500 text-xs mt-1 animate-pulse flex items-center gap-1">
-          <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-          {typeof error === 'string' ? error : error[0]}
-        </p>
-      )}
-    </div>
-  );
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -887,7 +929,10 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
               icon={User}
               label="First Name"
               name="first_name"
+              value={formData.first_name}
+              onChange={handleChange}
               error={errors.first_name}
+              darkMode={darkMode}
             />
 
             {/* Last Name */}
@@ -895,7 +940,10 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
               icon={User}
               label="Last Name"
               name="last_name"
+              value={formData.last_name}
+              onChange={handleChange}
               error={errors.last_name}
+              darkMode={darkMode}
             />
 
             {/* Birthdate */}
@@ -904,9 +952,12 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
               label="Birthdate"
               name="birthdate"
               type="date"
+              value={formData.birthdate}
+              onChange={handleChange}
               error={errors.birthdate}
               min="1900-01-01"
               max={new Date().toISOString().split('T')[0]}
+              darkMode={darkMode}
             />
 
             {/* Gender */}
@@ -942,7 +993,10 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
               label="Height (cm)"
               name="height"
               type="number"
+              value={formData.height}
+              onChange={handleChange}
               error={errors.height}
+              darkMode={darkMode}
             />
 
             {/* Weight */}
@@ -951,7 +1005,10 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
               label="Weight (kg)"
               name="weight"
               type="number"
+              value={formData.weight}
+              onChange={handleChange}
               error={errors.weight}
+              darkMode={darkMode}
             />
 
             {/* Blood Group */}

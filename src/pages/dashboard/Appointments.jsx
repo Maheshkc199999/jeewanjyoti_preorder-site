@@ -463,9 +463,17 @@ const AppointmentsTab = ({ darkMode }) => {
             }`}>
               <div className="flex flex-col md:flex-row md:items-center justify-between">
                 <div className="flex items-center gap-4 mb-4 md:mb-0">
-                  <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg md:text-xl">
-                    {primaryInitials}
-                  </div>
+                  {(!isDoctor ? appointment.doctor_profile_image : appointment.user_profile_image) ? (
+                    <img
+                      src={`${API_BASE_URL}${(!isDoctor ? appointment.doctor_profile_image : appointment.user_profile_image)}`}
+                      alt={primaryName}
+                      className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg md:text-xl">
+                      {primaryInitials}
+                    </div>
+                  )}
                   <div>
                     <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
                       {primaryName}
@@ -788,9 +796,17 @@ const AppointmentsTab = ({ darkMode }) => {
                     >
                       <div className="flex items-start gap-4">
                         {/* Doctor Avatar */}
-                        <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                          {doctor.first_name[0]}{doctor.last_name[0]}
-                        </div>
+                        {doctor.profile_image ? (
+                          <img
+                            src={`${API_BASE_URL}${doctor.profile_image}`}
+                            alt={`Dr. ${doctor.first_name} ${doctor.last_name}`}
+                            className="w-16 h-16 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                            {doctor.first_name[0]}{doctor.last_name[0]}
+                          </div>
+                        )}
 
                         {/* Doctor Info */}
                         <div className="flex-1">
@@ -872,8 +888,15 @@ const AppointmentsTab = ({ darkMode }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className={`w-full max-w-2xl rounded-2xl shadow-2xl ${darkMode ? 'bg-gray-800' : 'bg-white'} p-6`}>
             <div className="flex items-center justify-between mb-6">
-              <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                Book Appointment with Dr. {selectedDoctor.first_name} {selectedDoctor.last_name}
+              <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'} flex items-center gap-3`}>
+                {selectedDoctor.profile_image ? (
+                  <img
+                    src={`${API_BASE_URL}${selectedDoctor.profile_image}`}
+                    alt={`Dr. ${selectedDoctor.first_name} ${selectedDoctor.last_name}`}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                ) : null}
+                <span>Book Appointment with Dr. {selectedDoctor.first_name} {selectedDoctor.last_name}</span>
               </h3>
               <button
                 onClick={() => {

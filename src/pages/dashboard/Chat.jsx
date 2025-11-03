@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Bell, Send, Paperclip, Mic, Video, Phone, X, Smile, Image, 
-  File, Download, Search, MoreHorizontal, Circle, ArrowLeft
+  File, Download, Search, MoreHorizontal, Circle, ArrowLeft, Plus
 } from 'lucide-react';
 
 // Enhanced EmojiPicker component
@@ -79,6 +79,11 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   const [selectedChat, setSelectedChat] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showChatRoom, setShowChatRoom] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addSearch, setAddSearch] = useState('');
+  const [doctors, setDoctors] = useState([]);
+  const [loadingDoctors, setLoadingDoctors] = useState(false);
+  
   
   // Conversations from backend
   const [conversations, setConversations] = useState([]);
@@ -631,6 +636,90 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     setShowChatRoom(false);
   };
 
+  // Open Add modal
+  const openAddModal = () => {
+    setShowAddModal(true);
+  };
+
+  // Close Add modal
+  const closeAddModal = () => {
+    setShowAddModal(false);
+    setAddSearch('');
+  };
+
+  // Fetch doctors for Add modal
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        setLoadingDoctors(true);
+        const token = getAccessToken();
+        if (!token) return;
+        const res = await fetch(`https://jeewanjyoti-backend.smart.org.np/api/doctorlist/`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setDoctors(Array.isArray(data) ? data : (data.results || []));
+        }
+      } catch (e) {
+        console.error('Failed to load doctors', e);
+      } finally {
+        setLoadingDoctors(false);
+      }
+    };
+
+    if (showAddModal) {
+      fetchDoctors();
+    }
+  }, [showAddModal]);
+
+  const filteredDoctorsForAdd = doctors.filter(d => {
+    const q = addSearch.toLowerCase();
+    const name = `${d.first_name || ''} ${d.last_name || ''}`.toLowerCase();
+    return name.includes(q) || (d.specialization || '').toLowerCase().includes(q);
+  });
+
+  const ensureConversationForUser = (partner) => {
+    if (!partner || !partner.id) return;
+    const userIdNum = Number(partner.id);
+    setConversations(prev => {
+      const exists = (prev || []).some(c => Number(c?.user?.id) === userIdNum);
+      if (exists) return prev;
+      // Build minimal conversation object so UI can render immediately
+      const firstName = partner.first_name || (partner.name ? String(partner.name).split(' ')[0] : '');
+      const lastName = partner.last_name || (partner.name ? String(partner.name).split(' ').slice(1).join(' ') : '');
+      const username = partner.username || partner.role || '';
+      const profile_image = partner.profile_image || null;
+      const newConv = {
+        user: {
+          id: userIdNum,
+          first_name: firstName,
+          last_name: lastName,
+          username,
+          profile_image,
+          status: 'offline',
+          last_seen: null,
+        },
+        last_message: null,
+        last_message_time: null,
+        unread_count: 0,
+      };
+      return [...(prev || []), newConv];
+    });
+  };
+
+  const startChatWith = (partner) => {
+    if (!partner) return;
+    const id = typeof partner === 'number' || typeof partner === 'string' ? String(partner) : String(partner.id);
+    if (!id) return;
+    if (typeof partner === 'object') {
+      ensureConversationForUser(partner);
+    }
+    setSelectedChat(id);
+    setShowChatRoom(true);
+    setShowAddModal(false);
+  };
+
   // Notify parent component when chat room state changes
   useEffect(() => {
     if (onChatRoomStateChange) {
@@ -648,6 +737,47 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
       console.error('Error getting user data:', error);
       userDataRef.current = {};
     }
+  }, []);
+
+  // Expose a helper to start chat from an appointment payload
+  useEffect(() => {
+    const handler = (appointment) => {
+      try {
+        if (!appointment) return;
+        const role = String(userDataRef.current?.role || '').toUpperCase();
+        const partnerId = role === 'DOCTOR'
+          ? (appointment.user_id || appointment.patient_id)
+          : (appointment.doctor_id || appointment.doctor_user_id || appointment.doctor?.id);
+        if (!partnerId) {
+          console.warn('No partner id found in appointment to start chat');
+          return;
+        }
+        // Derive name fields if available
+        const rawName = role === 'DOCTOR' ? (appointment.user_name || '') : (appointment.doctor_name || '');
+        const cleaned = rawName.replace(/^Dr\.?\s*/i, '');
+        const parts = cleaned.trim().split(/\s+/);
+        const first_name = parts[0] || cleaned || '';
+        const last_name = parts.slice(1).join(' ');
+        const partner = {
+          id: partnerId,
+          first_name,
+          last_name,
+          username: role === 'DOCTOR' ? 'Patient' : 'Doctor',
+        };
+        ensureConversationForUser(partner);
+        setSelectedChat(String(partnerId));
+        setShowChatRoom(true);
+        setShowAddModal(false);
+      } catch (e) {
+        console.error('Failed to start chat from appointment:', e);
+      }
+    };
+
+    // Attach to window for external triggers (e.g., Appointments page)
+    window.startChatWithAppointment = handler;
+    return () => {
+      try { delete window.startChatWithAppointment; } catch {}
+    };
   }, []);
 
   // Fetch conversation history via HTTP - FIXED MESSAGE ALIGNMENT
@@ -1184,7 +1314,12 @@ const getMessageTimeStyle = (messageType) => {
           <div className={`w-full h-full flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
             {/* Header */}
             <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex-shrink-0`}>
-              <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-800'} mb-3`}>Messages</h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Messages</h2>
+                <button onClick={openAddModal} className="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm">
+                  <Plus className="w-4 h-4" /> Add
+                </button>
+              </div>
               
               {/* Search */}
               <div className="relative">
@@ -1527,13 +1662,67 @@ const getMessageTimeStyle = (messageType) => {
         )}
       </div>
 
+      {/* Add Modal: Doctor List Only */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} w-full max-w-3xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col`}>
+            <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Start a Chat</h3>
+              <button onClick={closeAddModal} className={`${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} p-2 rounded-lg`}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto space-y-6">
+              {/* Doctors */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className={`${darkMode ? 'text-white' : 'text-gray-800'} font-semibold`}>Doctors</h4>
+                  <div className="relative w-64">
+                    <Search className={`absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                    <input
+                      type="text"
+                      value={addSearch}
+                      onChange={(e) => setAddSearch(e.target.value)}
+                      placeholder="Search doctors..."
+                      className={`w-full pl-8 pr-3 py-1.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent ${darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-200'}`}
+                    />
+                  </div>
+                </div>
+                {loadingDoctors ? (
+                  <div className={`${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Loading doctors...</div>
+                ) : filteredDoctorsForAdd.length > 0 ? (
+                  <div className="grid gap-2">
+                    {filteredDoctorsForAdd.map((d) => (
+                      <div key={d.id} className={`flex items-center justify-between p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                        <div onClick={() => startChatWith({ id: d.id, first_name: d.first_name, last_name: d.last_name, username: d.specialization })} className="cursor-pointer select-none">
+                          <div className={`${darkMode ? 'text-white' : 'text-gray-800'} font-medium`}>Dr. {d.first_name} {d.last_name}</div>
+                          <div className={`${darkMode ? 'text-gray-400' : 'text-gray-500'} text-sm`}>{d.specialization}</div>
+                        </div>
+                        <button onClick={() => startChatWith({ id: d.id, first_name: d.first_name, last_name: d.last_name, username: d.specialization })} className="px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm">Chat</button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>No doctors found.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Desktop: Original Layout */}
       <div className="hidden md:flex w-full h-full">
         {/* Chat Users List */}
-        <div className={`w-80 border-r ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} flex flex-col h-full`}>
+          <div className={`w-80 border-r ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} flex flex-col h-full`}>
           {/* Header */}
-          <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-            <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-800'} mb-3`}>Messages</h2>
+            <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Messages</h2>
+              <button onClick={openAddModal} className="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm">
+                <Plus className="w-4 h-4" /> Add
+              </button>
+            </div>
             
             {/* Search */}
             <div className="relative">

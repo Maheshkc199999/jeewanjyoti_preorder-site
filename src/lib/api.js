@@ -101,27 +101,65 @@ export async function updateUserProfile(profileData) {
 }
 
 /**
- * Update user profile using profile-update endpoint
+ * Update user profile using profile-update endpoint (PATCH method)
  * @param {object} profileData - Profile data to update (first_name, last_name, birthdate, gender, height, weight, blood_group)
  * @returns {Promise<object>} Updated profile data
  */
 export async function updateProfile(profileData) {
-  const response = await apiRequest('/api/profile-update/', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(profileData),
-  })
+  console.log('updateProfile called with:', profileData); // Debug log
+  console.log('updateProfile payload stringified:', JSON.stringify(profileData)); // Debug log
   
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    const error = new Error(errorData.detail || 'Failed to update profile')
-    error.details = errorData
-    throw error
+  try {
+    const response = await apiRequest('/api/profile-update/', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(profileData),
+    })
+    
+    console.log('updateProfile response status:', response.status); // Debug log
+    console.log('updateProfile response headers:', response.headers); // Debug log
+    
+    const responseText = await response.text();
+    console.log('updateProfile response text:', responseText); // Debug log
+    
+    if (!response.ok) {
+      let errorData = {};
+      try {
+        errorData = JSON.parse(responseText);
+      } catch (e) {
+        errorData = { detail: responseText || 'Unknown error' };
+      }
+      console.error('updateProfile error:', errorData); // Debug log
+      console.error('updateProfile error status:', response.status); // Debug log
+      const error = new Error(errorData.detail || errorData.message || `Failed to update profile (Status: ${response.status})`);
+      error.details = errorData;
+      error.response = response;
+      error.status = response.status;
+      throw error;
+    }
+    
+    let result = {};
+    try {
+      result = JSON.parse(responseText);
+    } catch (e) {
+      result = { success: true, message: 'Profile updated successfully' };
+    }
+    console.log('updateProfile success:', result); // Debug log
+    return result;
+  } catch (error) {
+    console.error('updateProfile exception:', error);
+    // Re-throw if it's already our formatted error
+    if (error.details) {
+      throw error;
+    }
+    // Otherwise, wrap it
+    const wrappedError = new Error(error.message || 'Failed to update profile');
+    wrappedError.details = { detail: error.message };
+    wrappedError.originalError = error;
+    throw wrappedError;
   }
-  
-  return await response.json()
 }
 
 /**
