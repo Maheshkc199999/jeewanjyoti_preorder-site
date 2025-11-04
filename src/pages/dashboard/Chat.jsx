@@ -98,6 +98,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   const [lastMessageTime, setLastMessageTime] = useState(0);
   const [processingMessage, setProcessingMessage] = useState(false);
   const [processedMessageIds, setProcessedMessageIds] = useState(new Set());
+  const processedMessageIdsRef = useRef(new Set());
   
   // User status WebSocket
   const statusWsRef = useRef(null);
@@ -173,6 +174,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   // Do not use any dummy messages on chat change
   useEffect(() => {
     setMessages([]);
+    processedMessageIdsRef.current.clear();
     setProcessedMessageIds(new Set());
   }, [selectedChat]);
 
@@ -268,6 +270,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   // Cleanup processed message IDs periodically to prevent memory leaks
   useEffect(() => {
     const cleanup = setInterval(() => {
+      processedMessageIdsRef.current.clear();
       setProcessedMessageIds(new Set());
     }, 30000); // Clear every 30 seconds
     
@@ -1123,25 +1126,79 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
         const isSentByMe = senderId === currentUserId;
         
         setMessages((prev) => {
-          // Check if message already exists to prevent duplicates
+          // Check if message already exists to prevent duplicates (by ID)
           const exists = prev.some(m => m.id === messageId);
           if (exists) {
             console.log('Message already exists, skipping:', messageId);
             return prev;
           }
           
+          // Additional check: prevent processing the same message twice using ref for immediate check
+          if (processedMessageIdsRef.current.has(messageId)) {
+            console.log('Message already processed, skipping:', messageId);
+            return prev;
+          }
+          
+          // Mark this message as processed (both ref and state)
+          processedMessageIdsRef.current.add(messageId);
+          setProcessedMessageIds(prev => new Set([...prev, messageId]));
+          
           // If this is our own message, replace the optimistic version
           if (isSentByMe) {
-            // Find and replace optimistic message - look for recent optimistic messages
-            const optimisticIndex = prev.findIndex(msg => 
-              msg.isOptimistic && (
-                (hasMedia && msg.hasMedia) || // Both have media
-                (!hasMedia && !msg.hasMedia && msg.message === text) // Both are text messages
-              )
-            );
+            // Check if server sent back temp_id to match with optimistic message
+            const tempId = messageData.temp_id || messageData.tempId;
+            
+            // Try multiple strategies to find the optimistic message:
+            // 1. By temp_id if server sent it back
+            // 2. By matching message content and recent timestamp (within last 5 seconds)
+            // 3. By finding any recent optimistic message (last resort)
+            let optimisticIndex = -1;
+            
+            if (tempId) {
+              // Match by temp_id
+              optimisticIndex = prev.findIndex(msg => msg.id === tempId && msg.isOptimistic);
+              console.log('Looking for optimistic message by temp_id:', tempId, optimisticIndex !== -1);
+            }
+            
+            if (optimisticIndex === -1) {
+              // Match by content and recent timestamp
+              const messageTime = new Date(timestamp).getTime();
+              optimisticIndex = prev.findIndex(msg => {
+                if (!msg.isOptimistic) return false;
+                
+                // Check if message was sent recently (within 5 seconds)
+                const msgTime = msg.localTimestamp || 0;
+                const timeDiff = Math.abs(messageTime - msgTime);
+                if (timeDiff > 5000) return false; // Too old
+                
+                // Match by content
+                if (hasMedia && msg.hasMedia) {
+                  // Both have media - consider it a match
+                  return true;
+                } else if (!hasMedia && !msg.hasMedia) {
+                  // Both are text - match by message content
+                  return msg.message === text;
+                }
+                return false;
+              });
+              console.log('Looking for optimistic message by content match:', optimisticIndex !== -1);
+            }
+            
+            if (optimisticIndex === -1) {
+              // Last resort: find any recent optimistic message (within last 3 seconds)
+              const messageTime = new Date(timestamp).getTime();
+              optimisticIndex = prev.findIndex((msg, idx) => {
+                if (!msg.isOptimistic) return false;
+                const msgTime = msg.localTimestamp || 0;
+                const timeDiff = Math.abs(messageTime - msgTime);
+                // Only match if it's the most recent optimistic message and very recent
+                return timeDiff < 3000 && idx === prev.length - 1;
+              });
+              console.log('Looking for optimistic message (last resort):', optimisticIndex !== -1);
+            }
             
             if (optimisticIndex !== -1) {
-              console.log('Replacing optimistic message with real message');
+              console.log('Replacing optimistic message with real message at index:', optimisticIndex);
               const newMessages = [...prev];
               newMessages[optimisticIndex] = {
                 id: messageId,
@@ -1159,6 +1216,8 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
                 }] : undefined,
               };
               return newMessages;
+            } else {
+              console.log('No optimistic message found to replace, but this is our own message - adding as new');
             }
           }
           
