@@ -1050,6 +1050,18 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     sock.onopen = async () => {
       console.log('Chat WebSocket connected for user:', selectedChat);
       setChatWsConnected(true);
+      
+      // Automatically mark messages as seen when chat opens
+      try {
+        if (sock.readyState === WebSocket.OPEN) {
+          const markSeenMessage = JSON.stringify({ type: 'mark_seen' });
+          sock.send(markSeenMessage);
+          console.log('Sent mark_seen message to server');
+        }
+      } catch (error) {
+        console.error('Failed to send mark_seen message:', error);
+      }
+      
       // Fetch history after WebSocket connects
       await fetchHistory(selectedChat);
       // Wait for images to load and scroll to bottom
