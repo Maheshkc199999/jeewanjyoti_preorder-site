@@ -37,19 +37,70 @@ export const googleProvider = new GoogleAuthProvider();
 let messagingPromise = null;
 if (typeof window !== 'undefined') {
   messagingPromise = isSupported().then(async (supported) => {
-    if (!supported) return null;
+    console.log('🔍 FCM Support check:', supported ? 'Supported' : 'Not supported');
+    if (!supported) {
+      console.warn('⚠️ Firebase Messaging is not supported in this browser/environment');
+      return null;
+    }
 
     // Ensure service worker is registered at the app root
     if ('serviceWorker' in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        console.log('🔧 Attempting to register service worker...');
+        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+          scope: '/'
+        });
+        console.log('✅ Service worker registered successfully:', registration.scope);
+        console.log('🔧 Service worker active:', registration.active ? 'Yes' : 'No');
+        console.log('🔧 Service worker installing:', registration.installing ? 'Yes' : 'No');
+        console.log('🔧 Service worker waiting:', registration.waiting ? 'Yes' : 'No');
+        
+        // Wait for service worker to be ready
+        if (registration.active) {
+          console.log('✅ Service worker is active, initializing messaging...');
+          return getMessaging(app);
+        } else if (registration.installing) {
+          console.log('⏳ Service worker is installing, waiting...');
+          await new Promise((resolve) => {
+            registration.installing.addEventListener('statechange', function() {
+              if (this.state === 'activated') {
+                console.log('✅ Service worker activated!');
+                resolve();
+              }
+            });
+          });
+          return getMessaging(app);
+        } else {
+          console.log('⚠️ Service worker not active, initializing messaging anyway...');
+          return getMessaging(app);
+        }
+      } catch (e) {
+        console.error('❌ Service worker registration failed:', e);
+        console.error('❌ Error details:', e.message, e.stack);
+        console.log('⚠️ Attempting to initialize messaging without explicit service worker registration...');
+        // Still try to get messaging - it might work if service worker was already registered
+        try {
+          return getMessaging(app);
+        } catch (messagingError) {
+          console.error('❌ Failed to initialize messaging:', messagingError);
+          return null;
+        }
+      }
+    } else {
+      console.warn('⚠️ Service Workers are not supported in this browser');
+      console.log('⚠️ Attempting to initialize messaging without service worker...');
+      try {
         return getMessaging(app);
       } catch (e) {
-        return getMessaging(app);
+        console.error('❌ Failed to initialize messaging:', e);
+        return null;
       }
     }
-    return getMessaging(app);
-  }).catch(() => null);
+  }).catch((error) => {
+    console.error('❌ FCM initialization error:', error);
+    console.error('❌ Error details:', error.message, error.stack);
+    return null;
+  });
 }
 
 export async function getFcmToken(vapidKey) {

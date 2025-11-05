@@ -73,14 +73,12 @@ function Login() {
         }
       }
 
-      const vapidKey = import.meta.env?.VITE_FIREBASE_VAPID_KEY || ''
+      // Try to get VAPID key from environment, fallback to hardcoded value if not available
+      const vapidKey = import.meta.env?.VITE_FIREBASE_VAPID_KEY || 'BHTwQ-UBls33YCkR3lVR6GsK68zccOJ8p93yVEPcJbMsDh71eW66o_-An1y9so19KWeROurFR-kZbEIRtRhWv-g'
       console.log('🔑 VAPID key check:', vapidKey ? `Found (${vapidKey.substring(0, 20)}...)` : 'MISSING!')
+      console.log('🔑 VAPID key source:', import.meta.env?.VITE_FIREBASE_VAPID_KEY ? 'Environment variable (.env file)' : 'Fallback (hardcoded - restart server to use .env)')
       console.log('🔑 All env vars:', Object.keys(import.meta.env || {}))
-      if (!vapidKey) {
-        console.error('❌❌❌ VAPID key missing! Set VITE_FIREBASE_VAPID_KEY in .env file')
-        console.error('❌ Without VAPID key, FCM tokens cannot be generated')
-        return
-      }
+      console.log('✅ VAPID key is present, proceeding with token generation...')
 
       console.log('🔍 Attempting to get FCM token...')
       console.log('🔍 Service Worker support:', 'serviceWorker' in navigator ? 'Yes' : 'No')
@@ -114,25 +112,37 @@ function Login() {
         
         try {
           // Verify access token is available - try multiple times if needed
+          console.log('🔍 Checking all localStorage keys:', Object.keys(localStorage))
           let accessToken = getAccessToken()
-          console.log('🔑 First access token check:', accessToken ? 'Found' : 'Not found')
+          console.log('🔑 First access token check (via getAccessToken):', accessToken ? 'Found' : 'Not found')
           
           if (!accessToken) {
-            // Check localStorage directly
+            // Check localStorage directly with all possible keys
             console.log('🔍 Checking localStorage directly...')
             const directToken = localStorage.getItem('access_token')
-            console.log('🔍 Direct localStorage check:', directToken ? 'Found' : 'Not found')
-            if (directToken) {
-              accessToken = directToken
+            const altToken = localStorage.getItem('ACCESS_TOKEN')
+            console.log('🔍 Direct localStorage check (access_token):', directToken ? 'Found' : 'Not found')
+            console.log('🔍 Direct localStorage check (ACCESS_TOKEN):', altToken ? 'Found' : 'Not found')
+            
+            accessToken = directToken || altToken
+            if (accessToken) {
               console.log('✅ Using token from direct localStorage access')
+            } else {
+              // List all localStorage items to debug
+              console.log('🔍 All localStorage items:')
+              for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i)
+                const value = localStorage.getItem(key)
+                console.log(`  - ${key}: ${value ? (value.substring(0, 50) + '...') : 'null'}`)
+              }
             }
           }
           
           let retries = 0
-          while (!accessToken && retries < 5) {
-            console.log(`⏳ Waiting for access token... (attempt ${retries + 1}/5)`)
-            await new Promise(resolve => setTimeout(resolve, 300))
-            accessToken = getAccessToken() || localStorage.getItem('access_token')
+          while (!accessToken && retries < 10) {
+            console.log(`⏳ Waiting for access token... (attempt ${retries + 1}/10)`)
+            await new Promise(resolve => setTimeout(resolve, 500))
+            accessToken = getAccessToken() || localStorage.getItem('access_token') || localStorage.getItem('ACCESS_TOKEN')
             retries++
           }
           
@@ -146,6 +156,7 @@ function Login() {
             console.error('❌ localStorage keys:', Object.keys(localStorage))
             console.error('❌ localStorage access_token:', localStorage.getItem('access_token'))
             console.error('❌ This means the token was not stored properly during login')
+            console.error('❌ Will NOT send FCM token to backend without access token')
             return
           }
           
@@ -156,14 +167,33 @@ function Login() {
           console.log('📦 Payload being sent:', JSON.stringify(payload, null, 2))
           console.log('🌐 Full URL:', 'https://jeewanjyoti-backend.smart.org.np/api/devices/register/')
           console.log('📋 Method: POST')
+          console.log('🔑 Authorization header will be included automatically via apiRequest')
+          console.log('🚀 Sending request to backend now...')
           
-          const response = await apiRequest('/api/devices/register/', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload)
-          })
+          console.log('📡 Making API request now...')
+          console.log('📡 URL: https://jeewanjyoti-backend.smart.org.np/api/devices/register/')
+          console.log('📡 Headers will include: Authorization: Bearer <token>')
+          console.log('📡 Content-Type: application/json')
+          
+          let response;
+          try {
+            response = await apiRequest('/api/devices/register/', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(payload)
+            })
+            console.log('📡 Request completed! Received response.')
+          } catch (fetchError) {
+            console.error('❌❌❌ FETCH ERROR - Request failed completely:', fetchError)
+            console.error('❌ Error name:', fetchError.name)
+            console.error('❌ Error message:', fetchError.message)
+            console.error('❌ Error stack:', fetchError.stack)
+            throw fetchError // Re-throw to be caught by outer catch
+          }
+          
+          console.log('📡 Request sent! Waiting for response...')
           
           console.log('📥 Backend response status:', response.status)
           console.log('📥 Backend response statusText:', response.statusText)

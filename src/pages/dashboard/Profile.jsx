@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Edit3, Mail, Phone, MapPin, Calendar, Users, Award, Star, Heart, Camera, Trash2, AlertTriangle, X, User, UserCircle, Ruler, Scale, Droplets } from 'lucide-react';
+import { Edit3, Mail, Phone, MapPin, Calendar, Users, Award, Star, Heart, Camera, Trash2, AlertTriangle, X, User, UserCircle, Ruler, Scale, Droplets, Copy, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { clearTokens, getUserData } from '../../lib/tokenManager';
 import { getSleepData, getSpO2Data, getHeartRateData, getBloodPressureData, getStressData, getHRVData, getUserEmailProfile, updateProfile } from '../../lib/api';
@@ -624,6 +624,51 @@ const ProfileTab = ({ darkMode }) => {
                   >
                     Delete Account
                   </button>
+                </div>
+              </div>
+
+              {/* FCM Token Display */}
+              <div className={`p-4 rounded-xl border ${
+                darkMode ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <div className={`p-2 rounded-lg ${darkMode ? 'bg-blue-800' : 'bg-blue-100'}`}>
+                    <Bell className={`w-5 h-5 ${darkMode ? 'text-blue-300' : 'text-blue-600'}`} />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-blue-200' : 'text-blue-800'} mb-2`}>
+                      FCM Token (Firebase Cloud Messaging)
+                    </h4>
+                    <p className={`text-xs md:text-sm ${darkMode ? 'text-blue-300' : 'text-blue-600'} mb-3`}>
+                      Your device notification token for push notifications
+                    </p>
+                    {(() => {
+                      const fcmToken = localStorage.getItem('fcm_token');
+                      return fcmToken ? (
+                        <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                          <div className="flex items-start gap-2">
+                            <code className={`text-xs md:text-sm font-mono break-all ${darkMode ? 'text-gray-300' : 'text-gray-800'}`}>
+                              {fcmToken}
+                            </code>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(fcmToken);
+                                alert('FCM Token copied to clipboard!');
+                              }}
+                              className={`p-1.5 rounded hover:bg-gray-100 ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors flex-shrink-0`}
+                              title="Copy to clipboard"
+                            >
+                              <Copy className={`w-4 h-4 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          No FCM token found. Token will be generated after allowing notifications during login.
+                        </p>
+                      );
+                    })()}
+                  </div>
                 </div>
               </div>
             </div>
