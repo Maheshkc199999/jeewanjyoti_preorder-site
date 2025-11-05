@@ -3,8 +3,9 @@ import { Mail, Lock, LogIn, Eye, EyeOff, Building, User, X, ArrowLeft, CheckCirc
 import logo from '../assets/logo.png'
 import { useNavigate } from 'react-router-dom'
 import { signInWithPopup } from 'firebase/auth'
-import { auth, googleProvider } from '../lib/firebase'
-import { storeTokens } from '../lib/tokenManager'
+import { auth, googleProvider, getFcmToken } from '../lib/firebase'
+import { storeTokens, getAccessToken } from '../lib/tokenManager'
+import { apiRequest } from '../lib/api'
 
 // Memoize the InputField component to prevent unnecessary re-renders
 const InputField = memo(({ icon: Icon, label, error, children, required = false }) => (
@@ -36,6 +37,175 @@ function Login() {
   const [errors, setErrors] = useState({})
   const [loginType, setLoginType] = useState('individual')
   const navigate = useNavigate()
+
+  // Ask notification permission post-login and fetch FCM token if granted
+  const handleNotificationsAfterLogin = useCallback(async () => {
+    console.log('🔔🔔🔔 STARTING NOTIFICATION FLOW - THIS MUST APPEAR IN CONSOLE 🔔🔔🔔')
+    try {
+      if (typeof window === 'undefined' || !('Notification' in window)) {
+        console.warn('⚠️ Notifications not supported in this environment')
+        return
+      }
+
+      console.log('📱 Current notification permission:', Notification.permission)
+      const alreadyGranted = Notification.permission === 'granted'
+      const alreadyDenied = Notification.permission === 'denied'
+
+      // Auto-request permission if not already granted or denied (no blocking confirm)
+      let shouldRequest = alreadyGranted || !alreadyDenied
+      
+      console.log('❓ Should request permission?', shouldRequest)
+      console.log('❓ Already granted?', alreadyGranted)
+      console.log('❓ Already denied?', alreadyDenied)
+      
+      if (!shouldRequest) {
+        console.log('❌ Skipping notification permission request (already denied)')
+        return
+      }
+
+      if (!alreadyGranted) {
+        console.log('🔐 Requesting notification permission automatically...')
+        const perm = await Notification.requestPermission()
+        console.log('📱 Notification permission result:', perm)
+        if (perm !== 'granted') {
+          console.warn('⚠️ Notification permission denied by user or browser')
+          return
+        }
+      }
+
+      const vapidKey = import.meta.env?.VITE_FIREBASE_VAPID_KEY || ''
+      console.log('🔑 VAPID key check:', vapidKey ? `Found (${vapidKey.substring(0, 20)}...)` : 'MISSING!')
+      console.log('🔑 All env vars:', Object.keys(import.meta.env || {}))
+      if (!vapidKey) {
+        console.error('❌❌❌ VAPID key missing! Set VITE_FIREBASE_VAPID_KEY in .env file')
+        console.error('❌ Without VAPID key, FCM tokens cannot be generated')
+        return
+      }
+
+      console.log('🔍 Attempting to get FCM token...')
+      console.log('🔍 Service Worker support:', 'serviceWorker' in navigator ? 'Yes' : 'No')
+      if ('serviceWorker' in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.getRegistration()
+          console.log('🔍 Service Worker registration:', registration ? 'Found' : 'Not found')
+          if (registration) {
+            console.log('🔍 Service Worker scope:', registration.scope)
+            console.log('🔍 Service Worker active:', registration.active ? 'Yes' : 'No')
+          }
+        } catch (swError) {
+          console.warn('⚠️ Error checking service worker:', swError)
+        }
+      }
+      
+      const token = await getFcmToken(vapidKey)
+      console.log('🎫 FCM Token received:', token ? 'Success' : 'Failed')
+      
+      if (token) {
+        localStorage.setItem('fcm_token', token)
+        console.log('✅ FCM token stored in localStorage')
+        console.log('📋 Full FCM Token:', token)
+        console.log('📏 Token length:', token.length)
+        
+        // Send FCM token to backend
+        console.log('📤 Sending FCM token to backend...')
+        
+        // Wait a moment to ensure tokens are fully stored
+        await new Promise(resolve => setTimeout(resolve, 200))
+        
+        try {
+          // Verify access token is available - try multiple times if needed
+          let accessToken = getAccessToken()
+          console.log('🔑 First access token check:', accessToken ? 'Found' : 'Not found')
+          
+          if (!accessToken) {
+            // Check localStorage directly
+            console.log('🔍 Checking localStorage directly...')
+            const directToken = localStorage.getItem('access_token')
+            console.log('🔍 Direct localStorage check:', directToken ? 'Found' : 'Not found')
+            if (directToken) {
+              accessToken = directToken
+              console.log('✅ Using token from direct localStorage access')
+            }
+          }
+          
+          let retries = 0
+          while (!accessToken && retries < 5) {
+            console.log(`⏳ Waiting for access token... (attempt ${retries + 1}/5)`)
+            await new Promise(resolve => setTimeout(resolve, 300))
+            accessToken = getAccessToken() || localStorage.getItem('access_token')
+            retries++
+          }
+          
+          console.log('🔑 Access token available:', accessToken ? 'Yes' : 'No')
+          if (accessToken) {
+            console.log('🔑 Access token (first 20 chars):', accessToken.substring(0, 20) + '...')
+            console.log('🔑 Access token (last 10 chars):', '...' + accessToken.substring(accessToken.length - 10))
+            console.log('🔑 Authorization header will be: Bearer ' + accessToken.substring(0, 20) + '...')
+          } else {
+            console.error('❌❌❌ No access token available after retries! Cannot send request.')
+            console.error('❌ localStorage keys:', Object.keys(localStorage))
+            console.error('❌ localStorage access_token:', localStorage.getItem('access_token'))
+            console.error('❌ This means the token was not stored properly during login')
+            return
+          }
+          
+          const payload = {
+            registration_id: token,
+            device_type: 'web'
+          }
+          console.log('📦 Payload being sent:', JSON.stringify(payload, null, 2))
+          console.log('🌐 Full URL:', 'https://jeewanjyoti-backend.smart.org.np/api/devices/register/')
+          console.log('📋 Method: POST')
+          
+          const response = await apiRequest('/api/devices/register/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+          })
+          
+          console.log('📥 Backend response status:', response.status)
+          console.log('📥 Backend response statusText:', response.statusText)
+          
+          // Read response body once
+          const responseText = await response.text()
+          console.log('📥 Backend response text (raw):', responseText)
+          
+          let responseData = {}
+          try {
+            responseData = responseText ? JSON.parse(responseText) : {}
+            console.log('📥 Backend response data (parsed):', responseData)
+          } catch (parseError) {
+            console.warn('⚠️ Could not parse response as JSON:', parseError)
+            console.warn('⚠️ Response was:', responseText)
+            responseData = { raw: responseText }
+          }
+          
+          if (response.ok) {
+            console.log('✅✅✅ FCM token registered successfully with backend! ✅✅✅')
+          } else {
+            console.error('❌❌❌ Failed to register FCM token with backend. Status:', response.status)
+            console.error('❌ Response:', responseData)
+            console.error('❌ Full error details logged above')
+          }
+        } catch (error) {
+          console.error('❌❌❌ Error registering FCM token with backend:', error)
+          console.error('❌ Error name:', error.name)
+          console.error('❌ Error message:', error.message)
+          console.error('❌ Error stack:', error.stack)
+          if (error.response) {
+            console.error('❌ Error response:', error.response)
+          }
+        }
+      } else {
+        console.warn('⚠️ FCM token not available (permission denied or unsupported).')
+      }
+    } catch (e) {
+      console.error('❌ Failed to obtain FCM token:', e)
+      console.error('❌ Error details:', e.message, e.stack)
+    }
+  }, [])
 
   // Forgot password states
   const [showForgotPassword, setShowForgotPassword] = useState(false)
@@ -245,6 +415,7 @@ function Login() {
       
       // Store tokens and user data
       storeTokens(data.access, data.refresh, data.user)
+      console.log('✅ Login successful, initiating notification flow...')
       
       // Check if profile is incomplete
       if (data.user) {
@@ -258,7 +429,15 @@ function Login() {
         }
       }
       
+      // Navigate first, then handle notifications in background
       navigate('/dashboard')
+      
+      // Call notification flow immediately (don't wait) - it will handle its own timing
+      console.log('🚀 About to call handleNotificationsAfterLogin...')
+      handleNotificationsAfterLogin().catch(error => {
+        console.error('❌❌❌ CRITICAL ERROR in notification flow:', error)
+        console.error('❌ Error stack:', error.stack)
+      })
       
     } catch (error) {
       console.error('Google login error:', error)
@@ -307,6 +486,7 @@ function Login() {
       
       // Store tokens and user data
       storeTokens(data.access, data.refresh, data.user)
+      console.log('✅ Login successful, initiating notification flow...')
       
       // Check if profile is incomplete
       if (data.user) {
@@ -320,7 +500,15 @@ function Login() {
         }
       }
       
+      // Navigate first, then handle notifications in background
       navigate('/dashboard')
+      
+      // Call notification flow immediately (don't wait) - it will handle its own timing
+      console.log('🚀 About to call handleNotificationsAfterLogin...')
+      handleNotificationsAfterLogin().catch(error => {
+        console.error('❌❌❌ CRITICAL ERROR in notification flow:', error)
+        console.error('❌ Error stack:', error.stack)
+      })
       
     } catch (error) {
       console.error('Login error:', error)

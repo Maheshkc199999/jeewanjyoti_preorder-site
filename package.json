@@ -15,7 +15,7 @@
     "chart.js": "^4.5.0",
     "dotenv": "^17.2.2",
     "emoji-picker-react": "^4.13.3",
-    "firebase": "^12.2.1",
+    "firebase": "^12.5.0",
     "framer-motion": "^12.23.12",
     "khalti-checkout-web": "^2.2.0",
     "lucide-react": "^0.542.0",
