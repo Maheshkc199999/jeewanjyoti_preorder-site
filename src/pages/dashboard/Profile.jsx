@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Edit3, Mail, Phone, MapPin, Calendar, Users, Award, Star, Heart, Camera, Trash2, AlertTriangle, X, User, UserCircle, Ruler, Scale, Droplets, Copy, Bell } from 'lucide-react';
+import { Edit3, Mail, Phone, MapPin, Calendar, Users, Award, Star, Heart, Camera, Trash2, AlertTriangle, X, User, UserCircle, Ruler, Scale, Droplets, UserPlus, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { clearTokens, getUserData } from '../../lib/tokenManager';
-import { getSleepData, getSpO2Data, getHeartRateData, getBloodPressureData, getStressData, getHRVData, getUserEmailProfile, updateProfile } from '../../lib/api';
+import { getSleepData, getSpO2Data, getHeartRateData, getBloodPressureData, getStressData, getHRVData, getUserEmailProfile, updateProfile, apiRequest } from '../../lib/api';
 
 // Move InputField outside to prevent recreation on every render
 const InputField = React.memo(({ icon: Icon, label, name, type = 'text', required = false, error, value, onChange, min, max, darkMode }) => {
@@ -243,17 +244,28 @@ const ProfileTab = ({ darkMode }) => {
     }
   };
 
+  const [showUserMappingPopup, setShowUserMappingPopup] = useState(false);
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Profile</h2>
-        <button 
-          onClick={() => setShowEditModal(true)}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm md:text-base"
-        >
-          <Edit3 className="w-4 h-4" />
-          <span className="hidden md:inline">Edit Profile</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setShowUserMappingPopup(true)}
+            className="bg-violet-500 hover:bg-violet-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm md:text-base"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span className="hidden md:inline">Add User</span>
+          </button>
+          <button 
+            onClick={() => setShowEditModal(true)}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm md:text-base"
+          >
+            <Edit3 className="w-4 h-4" />
+            <span className="hidden md:inline">Edit Profile</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
@@ -626,51 +638,6 @@ const ProfileTab = ({ darkMode }) => {
                   </button>
                 </div>
               </div>
-
-              {/* FCM Token Display */}
-              <div className={`p-4 rounded-xl border ${
-                darkMode ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'
-              }`}>
-                <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded-lg ${darkMode ? 'bg-blue-800' : 'bg-blue-100'}`}>
-                    <Bell className={`w-5 h-5 ${darkMode ? 'text-blue-300' : 'text-blue-600'}`} />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-blue-200' : 'text-blue-800'} mb-2`}>
-                      FCM Token (Firebase Cloud Messaging)
-                    </h4>
-                    <p className={`text-xs md:text-sm ${darkMode ? 'text-blue-300' : 'text-blue-600'} mb-3`}>
-                      Your device notification token for push notifications
-                    </p>
-                    {(() => {
-                      const fcmToken = localStorage.getItem('fcm_token');
-                      return fcmToken ? (
-                        <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                          <div className="flex items-start gap-2">
-                            <code className={`text-xs md:text-sm font-mono break-all ${darkMode ? 'text-gray-300' : 'text-gray-800'}`}>
-                              {fcmToken}
-                            </code>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(fcmToken);
-                                alert('FCM Token copied to clipboard!');
-                              }}
-                              className={`p-1.5 rounded hover:bg-gray-100 ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors flex-shrink-0`}
-                              title="Copy to clipboard"
-                            >
-                              <Copy className={`w-4 h-4 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          No FCM token found. Token will be generated after allowing notifications during login.
-                        </p>
-                      );
-                    })()}
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -801,7 +768,666 @@ const ProfileTab = ({ darkMode }) => {
           }}
         />
       )}
+
+      {/* User Mapping Popup */}
+      <UserMappingPopup 
+        isOpen={showUserMappingPopup} 
+        onClose={() => setShowUserMappingPopup(false)}
+        darkMode={darkMode}
+      />
     </div>
+  );
+};
+
+// User Mapping Popup Component
+const UserMappingPopup = ({ isOpen, onClose, darkMode }) => {
+  const [mappedUsers, setMappedUsers] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(true);
+  const [submitStatus, setSubmitStatus] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showAddForm, setShowAddForm] = useState(false);
+  
+  // OTP flow states
+  const [mappingStep, setMappingStep] = useState(1); // 1: Email, 2: OTP Verification
+  const [mappingData, setMappingData] = useState({
+    email: '',
+    email_otp: ''
+  });
+  const [mappingErrors, setMappingErrors] = useState({});
+  const [otpLoading, setOtpLoading] = useState(false);
+
+  // Fetch mapped users when popup opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchMappedUsers();
+    }
+  }, [isOpen]);
+
+  const fetchMappedUsers = async () => {
+    setIsFetching(true);
+    try {
+      const response = await apiRequest('/api/user-mapping/', {
+        method: 'GET',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMappedUsers(Array.isArray(data) ? data : []);
+      } else {
+        console.error('Failed to fetch mapped users');
+        setMappedUsers([]);
+      }
+    } catch (error) {
+      console.error('Error fetching mapped users:', error);
+      setMappedUsers([]);
+    } finally {
+      setIsFetching(false);
+    }
+  };
+
+  const handleMappingInputChange = (e) => {
+    const { name, value } = e.target;
+    setMappingData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    // Clear error when user starts typing
+    if (mappingErrors[name]) {
+      setMappingErrors(prev => ({
+        ...prev,
+        [name]: false
+      }));
+    }
+  };
+
+  // Step 1: Send OTP to email
+  const handleSendOTP = async () => {
+    const newErrors = {};
+    if (!mappingData.email) newErrors.email = true;
+    
+    setMappingErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
+
+    setOtpLoading(true);
+    try {
+      const response = await apiRequest('/api/user-mapping/request/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: mappingData.email
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || errorData.message || `Failed to send OTP: ${response.status}`);
+      }
+
+      setMappingStep(2);
+      setSubmitStatus('success');
+      setErrorMessage('');
+      
+      // Show success message briefly
+      setTimeout(() => {
+        setSubmitStatus(null);
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Send OTP error:', error);
+      setSubmitStatus('error');
+      setErrorMessage(error.message || 'Failed to send OTP. Please check your email and try again.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  // Step 2: Verify OTP
+  const handleVerifyOTP = async () => {
+    const newErrors = {};
+    if (!mappingData.email_otp) newErrors.email_otp = true;
+    
+    setMappingErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
+
+    setIsLoading(true);
+    setSubmitStatus(null);
+    setErrorMessage('');
+
+    try {
+      // Verify OTP - need to check the correct endpoint
+      const response = await apiRequest('/api/user-mapping/verify/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: mappingData.email,
+          email_otp: mappingData.email_otp
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || errorData.message || `OTP verification failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      setSubmitStatus('success');
+      
+      // Reset form and close
+      setMappingData({
+        email: '',
+        email_otp: ''
+      });
+      setMappingStep(1);
+      setMappingErrors({});
+      
+      // Refresh the user list
+      await fetchMappedUsers();
+      
+      setTimeout(() => {
+        setShowAddForm(false);
+        setSubmitStatus(null);
+      }, 1500);
+      
+    } catch (error) {
+      console.error('OTP verification error:', error);
+      setSubmitStatus('error');
+      setErrorMessage(error.message || 'Invalid OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (userId) => {
+    if (!window.confirm('Are you sure you want to remove this user mapping?')) {
+      return;
+    }
+
+    try {
+      const response = await apiRequest(`/api/user-mapping/${userId}/`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        await fetchMappedUsers();
+      } else {
+        alert('Failed to delete user mapping');
+      }
+    } catch (error) {
+      console.error('Error deleting user mapping:', error);
+      alert('Error deleting user mapping');
+    }
+  };
+
+  const handleClose = () => {
+    if (!isLoading && !otpLoading) {
+      setMappingData({
+        email: '',
+        email_otp: ''
+      });
+      setMappingStep(1);
+      setMappingErrors({});
+      setSubmitStatus(null);
+      setErrorMessage('');
+      setShowAddForm(false);
+      setSearchQuery('');
+      onClose();
+    }
+  };
+
+  const handleBackToEmail = () => {
+    setMappingStep(1);
+    setMappingData(prev => ({ ...prev, email_otp: '' }));
+    setMappingErrors({});
+    setSubmitStatus(null);
+    setErrorMessage('');
+  };
+
+  const filteredUsers = mappedUsers.filter(user => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      user.first_name?.toLowerCase().includes(searchLower) ||
+      user.last_name?.toLowerCase().includes(searchLower) ||
+      user.email?.toLowerCase().includes(searchLower) ||
+      user.relationship?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+            onClick={handleClose}
+          />
+
+          {/* Popup */}
+          <motion.div
+            initial={{ y: "100%", opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: "100%", opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 500 }}
+            className={`fixed inset-x-4 top-[10%] bottom-4 md:inset-x-8 rounded-3xl shadow-2xl z-50 overflow-hidden ${
+              darkMode ? 'bg-gray-800' : 'bg-white'
+            }`}
+          >
+            <div className="h-full flex flex-col">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-violet-600 to-purple-700 text-white p-6 relative flex flex-col items-center justify-center flex-shrink-0">
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleClose}
+                  disabled={isLoading}
+                  className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
+                >
+                  <X className="h-6 w-6" />
+                </motion.button>
+                
+                <motion.div
+                  initial={{ y: -20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-center"
+                >
+                  <h2 className="text-3xl font-bold mb-2">👥 User Mapping</h2>
+                  <p className="text-violet-100">Manage your family members and loved ones</p>
+                </motion.div>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                    Mapped Users
+                  </h3>
+                  <button 
+                    onClick={() => setShowAddForm(true)}
+                    className="bg-violet-500 hover:bg-violet-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    Add User
+                  </button>
+                </div>
+
+                {/* Search Bar */}
+                {mappedUsers.length > 0 && (
+                  <div className="mb-6">
+                    <div className="relative">
+                      <Users className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
+                        darkMode ? 'text-gray-400' : 'text-gray-500'
+                      }`} />
+                      <input
+                        type="text"
+                        placeholder="Search users..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-200 ${
+                          darkMode 
+                            ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                            : 'bg-white border-gray-300'
+                        }`}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Users List or Add Form */}
+                {showAddForm ? (
+                  <div className="max-w-2xl mx-auto">
+                    {/* Progress indicator */}
+                    <div className="flex items-center justify-center mb-6">
+                      <div className="flex items-center gap-2">
+                        {[1, 2].map((step) => (
+                          <div key={step} className="flex items-center">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                              step <= mappingStep
+                                ? 'bg-violet-600 text-white'
+                                : darkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-200 text-gray-500'
+                            }`}>
+                              {step < mappingStep ? <CheckCircle className="w-4 h-4" /> : step}
+                            </div>
+                            {step < 2 && (
+                              <div className={`w-8 h-0.5 ${
+                                step < mappingStep ? 'bg-violet-600' : darkMode ? 'bg-gray-700' : 'bg-gray-200'
+                              }`} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Status Messages */}
+                    {submitStatus === 'success' && mappingStep === 1 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`mb-6 p-4 rounded-xl flex items-center ${
+                          darkMode ? 'bg-green-900/30 border border-green-700' : 'bg-green-100 border border-green-300'
+                        }`}
+                      >
+                        <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                        <p className={`font-medium ${darkMode ? 'text-green-300' : 'text-green-800'}`}>
+                          OTP sent to {mappingData.email} successfully!
+                        </p>
+                      </motion.div>
+                    )}
+
+                    {submitStatus === 'success' && mappingStep === 2 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`mb-6 p-4 rounded-xl flex items-center ${
+                          darkMode ? 'bg-green-900/30 border border-green-700' : 'bg-green-100 border border-green-300'
+                        }`}
+                      >
+                        <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                        <p className={`font-medium ${darkMode ? 'text-green-300' : 'text-green-800'}`}>
+                          User mapped successfully!
+                        </p>
+                      </motion.div>
+                    )}
+
+                    {submitStatus === 'error' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`mb-6 p-4 rounded-xl flex items-center ${
+                          darkMode ? 'bg-red-900/30 border border-red-700' : 'bg-red-100 border border-red-300'
+                        }`}
+                      >
+                        <X className="h-5 w-5 text-red-600 mr-2" />
+                        <div>
+                          <p className={`font-medium ${darkMode ? 'text-red-300' : 'text-red-800'}`}>
+                            {mappingStep === 1 ? 'Failed to send OTP' : 'Failed to verify OTP'}
+                          </p>
+                          {errorMessage && (
+                            <p className={`text-sm mt-1 ${darkMode ? 'text-red-400' : 'text-red-700'}`}>
+                              {errorMessage}
+                            </p>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Step 1: Email Input */}
+                    {mappingStep === 1 && (
+                      <div className="space-y-6">
+                        <div>
+                          <p className={`text-center mb-6 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                            Enter the email address of the user you want to map. We'll send an OTP to verify.
+                          </p>
+                          
+                          <div>
+                            <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                              <Mail className="inline h-4 w-4 mr-2" />
+                              Email Address
+                            </label>
+                            <input
+                              type="email"
+                              name="email"
+                              value={mappingData.email}
+                              onChange={handleMappingInputChange}
+                              required
+                              disabled={otpLoading}
+                              className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                                mappingErrors.email ? 'border-red-500' : darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
+                              }`}
+                              placeholder="user@example.com"
+                            />
+                            {mappingErrors.email && (
+                              <p className="text-red-500 text-xs mt-1">Email is required</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex gap-4">
+                          <button
+                            type="button"
+                            onClick={() => setShowAddForm(false)}
+                            className={`flex-1 px-6 py-3 border-2 rounded-xl font-semibold transition-all ${
+                              darkMode 
+                                ? 'border-gray-600 text-gray-300 hover:bg-gray-700' 
+                                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
+                            disabled={otpLoading}
+                          >
+                            Cancel
+                          </button>
+                          <motion.button
+                            type="button"
+                            onClick={handleSendOTP}
+                            disabled={otpLoading}
+                            whileHover={!otpLoading ? { scale: 1.02 } : {}}
+                            whileTap={!otpLoading ? { scale: 0.98 } : {}}
+                            className="flex-1 bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-700 hover:to-purple-800 text-white font-bold py-3 rounded-xl shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                          >
+                            {otpLoading ? (
+                              <>
+                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                Sending OTP...
+                              </>
+                            ) : (
+                              'Send OTP'
+                            )}
+                          </motion.button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 2: OTP Verification */}
+                    {mappingStep === 2 && (
+                      <div className="space-y-6">
+                        <div>
+                          <p className={`text-center mb-6 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                            We've sent a 6-digit OTP to <strong className={darkMode ? 'text-white' : 'text-gray-800'}>{mappingData.email}</strong>. Please enter it below.
+                          </p>
+                          
+                          <div>
+                            <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                              <Mail className="inline h-4 w-4 mr-2" />
+                              OTP Code
+                            </label>
+                            <input
+                              type="text"
+                              name="email_otp"
+                              value={mappingData.email_otp}
+                              onChange={(e) => {
+                                const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                setMappingData(prev => ({ ...prev, email_otp: value }));
+                                if (mappingErrors.email_otp) {
+                                  setMappingErrors(prev => ({ ...prev, email_otp: false }));
+                                }
+                              }}
+                              required
+                              disabled={isLoading}
+                              className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-center text-lg tracking-widest font-mono ${
+                                mappingErrors.email_otp ? 'border-red-500' : darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
+                              }`}
+                              placeholder="123456"
+                              maxLength="6"
+                            />
+                            {mappingErrors.email_otp && (
+                              <p className="text-red-500 text-xs mt-1">OTP is required</p>
+                            )}
+                            <p className={`text-xs mt-2 text-center ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                              Enter the 6-digit code sent to your email
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-4">
+                          <button
+                            type="button"
+                            onClick={handleBackToEmail}
+                            className={`flex-1 px-6 py-3 border-2 rounded-xl font-semibold transition-all ${
+                              darkMode 
+                                ? 'border-gray-600 text-gray-300 hover:bg-gray-700' 
+                                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
+                            disabled={isLoading}
+                          >
+                            Back
+                          </button>
+                          <motion.button
+                            type="button"
+                            onClick={handleVerifyOTP}
+                            disabled={isLoading}
+                            whileHover={!isLoading ? { scale: 1.02 } : {}}
+                            whileTap={!isLoading ? { scale: 0.98 } : {}}
+                            className="flex-1 bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-700 hover:to-purple-800 text-white font-bold py-3 rounded-xl shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                          >
+                            {isLoading ? (
+                              <>
+                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                Verifying...
+                              </>
+                            ) : (
+                              'Verify OTP'
+                            )}
+                          </motion.button>
+                        </div>
+
+                        <div className="text-center">
+                          <button
+                            type="button"
+                            onClick={handleSendOTP}
+                            className={`text-sm ${darkMode ? 'text-violet-400 hover:text-violet-300' : 'text-violet-600 hover:text-violet-800'} font-semibold transition-colors hover:underline`}
+                            disabled={otpLoading}
+                          >
+                            Resend OTP
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {isFetching ? (
+                      <div className={`flex items-center justify-center py-12 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mr-2"></div>
+                        Loading users...
+                      </div>
+                    ) : filteredUsers.length === 0 && !searchQuery ? (
+                      <div className={`text-center py-12 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                        <p className="text-lg font-medium mb-2">No mapped users yet</p>
+                        <p className="text-sm">Click "Add User" to start mapping family members</p>
+                      </div>
+                    ) : filteredUsers.length === 0 && searchQuery ? (
+                      <div className={`text-center py-12 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                        <p className="text-lg font-medium mb-2">No users found</p>
+                        <p className="text-sm">Try adjusting your search query</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredUsers.map((user) => (
+                          <motion.div
+                            key={user.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`rounded-xl p-6 shadow-lg border ${
+                              darkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-100'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-gradient-to-r from-violet-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                                  {user.first_name?.[0] || ''}{user.last_name?.[0] || ''}
+                                </div>
+                                <div>
+                                  <h3 className={`font-semibold text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                                    {user.first_name} {user.last_name}
+                                  </h3>
+                                  {user.relationship && (
+                                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                      {user.relationship}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleDelete(user.id)}
+                                className={`p-2 rounded-lg transition-colors ${
+                                  darkMode 
+                                    ? 'hover:bg-red-900/30 text-red-400' 
+                                    : 'hover:bg-red-50 text-red-600'
+                                }`}
+                                title="Remove user"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+
+                            <div className="space-y-2">
+                              {user.email && (
+                                <div className="flex items-center gap-2">
+                                  <Mail className={`w-4 h-4 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                                  <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                    {user.email}
+                                  </span>
+                                </div>
+                              )}
+                              {user.phone_number && (
+                                <div className="flex items-center gap-2">
+                                  <Phone className={`w-4 h-4 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                                  <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                    {user.phone_number}
+                                  </span>
+                                </div>
+                              )}
+                              {user.birthdate && (
+                                <div className="flex items-center gap-2">
+                                  <Calendar className={`w-4 h-4 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                                  <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                    {new Date(user.birthdate).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              )}
+                              {user.gender && (
+                                <div className="flex items-center gap-2">
+                                  <UserCircle className={`w-4 h-4 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                                  <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                    {user.gender}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className={`p-4 text-center flex-shrink-0 ${
+                darkMode ? 'bg-gray-900' : 'bg-gray-50'
+              }`}>
+                <p className={`text-sm ${
+                  darkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  🔒 Secure mapping • 💝 Family care • 📞 24/7 support
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 };
 
