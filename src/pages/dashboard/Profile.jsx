@@ -3,7 +3,7 @@ import { Edit3, Mail, Phone, MapPin, Calendar, Users, Award, Star, Heart, Camera
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clearTokens, getUserData } from '../../lib/tokenManager';
-import { getSleepData, getSpO2Data, getHeartRateData, getBloodPressureData, getStressData, getHRVData, getUserEmailProfile, updateProfile, apiRequest } from '../../lib/api';
+import { getSleepData, getSpO2Data, getHeartRateData, getBloodPressureData, getStressData, getHRVData, getUserEmailProfile, updateProfile, apiRequest, API_BASE_URL } from '../../lib/api';
 
 // Move InputField outside to prevent recreation on every render
 const InputField = React.memo(({ icon: Icon, label, name, type = 'text', required = false, error, value, onChange, min, max, darkMode }) => {
@@ -167,7 +167,7 @@ const ProfileTab = ({ darkMode }) => {
       }
       // Regular users: send empty body (will delete their own account)
       
-      const response = await fetch('https://jeewanjyoti-backend.smart.org.np/api/delete-account/', {
+      const response = await fetch(`${API_BASE_URL}/api/delete-account/`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -209,7 +209,7 @@ const ProfileTab = ({ darkMode }) => {
       const formData = new FormData();
       formData.append('profile_image', file);
 
-      const response = await fetch('https://jeewanjyoti-backend.smart.org.np/api/profile-image/', {
+      const response = await fetch(`${API_BASE_URL}/api/profile-image/`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

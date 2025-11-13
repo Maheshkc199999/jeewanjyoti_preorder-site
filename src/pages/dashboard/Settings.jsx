@@ -3,6 +3,7 @@ import { Trash2, AlertTriangle, X, Bell } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { clearTokens } from '../../lib/tokenManager'
 import { getFcmToken } from '../../lib/firebase'
+import { API_BASE_URL } from '../../lib/api'
 
 const SettingsTab = ({ darkMode }) => {
   const navigate = useNavigate()
@@ -138,7 +139,7 @@ const SettingsTab = ({ darkMode }) => {
         requestBody = { id: userData.id }
       }
 
-      const response = await fetch('https://jeewanjyoti-backend.smart.org.np/api/delete-account/', {
+      const response = await fetch(`${API_BASE_URL}/api/delete-account/`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

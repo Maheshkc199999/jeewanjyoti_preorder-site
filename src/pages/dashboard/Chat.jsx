@@ -3,6 +3,7 @@ import {
   Bell, Send, Paperclip, Mic, Video, Phone, X, Smile, Image, 
   File, Download, Search, MoreHorizontal, Circle, ArrowLeft, Plus
 } from 'lucide-react';
+import { API_BASE_URL } from '../../lib/api';
 
 // Enhanced EmojiPicker component
 const EmojiPicker = ({ onEmojiClick, theme, height, width, emojiAsFile, setEmojiAsFile, onClose }) => {
@@ -220,7 +221,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     try {
       const token = getAccessToken();
       const nextPage = currentPage + 1;
-      const response = await fetch(`https://jeewanjyoti-backend.smart.org.np/api/history/${selectedChat}/?page=${nextPage}`, {
+      const response = await fetch(`${API_BASE_URL}/api/history/${selectedChat}/?page=${nextPage}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
@@ -315,7 +316,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     }
 
     try {
-      const response = await fetch(`https://jeewanjyoti-backend.smart.org.np/api/upload_file/${receiverId}/`, {
+      const response = await fetch(`${API_BASE_URL}/api/upload_file/${receiverId}/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -657,7 +658,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
         setLoadingDoctors(true);
         const token = getAccessToken();
         if (!token) return;
-        const res = await fetch(`https://jeewanjyoti-backend.smart.org.np/api/doctorlist/`, {
+        const res = await fetch(`${API_BASE_URL}/api/doctorlist/`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -789,7 +790,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     setLoadingMessages(true);
     try {
       const token = getAccessToken();
-      const response = await fetch(`https://jeewanjyoti-backend.smart.org.np/api/history/${userId}/`, {
+      const response = await fetch(`${API_BASE_URL}/api/history/${userId}/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
@@ -884,7 +885,9 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
   useEffect(() => {
     const token = getAccessToken();
     if (!token) return;
-    const wsUrl = `wss://jeewanjyoti-backend.smart.org.np/ws/conversations/?token=${token}`;
+    const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
+    const baseUrl = API_BASE_URL.replace(/^https?:\/\//, '');
+    const wsUrl = `${wsProtocol}://${baseUrl}/ws/conversations/?token=${token}`;
     let socket;
     try {
       socket = new WebSocket(wsUrl);
@@ -958,7 +961,9 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
       return;
     }
     
-    const statusWsUrl = `wss://jeewanjyoti-backend.smart.org.np/ws/status/?token=${token}`;
+    const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
+    const baseUrl = API_BASE_URL.replace(/^https?:\/\//, '');
+    const statusWsUrl = `${wsProtocol}://${baseUrl}/ws/status/?token=${token}`;
     console.log('Attempting to connect to status WebSocket:', statusWsUrl);
     
     let statusSocket;
@@ -1039,7 +1044,9 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange }) => {
     
     // messages are cleared by the selectedChat effect above (do NOT clear here)
     
-    const url = `wss://jeewanjyoti-backend.smart.org.np/ws/chat/${selectedChat}/?token=${token}`;
+    const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
+    const baseUrl = API_BASE_URL.replace(/^https?:\/\//, '');
+    const url = `${wsProtocol}://${baseUrl}/ws/chat/${selectedChat}/?token=${token}`;
     let sock;
     try {
       sock = new WebSocket(url);
@@ -1546,13 +1553,13 @@ const getMessageTimeStyle = (messageType) => {
                             {file.type === 'image' ? (
                               <div className="relative group">
                                 <img 
-                                  src={file.url ? `https://jeewanjyoti-backend.smart.org.np${file.url}` : '#'}
+                                  src={file.url ? `${API_BASE_URL}${file.url}` : '#'}
                                   alt={file.name}
                                   className="w-full max-w-sm rounded-2xl cursor-pointer hover:opacity-90 transition-opacity"
-                                  onClick={() => handleImageClick(`https://jeewanjyoti-backend.smart.org.np${file.url}`, file.name)}
+                                  onClick={() => handleImageClick(`${API_BASE_URL}${file.url}`, file.name)}
                                   onLoad={() => console.log('Image loaded successfully:', file.url)}
                                   onError={(e) => {
-                                    console.error('Image load error for URL:', `https://jeewanjyoti-backend.smart.org.np${file.url}`);
+                                    console.error('Image load error for URL:', `${API_BASE_URL}${file.url}`);
                                     console.error('Error details:', e);
                                     // Show fallback instead of hiding
                                     e.target.style.display = 'none';
@@ -1577,7 +1584,7 @@ const getMessageTimeStyle = (messageType) => {
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleDownload(`https://jeewanjyoti-backend.smart.org.np${file.url}`, file.name);
+                                      handleDownload(`${API_BASE_URL}${file.url}`, file.name);
                                     }}
                                     className="bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-colors"
                                     title="Download image"
@@ -1595,7 +1602,7 @@ const getMessageTimeStyle = (messageType) => {
                                     {file.size && <div className="text-xs opacity-70">{file.size}</div>}
                                   </div>
                                   <a 
-                                    href={file.url ? `https://jeewanjyoti-backend.smart.org.np${file.url}` : '#'}
+                                    href={file.url ? `${API_BASE_URL}${file.url}` : '#'}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
@@ -1937,13 +1944,13 @@ const getMessageTimeStyle = (messageType) => {
                               {file.type === 'image' ? (
                                 <div className="relative group">
                                   <img 
-                                    src={file.url ? `https://jeewanjyoti-backend.smart.org.np${file.url}` : '#'}
-                                    alt={file.name}
-                                    className="w-full max-w-md rounded-2xl cursor-pointer hover:opacity-90 transition-opacity"
-                                    onClick={() => handleImageClick(`https://jeewanjyoti-backend.smart.org.np${file.url}`, file.name)}
-                                    onLoad={() => console.log('Image loaded successfully:', file.url)}
-                                    onError={(e) => {
-                                      console.error('Image load error for URL:', `https://jeewanjyoti-backend.smart.org.np${file.url}`);
+                                    src={file.url ? `${API_BASE_URL}${file.url}` : '#'}
+                                  alt={file.name}
+                                  className="w-full max-w-md rounded-2xl cursor-pointer hover:opacity-90 transition-opacity"
+                                  onClick={() => handleImageClick(`${API_BASE_URL}${file.url}`, file.name)}
+                                  onLoad={() => console.log('Image loaded successfully:', file.url)}
+                                  onError={(e) => {
+                                    console.error('Image load error for URL:', `${API_BASE_URL}${file.url}`);
                                       console.error('Error details:', e);
                                       // Show fallback instead of hiding
                                       e.target.style.display = 'none';
@@ -1968,7 +1975,7 @@ const getMessageTimeStyle = (messageType) => {
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        handleDownload(`https://jeewanjyoti-backend.smart.org.np${file.url}`, file.name);
+                                        handleDownload(`${API_BASE_URL}${file.url}`, file.name);
                                       }}
                                       className="bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-colors"
                                       title="Download image"
@@ -1986,7 +1993,7 @@ const getMessageTimeStyle = (messageType) => {
                                       {file.size && <div className="text-xs opacity-70">{file.size}</div>}
                                     </div>
                                     <a 
-                                      href={file.url ? `https://jeewanjyoti-backend.smart.org.np${file.url}` : '#'}
+                                      href={file.url ? `${API_BASE_URL}${file.url}` : '#'}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"

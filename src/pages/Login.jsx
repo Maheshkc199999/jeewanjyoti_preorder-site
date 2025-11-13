@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider, getFcmToken } from '../lib/firebase'
 import { storeTokens, getAccessToken } from '../lib/tokenManager'
-import { apiRequest } from '../lib/api'
+import { apiRequest, API_BASE_URL } from '../lib/api'
 
 // Memoize the InputField component to prevent unnecessary re-renders
 const InputField = memo(({ icon: Icon, label, error, children, required = false }) => (
@@ -165,13 +165,13 @@ function Login() {
             device_type: 'web'
           }
           console.log('📦 Payload being sent:', JSON.stringify(payload, null, 2))
-          console.log('🌐 Full URL:', 'https://jeewanjyoti-backend.smart.org.np/api/devices/register/')
+          console.log('🌐 Full URL:', `${API_BASE_URL}/api/devices/register/`)
           console.log('📋 Method: POST')
           console.log('🔑 Authorization header will be included automatically via apiRequest')
           console.log('🚀 Sending request to backend now...')
           
           console.log('📡 Making API request now...')
-          console.log('📡 URL: https://jeewanjyoti-backend.smart.org.np/api/devices/register/')
+          console.log('📡 URL:', `${API_BASE_URL}/api/devices/register/`)
           console.log('📡 Headers will include: Authorization: Bearer <token>')
           console.log('📡 Content-Type: application/json')
           
@@ -298,8 +298,8 @@ function Login() {
     setForgotPasswordLoading(true)
     try {
       const apiUrl = loginType === 'individual' 
-        ? 'https://jeewanjyoti-backend.smart.org.np/api/forgot-password/'
-        : 'https://jeewanjyoti-backend.smart.org.np/api/ins/forgot-password/'
+        ? `${API_BASE_URL}/api/forgot-password/`
+        : `${API_BASE_URL}/api/ins/forgot-password/`
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -337,8 +337,8 @@ function Login() {
     setForgotPasswordLoading(true)
     try {
       const apiUrl = loginType === 'individual' 
-        ? 'https://jeewanjyoti-backend.smart.org.np/api/resetotpVerification/'
-        : 'https://jeewanjyoti-backend.smart.org.np/api/ins/verify-otp/'
+        ? `${API_BASE_URL}/api/resetotpVerification/`
+        : `${API_BASE_URL}/api/ins/verify-otp/`
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -381,8 +381,8 @@ function Login() {
     setForgotPasswordLoading(true)
     try {
       const apiUrl = loginType === 'individual' 
-        ? 'https://jeewanjyoti-backend.smart.org.np/api/reset-password/'
-        : 'https://jeewanjyoti-backend.smart.org.np/api/ins/reset-password/'
+        ? `${API_BASE_URL}/api/reset-password/`
+        : `${API_BASE_URL}/api/ins/reset-password/`
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -423,8 +423,8 @@ function Login() {
       
       // Send to your backend
       const apiUrl = loginType === 'individual' 
-        ? 'https://jeewanjyoti-backend.smart.org.np/api/firebase-login/'
-        : 'https://jeewanjyoti-backend.smart.org.np/api/ins/firebase-login/'
+        ? `${API_BASE_URL}/api/firebase-login/`
+        : `${API_BASE_URL}/api/ins/firebase-login/`
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -493,8 +493,8 @@ function Login() {
     setIsLoading(true)
     try {
       const apiUrl = loginType === 'individual' 
-        ? 'https://jeewanjyoti-backend.smart.org.np/api/login/'
-        : 'https://jeewanjyoti-backend.smart.org.np/api/ins/login/'
+        ? `${API_BASE_URL}/api/login/`
+        : `${API_BASE_URL}/api/ins/login/`
       
       const response = await fetch(apiUrl, {
         method: 'POST',

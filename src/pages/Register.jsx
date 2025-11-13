@@ -7,6 +7,7 @@ import logo from '../assets/logo.png'
 import { storeTokens } from '../lib/tokenManager'
 import { signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider } from '../lib/firebase'
+import { API_BASE_URL } from '../lib/api'
 
 // Custom CSS for range sliders
 const sliderStyles = `
@@ -39,7 +40,7 @@ const sliderStyles = `
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: 'https://jeewanjyoti-backend.smart.org.np',
+  baseURL: API_BASE_URL,
   timeout: 10000,
 })
 
@@ -262,8 +263,8 @@ function Register() {
       
       // Send to your backend (same as login page)
       const apiUrl = type === 'individual' 
-        ? 'https://jeewanjyoti-backend.smart.org.np/api/firebase-login/'
-        : 'https://jeewanjyoti-backend.smart.org.np/api/ins/firebase-login/'
+        ? `${API_BASE_URL}/api/firebase-login/`
+        : `${API_BASE_URL}/api/ins/firebase-login/`
       
       const response = await fetch(apiUrl, {
         method: 'POST',

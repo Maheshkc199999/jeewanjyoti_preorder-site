@@ -1,4 +1,6 @@
 // Token management utilities for handling JWT tokens
+import { API_BASE_URL } from './api'
+
 const TOKEN_KEYS = {
   ACCESS_TOKEN: 'access_token',
   REFRESH_TOKEN: 'refresh_token',
@@ -122,7 +124,7 @@ export const refreshAccessToken = async () => {
   }
 
   try {
-    const response = await fetch('https://jeewanjyoti-backend.smart.org.np/api/token/refresh/', {
+    const response = await fetch(`${API_BASE_URL}/api/token/refresh/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
