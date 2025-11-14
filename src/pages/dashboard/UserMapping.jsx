@@ -1,25 +1,100 @@
-
-import React, { useState } from 'react';
-import { UserPlus, Mail, X, Loader2, CheckCircle, XCircle, ArrowRight, Shield, DollarSign } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { UserPlus, Mail, X, Loader2, CheckCircle, XCircle, ArrowRight, Shield, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE_URL } from '../../lib/api';
 
 const UserMappingTab = ({ darkMode }) => {
   const [showAddForm, setShowAddForm] = useState(false);
-  const [step, setStep] = useState(1); // 1: Email input, 2: OTP input, 3: Payment
+  const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
-  const [paymentData, setPaymentData] = useState(null);
+  
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [paymentVerifying, setPaymentVerifying] = useState(false);
+  const [paymentVerified, setPaymentVerified] = useState(false);
+  const [mappingDetails, setMappingDetails] = useState(null);
+  const [paymentError, setPaymentError] = useState('');
 
   const getAccessToken = () => {
     return localStorage.getItem('access_token');
   };
 
-  const handleEmailSubmit = async (e) => {
-    e.preventDefault();
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const status = urlParams.get('status');
+    const pidx = urlParams.get('pidx');
+    const purchaseOrderId = urlParams.get('purchase_order_id');
+
+    if (status === 'Completed' && pidx && purchaseOrderId) {
+      setShowPaymentSuccess(true);
+      verifyPayment(purchaseOrderId, pidx);
+    }
+  }, []);
+
+  const verifyPayment = async (paymentRef, pidx) => {
+    setPaymentVerifying(true);
+    setPaymentError('');
+
+    const token = getAccessToken();
+    if (!token) {
+      setPaymentError('Authentication required. Please login again.');
+      setPaymentVerifying(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user-mapping/verify/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          payment_ref: paymentRef,
+          pidx: pidx
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setPaymentVerified(true);
+        setMappingDetails(result);
+        
+        setTimeout(() => {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          setShowPaymentSuccess(false);
+          setPaymentVerified(false);
+          setMappingDetails(null);
+        }, 5000);
+      } else {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
+        }
+        
+        let errorMessage = 'Failed to verify payment';
+        if (errorData.detail) {
+          errorMessage = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+        
+        setPaymentError(errorMessage);
+      }
+    } catch (error) {
+      console.error('Error verifying payment:', error);
+      setPaymentError(error.message || 'Network error. Please check your connection and try again.');
+    } finally {
+      setPaymentVerifying(false);
+    }
+  };
+
+  const handleEmailSubmit = async () => {
     setIsLoading(true);
     setSubmitStatus(null);
     setErrorMessage('');
@@ -78,8 +153,7 @@ const UserMappingTab = ({ darkMode }) => {
     }
   };
 
-  const handleOtpSubmit = async (e) => {
-    e.preventDefault();
+  const handleOtpSubmit = async () => {
     setIsLoading(true);
     setSubmitStatus(null);
     setErrorMessage('');
@@ -104,12 +178,13 @@ const UserMappingTab = ({ darkMode }) => {
 
       if (response.ok) {
         const result = await response.json();
-        setPaymentData(result);
         setSubmitStatus('success');
+        setErrorMessage('OTP verified! Redirecting to payment...');
         
         setTimeout(() => {
-          setStep(3);
-          setSubmitStatus(null);
+          if (result.pidx) {
+            window.location.href = `https://test-pay.khalti.com/?pidx=${result.pidx}`;
+          }
         }, 1500);
       } else {
         let errorData;
@@ -144,7 +219,6 @@ const UserMappingTab = ({ darkMode }) => {
       setStep(1);
       setSubmitStatus(null);
       setErrorMessage('');
-      setPaymentData(null);
       setShowAddForm(false);
     }
   };
@@ -154,6 +228,30 @@ const UserMappingTab = ({ darkMode }) => {
       setStep(step - 1);
       setSubmitStatus(null);
       setErrorMessage('');
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const handleEmailKeyPress = (e) => {
+    if (e.key === 'Enter' && !isLoading && email) {
+      handleEmailSubmit();
+    }
+  };
+
+  const handleOtpKeyPress = (e) => {
+    if (e.key === 'Enter' && !isLoading && otp) {
+      handleOtpSubmit();
     }
   };
 
@@ -173,18 +271,149 @@ const UserMappingTab = ({ darkMode }) => {
         </button>
       </div>
 
-      {/* Empty State */}
       <div className={`text-center py-12 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
         <UserPlus className="w-16 h-16 mx-auto mb-4 opacity-50" />
         <p className="text-lg font-medium mb-2">No user mappings yet</p>
         <p className="text-sm">Click "Add User Mapping" to connect with family members or loved ones</p>
       </div>
 
-      {/* Add User Mapping Form Modal */}
+      <AnimatePresence>
+        {showPaymentSuccess && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.3, type: "spring" }}
+              className={`fixed inset-x-4 top-1/2 -translate-y-1/2 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md rounded-3xl shadow-2xl z-50 overflow-hidden ${
+                darkMode ? 'bg-gray-800' : 'bg-white'
+              }`}
+            >
+              <div className="p-8">
+                {paymentVerifying ? (
+                  <div className="text-center">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      className="mx-auto mb-6"
+                    >
+                      <Loader2 className="w-16 h-16 text-violet-500" />
+                    </motion.div>
+                    <h3 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                      Verifying Payment
+                    </h3>
+                    <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Please wait while we verify your payment...
+                    </p>
+                  </div>
+                ) : paymentVerified ? (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ duration: 0.5, type: "spring" }}
+                    className="text-center"
+                  >
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.2, duration: 0.5, type: "spring" }}
+                      className="mx-auto mb-6 w-20 h-20 bg-green-500 rounded-full flex items-center justify-center"
+                    >
+                      <Check className="w-12 h-12 text-white" strokeWidth={3} />
+                    </motion.div>
+                    <motion.h3
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}
+                    >
+                      Payment Successful! 🎉
+                    </motion.h3>
+                    <motion.p
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 }}
+                      className={`mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                    >
+                      {mappingDetails?.message || 'Your user mapping has been activated successfully'}
+                    </motion.p>
+                    
+                    {mappingDetails && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 }}
+                        className={`p-4 rounded-xl mb-6 ${
+                          darkMode ? 'bg-gray-700' : 'bg-gray-100'
+                        }`}
+                      >
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Mapping ID:</span>
+                            <span className={`font-medium ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                              {mappingDetails.mapping_id}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Valid Until:</span>
+                            <span className={`font-medium ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                              {formatDate(mappingDetails.valid_till)}
+                            </span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.6 }}
+                      className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}
+                    >
+                      Redirecting in a moment...
+                    </motion.p>
+                  </motion.div>
+                ) : paymentError ? (
+                  <div className="text-center">
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ duration: 0.5, type: "spring" }}
+                      className="mx-auto mb-6 w-20 h-20 bg-red-500 rounded-full flex items-center justify-center"
+                    >
+                      <XCircle className="w-12 h-12 text-white" strokeWidth={3} />
+                    </motion.div>
+                    <h3 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                      Verification Failed
+                    </h3>
+                    <p className={`mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {paymentError}
+                    </p>
+                    <button
+                      onClick={() => setShowPaymentSuccess(false)}
+                      className="bg-violet-500 hover:bg-violet-600 text-white px-6 py-3 rounded-xl font-medium transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {showAddForm && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -194,7 +423,6 @@ const UserMappingTab = ({ darkMode }) => {
               onClick={handleCloseForm}
             />
 
-            {/* Modal */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -205,7 +433,6 @@ const UserMappingTab = ({ darkMode }) => {
               }`}
             >
               <div className="flex flex-col max-h-[85vh] overflow-y-auto">
-                {/* Header */}
                 <div className="bg-gradient-to-r from-violet-600 to-purple-700 text-white p-6 relative flex flex-col items-center justify-center flex-shrink-0">
                   <motion.button
                     whileHover={{ scale: 1.1 }}
@@ -226,14 +453,12 @@ const UserMappingTab = ({ darkMode }) => {
                     <h2 className="text-3xl font-bold mb-2">👥 User Mapping</h2>
                     <p className="text-violet-100">
                       {step === 1 && "Enter the user's email to send OTP"}
-                      {step === 2 && "Verify OTP to continue"}
-                      {step === 3 && "Complete payment to activate mapping"}
+                      {step === 2 && "Verify OTP to proceed to payment"}
                     </p>
                   </motion.div>
 
-                  {/* Progress Steps */}
                   <div className="flex items-center justify-center gap-2 mt-4">
-                    {[1, 2, 3].map((s) => (
+                    {[1, 2].map((s) => (
                       <div key={s} className="flex items-center">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
                           s === step 
@@ -244,7 +469,7 @@ const UserMappingTab = ({ darkMode }) => {
                         }`}>
                           {s < step ? '✓' : s}
                         </div>
-                        {s < 3 && (
+                        {s < 2 && (
                           <div className={`w-12 h-1 mx-1 rounded ${
                             s < step ? 'bg-green-400' : 'bg-white/20'
                           }`} />
@@ -254,10 +479,8 @@ const UserMappingTab = ({ darkMode }) => {
                   </div>
                 </div>
 
-                {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6">
                   <div className="max-w-xl mx-auto">
-                    {/* Status Messages */}
                     {submitStatus === 'success' && (
                       <motion.div
                         initial={{ opacity: 0, y: -10 }}
@@ -302,9 +525,8 @@ const UserMappingTab = ({ darkMode }) => {
                       </motion.div>
                     )}
 
-                    {/* Step 1: Email Input */}
                     {step === 1 && (
-                      <form onSubmit={handleEmailSubmit} className="space-y-6">
+                      <div className="space-y-6">
                         <div>
                           <label className={`block text-sm font-medium mb-2 ${
                             darkMode ? 'text-gray-300' : 'text-gray-700'
@@ -316,7 +538,7 @@ const UserMappingTab = ({ darkMode }) => {
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            required
+                            onKeyPress={handleEmailKeyPress}
                             disabled={isLoading}
                             className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
                               darkMode 
@@ -328,10 +550,10 @@ const UserMappingTab = ({ darkMode }) => {
                         </div>
 
                         <motion.button
-                          type="submit"
-                          disabled={isLoading}
-                          whileHover={!isLoading ? { scale: 1.02 } : {}}
-                          whileTap={!isLoading ? { scale: 0.98 } : {}}
+                          onClick={handleEmailSubmit}
+                          disabled={isLoading || !email}
+                          whileHover={!isLoading && email ? { scale: 1.02 } : {}}
+                          whileTap={!isLoading && email ? { scale: 0.98 } : {}}
                           className="w-full bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-700 hover:to-purple-800 text-white font-bold py-4 rounded-xl shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                         >
                           {isLoading ? (
@@ -346,12 +568,11 @@ const UserMappingTab = ({ darkMode }) => {
                             </>
                           )}
                         </motion.button>
-                      </form>
+                      </div>
                     )}
 
-                    {/* Step 2: OTP Input */}
                     {step === 2 && (
-                      <form onSubmit={handleOtpSubmit} className="space-y-6">
+                      <div className="space-y-6">
                         <div>
                           <label className={`block text-sm font-medium mb-2 ${
                             darkMode ? 'text-gray-300' : 'text-gray-700'
@@ -363,7 +584,7 @@ const UserMappingTab = ({ darkMode }) => {
                             type="text"
                             value={otp}
                             onChange={(e) => setOtp(e.target.value)}
-                            required
+                            onKeyPress={handleOtpKeyPress}
                             disabled={isLoading}
                             maxLength={6}
                             className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-center text-2xl tracking-widest ${
@@ -380,7 +601,6 @@ const UserMappingTab = ({ darkMode }) => {
 
                         <div className="flex gap-3">
                           <button
-                            type="button"
                             onClick={handleBack}
                             disabled={isLoading}
                             className={`flex-1 py-3 rounded-xl font-medium transition-all disabled:opacity-50 ${
@@ -392,10 +612,10 @@ const UserMappingTab = ({ darkMode }) => {
                             Back
                           </button>
                           <motion.button
-                            type="submit"
-                            disabled={isLoading}
-                            whileHover={!isLoading ? { scale: 1.02 } : {}}
-                            whileTap={!isLoading ? { scale: 0.98 } : {}}
+                            onClick={handleOtpSubmit}
+                            disabled={isLoading || !otp}
+                            whileHover={!isLoading && otp ? { scale: 1.02 } : {}}
+                            whileTap={!isLoading && otp ? { scale: 0.98 } : {}}
                             className="flex-1 bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-700 hover:to-purple-800 text-white font-bold py-3 rounded-xl shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                           >
                             {isLoading ? (
@@ -405,113 +625,15 @@ const UserMappingTab = ({ darkMode }) => {
                               </>
                             ) : (
                               <>
-                                Verify OTP
+                                Verify & Pay
                                 <ArrowRight className="h-5 w-5 ml-2" />
                               </>
                             )}
                           </motion.button>
                         </div>
-                      </form>
-                    )}
-
-                    {/* Step 3: Payment Information */}
-                    {step === 3 && paymentData && (
-                      <div className="space-y-6">
-                        <div className={`p-6 rounded-xl border-2 ${
-                          darkMode ? 'bg-gray-700 border-violet-500' : 'bg-violet-50 border-violet-200'
-                        }`}>
-                          <div className="flex items-center justify-center mb-4">
-                            <div className="w-16 h-16 bg-gradient-to-r from-violet-600 to-purple-700 rounded-full flex items-center justify-center">
-                              <DollarSign className="w-8 h-8 text-white" />
-                            </div>
-                          </div>
-                          
-                          <h3 className={`text-xl font-bold text-center mb-6 ${
-                            darkMode ? 'text-white' : 'text-gray-800'
-                          }`}>
-                            Payment Details
-                          </h3>
-
-                          <div className="space-y-4">
-                            <div className={`flex justify-between p-3 rounded-lg ${
-                              darkMode ? 'bg-gray-800' : 'bg-white'
-                            }`}>
-                              <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-                                Payment ID
-                              </span>
-                              <span className={`font-mono font-semibold ${
-                                darkMode ? 'text-white' : 'text-gray-800'
-                              }`}>
-                                {paymentData.pidx}
-                              </span>
-                            </div>
-
-                            <div className={`flex justify-between p-3 rounded-lg ${
-                              darkMode ? 'bg-gray-800' : 'bg-white'
-                            }`}>
-                              <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-                                Mapping ID
-                              </span>
-                              <span className={`font-semibold ${
-                                darkMode ? 'text-white' : 'text-gray-800'
-                              }`}>
-                                #{paymentData.mapping_id}
-                              </span>
-                            </div>
-
-                            <div className={`flex justify-between p-3 rounded-lg ${
-                              darkMode ? 'bg-gray-800' : 'bg-white'
-                            }`}>
-                              <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-                                Amount
-                              </span>
-                              <span className={`text-2xl font-bold ${
-                                darkMode ? 'text-violet-400' : 'text-violet-600'
-                              }`}>
-                                Rs. {paymentData.amount}
-                              </span>
-                            </div>
-
-                            <div className={`flex justify-between p-3 rounded-lg ${
-                              darkMode ? 'bg-amber-900/30 border border-amber-700' : 'bg-amber-50 border border-amber-200'
-                            }`}>
-                              <span className={darkMode ? 'text-amber-300' : 'text-amber-700'}>
-                                Valid For
-                              </span>
-                              <span className={`font-semibold ${
-                                darkMode ? 'text-amber-300' : 'text-amber-700'
-                              }`}>
-                                {paymentData.valid_for}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className={`p-4 rounded-xl ${
-                          darkMode ? 'bg-violet-900/20 border border-violet-700' : 'bg-violet-50'
-                        }`}>
-                          <p className={`text-sm text-center ${
-                            darkMode ? 'text-violet-300' : 'text-violet-900'
-                          }`}>
-                            Please complete the payment within the time limit to activate the user mapping.
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={handleCloseForm}
-                          className={`w-full py-3 rounded-xl font-medium transition-all ${
-                            darkMode 
-                              ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-                              : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
-                          }`}
-                        >
-                          Close
-                        </button>
                       </div>
                     )}
 
-                    {/* Info Box */}
                     {step === 1 && (
                       <div className={`mt-8 p-4 rounded-xl ${
                         darkMode ? 'bg-violet-900/20 border border-violet-700' : 'bg-violet-50'
@@ -537,6 +659,18 @@ const UserMappingTab = ({ darkMode }) => {
                             <span>Complete payment to activate the mapping</span>
                           </li>
                         </ul>
+                      </div>
+                    )}
+
+                    {step === 2 && (
+                      <div className={`mt-8 p-4 rounded-xl ${
+                        darkMode ? 'bg-blue-900/20 border border-blue-700' : 'bg-blue-50'
+                      }`}>
+                        <p className={`text-sm ${
+                          darkMode ? 'text-blue-300' : 'text-blue-800'
+                        }`}>
+                          💡 After verification, you'll be redirected to the payment gateway to complete the transaction.
+                        </p>
                       </div>
                     )}
                   </div>
