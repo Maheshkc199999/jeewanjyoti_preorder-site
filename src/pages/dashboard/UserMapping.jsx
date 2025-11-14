@@ -22,77 +22,7 @@ const UserMappingTab = ({ darkMode }) => {
     return localStorage.getItem('access_token');
   };
 
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const status = urlParams.get('status');
-    const pidx = urlParams.get('pidx');
-    const purchaseOrderId = urlParams.get('purchase_order_id');
-
-    if (status === 'Completed' && pidx && purchaseOrderId) {
-      setShowPaymentSuccess(true);
-      verifyPayment(purchaseOrderId, pidx);
-    }
-  }, []);
-
-  const verifyPayment = async (paymentRef, pidx) => {
-    setPaymentVerifying(true);
-    setPaymentError('');
-
-    const token = getAccessToken();
-    if (!token) {
-      setPaymentError('Authentication required. Please login again.');
-      setPaymentVerifying(false);
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/user-mapping/verify/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          payment_ref: paymentRef,
-          pidx: pidx
-        }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setPaymentVerified(true);
-        setMappingDetails(result);
-        
-        setTimeout(() => {
-          window.history.replaceState({}, document.title, window.location.pathname);
-          setShowPaymentSuccess(false);
-          setPaymentVerified(false);
-          setMappingDetails(null);
-        }, 5000);
-      } else {
-        let errorData;
-        try {
-          errorData = await response.json();
-        } catch (parseError) {
-          errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
-        }
-        
-        let errorMessage = 'Failed to verify payment';
-        if (errorData.detail) {
-          errorMessage = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
-        } else if (errorData.message) {
-          errorMessage = errorData.message;
-        }
-        
-        setPaymentError(errorMessage);
-      }
-    } catch (error) {
-      console.error('Error verifying payment:', error);
-      setPaymentError(error.message || 'Network error. Please check your connection and try again.');
-    } finally {
-      setPaymentVerifying(false);
-    }
-  };
+  // Payment verification is now handled by the MappingSuccessPage component
 
   const handleEmailSubmit = async () => {
     setIsLoading(true);
@@ -181,11 +111,13 @@ const UserMappingTab = ({ darkMode }) => {
         setSubmitStatus('success');
         setErrorMessage('OTP verified! Redirecting to payment...');
         
-        setTimeout(() => {
-          if (result.pidx) {
-            window.location.href = `https://test-pay.khalti.com/?pidx=${result.pidx}`;
-          }
-        }, 1500);
+        // Redirect to Khalti payment with success URL pointing to our mapping success page
+        if (result.pidx) {
+          const successUrl = `${window.location.origin}/mapping-success`;
+          window.location.href = `https://test-pay.khalti.com/?pidx=${result.pidx}&purchase_order_id=${result.payment_ref}&success_url=${encodeURIComponent(successUrl)}`;
+        } else {
+          throw new Error('Invalid payment initialization response');
+        }
       } else {
         let errorData;
         try {

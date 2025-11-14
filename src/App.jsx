@@ -4,6 +4,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import PaymentSuccess from './pages/PaymentSuccess'
+import MappingSuccess from './lib/MappingSuccess'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/payment-success" element={<PaymentSuccess />} />
+      <Route path="/mapping-success" element={<MappingSuccess />} />
     </Routes>
   )
 }
