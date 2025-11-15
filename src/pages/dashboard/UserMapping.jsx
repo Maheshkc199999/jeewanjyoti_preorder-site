@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UserPlus, Mail, X, Loader2, CheckCircle, XCircle, ArrowRight, Shield, Check, Users, Calendar, DollarSign } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const API_BASE_URL = ''; // Use proxy
+const API_BASE_URL = 'https://jeewanjyoti-backend.smart.org.np'; // Use direct URL for production
 
 const UserMappingTab = ({ darkMode }) => {
   const [showAddForm, setShowAddForm] = useState(false);
