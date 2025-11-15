@@ -174,58 +174,66 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
     <div>
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
-        <div className="bg-gradient-to-r from-red-500 to-pink-500 rounded-xl md:rounded-2xl p-4 md:p-6 text-white">
+        <div className="rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg bg-gradient-to-br from-red-500 to-red-600 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-red-100 text-xs md:text-sm">Heart Rate</p>
-              <p className="text-xl md:text-3xl font-bold">
+              <p className="text-xs md:text-sm text-red-100">Heart Rate</p>
+              <p className="text-xl md:text-3xl font-bold text-white">
                 {heartRateData && heartRateData.length > 0 
                   ? heartRateData[heartRateData.length - 1].once_heart_value
                   : '72'
                 } BPM
               </p>
             </div>
-            <Heart className="w-8 h-8 md:w-12 md:h-12 text-red-200" />
+            <div className="p-3 rounded-full bg-white/20 backdrop-blur-sm">
+              <Heart className="w-6 h-6 md:w-8 md:h-8 text-white" />
+            </div>
           </div>
         </div>
         
-        <div className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl md:rounded-2xl p-4 md:p-6 text-white">
+        <div className="rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 text-xs md:text-sm">Sleep Score</p>
-              <p className="text-xl md:text-3xl font-bold">
+              <p className="text-xs md:text-sm text-indigo-100">Sleep Score</p>
+              <p className="text-xl md:text-3xl font-bold text-white">
                 {sleepData && sleepData.length > 0 
                   ? calculateSleepScore(sleepData[0])
                   : '85'
                 }/100
               </p>
             </div>
-            <Moon className="w-8 h-8 md:w-12 md:h-12 text-blue-200" />
-          </div>
-        </div>
-        
-        <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl md:rounded-2xl p-4 md:p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-green-100 text-xs md:text-sm">Daily Steps</p>
-              <p className="text-xl md:text-3xl font-bold">12,340</p>
+            <div className="p-3 rounded-full bg-white/20 backdrop-blur-sm">
+              <Moon className="w-6 h-6 md:w-8 md:h-8 text-white" />
             </div>
-            <Activity className="w-8 h-8 md:w-12 md:h-12 text-green-200" />
           </div>
         </div>
         
-        <div className="bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl md:rounded-2xl p-4 md:p-6 text-white">
+        <div className="rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg bg-gradient-to-br from-green-500 to-green-600 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-purple-100 text-xs md:text-sm">Blood Oxygen</p>
-              <p className="text-xl md:text-3xl font-bold">
+              <p className="text-xs md:text-sm text-green-100">Daily Steps</p>
+              <p className="text-xl md:text-3xl font-bold text-white">12,340</p>
+            </div>
+            <div className="p-3 rounded-full bg-white/20 backdrop-blur-sm">
+              <Activity className="w-6 h-6 md:w-8 md:h-8 text-white" />
+            </div>
+          </div>
+        </div>
+        
+        <div className="rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs md:text-sm text-blue-100">Blood Oxygen</p>
+              <p className="text-xl md:text-3xl font-bold text-white">
                 {spo2Data && spo2Data.length > 0 
                   ? spo2Data[spo2Data.length - 1].Blood_oxygen
                   : '98'
                 }%
               </p>
             </div>
-            <Droplets className="w-8 h-8 md:w-12 md:h-12 text-purple-200" />
+            <div className="p-3 rounded-full bg-white/20 backdrop-blur-sm">
+              <Droplets className="w-6 h-6 md:w-8 md:h-8 text-white" />
+            </div>
           </div>
         </div>
       </div>
@@ -435,12 +443,12 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
             </div>
           </div>
 
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
+              <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
             darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
           }`}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 md:p-4 rounded-xl bg-teal-500 bg-opacity-20 shadow-lg">
-                <Target className="w-6 h-6 md:w-8 md:h-8 text-teal-500" />
+              <div className="p-3 md:p-4 rounded-xl bg-yellow-500 bg-opacity-20 shadow-lg">
+                <Zap className="w-6 h-6 md:w-8 md:h-8 text-yellow-500" />
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -495,7 +503,7 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
                 }
               </span>
               <div className={`w-16 md:w-24 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} rounded-full h-2`}>
-                <div className="bg-teal-500 h-2 rounded-full" style={{ 
+                <div className="bg-yellow-500 h-2 rounded-full" style={{ 
                   width: hrvApiData && hrvApiData.length > 0 
                     ? `${Math.min((hrvApiData[hrvApiData.length - 1].hrv / 100) * 100, 100)}%`
                     : '75%'
