@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { Home, Calendar, MessageCircle, User, Moon, Sun, Bell, Settings, Menu, X, LogOut, Filter, SlidersHorizontal } from 'lucide-react';
+import { Home, Calendar, MessageCircle, User, Moon, Sun, Bell, Settings, Menu, X, LogOut, Filter, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import jjlogo from '../assets/jjlogo.png';
 import HomeTab from './dashboard/Home';
 import AppointmentsTab from './dashboard/Appointments';
@@ -35,6 +35,9 @@ const Dashboard = () => {
   const [backendUser, setBackendUser] = useState(null);
   const [showProfileForm, setShowProfileForm] = useState(false);
   const [profileComplete, setProfileComplete] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [mappedUsers, setMappedUsers] = useState([]);
+  const [loadingMappedUsers, setLoadingMappedUsers] = useState(false);
 
   // Check authentication status
   useEffect(() => {
@@ -155,13 +158,58 @@ const Dashboard = () => {
       if (showFilterDropdown && !event.target.closest('.filter-dropdown')) {
         setShowFilterDropdown(false);
       }
+      if (showUserDropdown && !event.target.closest('.user-dropdown')) {
+        setShowUserDropdown(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showFilterDropdown]);
+  }, [showFilterDropdown, showUserDropdown]);
+
+  // Fetch mapped users
+  const fetchMappedUsers = async () => {
+    if (!isAuthenticated()) return;
+    
+    setLoadingMappedUsers(true);
+    try {
+      const token = localStorage.getItem('access_token') || 
+                    localStorage.getItem('accessToken') ||  
+                    localStorage.getItem('token') ||        
+                    localStorage.getItem('authToken');
+      
+      if (!token) {
+        setLoadingMappedUsers(false);
+        return;
+      }
+
+      const response = await fetch('/api/user-mapping/list/', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMappedUsers(data);
+      }
+    } catch (error) {
+      console.error('Error fetching mapped users:', error);
+    } finally {
+      setLoadingMappedUsers(false);
+    }
+  };
+
+  // Fetch mapped users when user is authenticated
+  useEffect(() => {
+    if (backendUser || user) {
+      fetchMappedUsers();
+    }
+  }, [backendUser, user]);
 
   // Handle tab change with persistence
   const handleTabChange = (tab) => {
@@ -294,9 +342,9 @@ const Dashboard = () => {
       <nav className={`shadow-lg border-b sticky top-0 z-10 ${
         darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-100'
       } ${isChatRoomOpen ? 'md:block hidden' : ''}`}>
-        <div className="max-w-7xl mx-auto px-4 md:px-6">
-          <div className="flex items-center justify-between flex-wrap gap-2 py-3">
-            <div className="flex items-center gap-4 md:gap-8 min-w-0">
+        <div className="max-w-7xl mx-auto px-3 md:px-4">
+          <div className="flex items-center justify-between gap-2 py-3">
+            <div className="flex items-center gap-2 md:gap-4 min-w-0">
               <button 
                 onClick={() => handleTabChange('home')}
                 className="flex items-center gap-3 hover:opacity-80 transition-opacity duration-200"
@@ -311,7 +359,7 @@ const Dashboard = () => {
               }`}>
                 <button
                   onClick={() => handleTabChange('home')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${
                     activeTab === 'home' 
                       ? darkMode 
                         ? 'bg-gray-700 shadow-md text-blue-400' 
@@ -326,7 +374,7 @@ const Dashboard = () => {
                 </button>
                 <button
                   onClick={() => handleTabChange('appointments')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${
                     activeTab === 'appointments' 
                       ? darkMode 
                         ? 'bg-gray-700 shadow-md text-blue-400' 
@@ -341,7 +389,7 @@ const Dashboard = () => {
                 </button>
                 <button
                   onClick={() => handleTabChange('chat')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${
                     activeTab === 'chat' 
                       ? darkMode 
                         ? 'bg-gray-700 shadow-md text-blue-400' 
@@ -357,7 +405,7 @@ const Dashboard = () => {
                 </button>
                 <button
                   onClick={() => handleTabChange('profile')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${
                     activeTab === 'profile' 
                       ? darkMode 
                         ? 'bg-gray-700 shadow-md text-blue-400' 
@@ -372,20 +420,92 @@ const Dashboard = () => {
                 </button>
               </div>
             </div>
-            <div className="flex items-center gap-4 flex-shrink-0">
-              <div className={`hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap ${
-                darkMode 
-                  ? 'bg-gray-800 text-gray-300' 
-                  : 'bg-gray-100 text-gray-700'
-              }`}>
-                <User className="w-4 h-4 text-gray-500" />
-                <span className="text-sm font-medium truncate max-w-[8rem]">
-                  {backendUser?.first_name || user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}
-                </span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="hidden lg:flex items-center gap-2 px-2 py-1.5 rounded-lg whitespace-nowrap user-dropdown relative">
+                <button
+                  onClick={() => setShowUserDropdown(!showUserDropdown)}
+                  className={`flex items-center gap-2 transition-all duration-200 ${
+                    darkMode 
+                      ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  } rounded-lg px-2 py-1.5`}
+                >
+                  <User className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm font-medium truncate max-w-[8rem]">
+                    {backendUser?.first_name || user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}
+                  </span>
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showUserDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {/* User Dropdown */}
+                {showUserDropdown && (
+                  <div className={`absolute top-full left-0 mt-2 w-64 rounded-xl shadow-lg border z-50 ${
+                    darkMode 
+                      ? 'bg-gray-800 border-gray-700' 
+                      : 'bg-white border-gray-200'
+                  } max-h-96 overflow-y-auto`}>
+                    <div className={`p-3 border-b ${
+                      darkMode ? 'border-gray-700' : 'border-gray-200'
+                    }`}>
+                      <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        CURRENT USER
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <User className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm font-medium">
+                          {backendUser?.first_name || user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {mappedUsers.length > 0 && (
+                      <div className={`p-3 border-b ${
+                        darkMode ? 'border-gray-700' : 'border-gray-200'
+                      }`}>
+                        <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          MAPPED USERS
+                        </p>
+                        <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+                          {mappedUsers.map((mapping) => (
+                            <div key={mapping.id} className="flex items-center gap-2 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+                              <img
+                                src={mapping.mapped_user.profile_image || 'https://via.placeholder.com/24'}
+                                alt={mapping.mapped_user.full_name}
+                                className="w-6 h-6 rounded-full object-cover"
+                                onError={(e) => {
+                                  e.target.src = 'https://via.placeholder.com/24?text=' + mapping.mapped_user.full_name.charAt(0);
+                                }}
+                              />
+                              <span className={`text-xs truncate ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                {mapping.nickname || mapping.mapped_user.full_name}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {loadingMappedUsers && (
+                      <div className="p-3">
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {!loadingMappedUsers && mappedUsers.length === 0 && (
+                      <div className="p-3">
+                        <p className={`text-xs text-center ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                          No mapped users
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               
               {/* Date Display */}
-              <div className={`hidden md:flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap ${
+              <div className={`hidden md:flex items-center gap-2 px-2 py-1.5 rounded-lg whitespace-nowrap ${
                 darkMode 
                   ? 'bg-gray-800 text-gray-300' 
                   : 'bg-gray-100 text-gray-700'

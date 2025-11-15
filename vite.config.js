@@ -12,9 +12,9 @@ export default defineConfig({
     port: 3001, // Use port 3001
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'https://jeewanjyoti-backend.smart.org.np',
         changeOrigin: true,
-        secure: false,
+        secure: true,
       },
     },
   },

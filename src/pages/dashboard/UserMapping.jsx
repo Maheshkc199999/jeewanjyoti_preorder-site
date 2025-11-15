@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UserPlus, Mail, X, Loader2, CheckCircle, XCircle, ArrowRight, Shield, Check, Users, Calendar, DollarSign } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const API_BASE_URL = 'http://jeewanjyoti-backend.smart.org.np';
+const API_BASE_URL = ''; // Use proxy
 
 const UserMappingTab = ({ darkMode }) => {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -252,19 +252,11 @@ const UserMappingTab = ({ darkMode }) => {
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="relative">
+      <div className="mb-6">
         <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
           User Mapping
         </h2>
-        <button 
-          onClick={() => setShowAddForm(true)}
-          className="bg-violet-500 hover:bg-violet-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm md:text-base"
-        >
-          <UserPlus className="w-4 h-4" />
-          <span className="hidden md:inline">Add User Mapping</span>
-          <span className="md:hidden">Add</span>
-        </button>
       </div>
 
       {loadingMappings ? (
@@ -275,7 +267,7 @@ const UserMappingTab = ({ darkMode }) => {
         <div className={`text-center py-12 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
           <UserPlus className="w-16 h-16 mx-auto mb-4 opacity-50" />
           <p className="text-lg font-medium mb-2">No user mappings yet</p>
-          <p className="text-sm">Click "Add User Mapping" to connect with family members or loved ones</p>
+          <p className="text-sm">Click the + button to connect with family members or loved ones</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -770,6 +762,22 @@ const UserMappingTab = ({ darkMode }) => {
           </>
         )}
       </AnimatePresence>
+      
+      {/* Floating Add Button */}
+      <motion.button
+        onClick={() => setShowAddForm(true)}
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        className={`absolute bottom-4 right-4 w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-40 ${
+          darkMode 
+            ? 'bg-violet-600 hover:bg-violet-700 text-white' 
+            : 'bg-violet-500 hover:bg-violet-600 text-white'
+        }`}
+      >
+        <UserPlus className="w-6 h-6" />
+      </motion.button>
     </div>
   );
 };
