@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { Home, Calendar, MessageCircle, User, Moon, Sun, Bell, Settings, Menu, X, LogOut, Filter, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { Home, Calendar, MessageCircle, User, Moon, Sun, Bell, Settings, Menu, X, LogOut, Filter, SlidersHorizontal, ChevronDown, Loader2 } from 'lucide-react';
 import jjlogo from '../assets/jjlogo.png';
 import HomeTab from './dashboard/Home';
 import AppointmentsTab from './dashboard/Appointments';
@@ -186,7 +186,7 @@ const Dashboard = () => {
         return;
       }
 
-      const response = await fetch('/api/user-mapping/list/', {
+      const response = await fetch('https://jeewanjyoti-backend.smart.org.np/api/user-mapping/list/', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -692,82 +692,180 @@ const Dashboard = () => {
       {isMobileMenuOpen && (
         <div className={`md:hidden fixed inset-0 z-20 ${darkMode ? 'bg-gray-900' : 'bg-white'} pt-16`}>
           <div className="p-4 space-y-4">
-            <button
-              onClick={() => { handleTabChange('home'); setIsMobileMenuOpen(false); }}
-              className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
-                activeTab === 'home' 
-                  ? darkMode 
-                    ? 'bg-gray-800 text-blue-400' 
-                    : 'bg-blue-50 text-blue-600' 
-                  : darkMode 
-                    ? 'text-gray-300' 
-                    : 'text-gray-700'
-              }`}
-            >
-              <Home className="w-6 h-6" />
-              <span className="font-medium">Home</span>
-            </button>
-            <button
-              onClick={() => { handleTabChange('appointments'); setIsMobileMenuOpen(false); }}
-              className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
-                activeTab === 'appointments' 
-                  ? darkMode 
-                    ? 'bg-gray-800 text-blue-400' 
-                    : 'bg-blue-50 text-blue-600' 
-                  : darkMode 
-                    ? 'text-gray-300' 
-                    : 'text-gray-700'
-              }`}
-            >
-              <Calendar className="w-6 h-6" />
-              <span className="font-medium">Appointments</span>
-            </button>
-            <button
-              onClick={() => { handleTabChange('chat'); setIsMobileMenuOpen(false); }}
-              className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
-                activeTab === 'chat' 
-                  ? darkMode 
-                    ? 'bg-gray-800 text-blue-400' 
-                    : 'bg-blue-50 text-blue-600' 
-                  : darkMode 
-                    ? 'text-gray-300' 
-                    : 'text-gray-700'
-              }`}
-            >
-              <MessageCircle className="w-6 h-6" />
-              <span className="font-medium">Chat</span>
-              <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 ml-auto">3</span>
-            </button>
-            <button
-              onClick={() => { handleTabChange('profile'); setIsMobileMenuOpen(false); }}
-              className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
-                activeTab === 'profile' 
-                  ? darkMode 
-                    ? 'bg-gray-800 text-blue-400' 
-                    : 'bg-blue-50 text-blue-600' 
-                  : darkMode 
-                    ? 'text-gray-300' 
-                    : 'text-gray-700'
-              }`}
-            >
-              <User className="w-6 h-6" />
-              <span className="font-medium">Profile</span>
-            </button>
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-2">
+            {/* User Section */}
+            <div className={`rounded-xl p-4 border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+              <div className="flex items-center gap-3 mb-3">
+                <img
+                  src={user?.photoURL || 'https://via.placeholder.com/40'}
+                  alt={user?.displayName || user?.email || 'User'}
+                  className="w-10 h-10 rounded-full object-cover"
+                  onError={(e) => {
+                    e.target.src = 'https://via.placeholder.com/40?text=' + (user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U');
+                  }}
+                />
+                <div className="flex-1">
+                  <p className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {backendUser?.first_name || user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}
+                  </p>
+                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {user?.email}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Mobile User Dropdown */}
+              <div className="space-y-2">
+                <button
+                  onClick={() => setShowUserDropdown(!showUserDropdown)}
+                  className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
+                    darkMode 
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                      : 'bg-white text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    <span className="text-sm font-medium">Switch User</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showUserDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {showUserDropdown && (
+                  <div className={`rounded-lg border ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
+                    {mappedUsers.length > 0 && (
+                      <div className="p-3">
+                        <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          MAPPED USERS
+                        </p>
+                        <div className="space-y-1">
+                          {mappedUsers.map((mapping) => (
+                            <button
+                              key={mapping.id}
+                              onClick={() => {
+                                handleUserSelection(mapping.mapped_user.id);
+                                setIsMobileMenuOpen(false);
+                              }}
+                              className={`w-full flex items-center gap-2 p-2 rounded transition-colors ${
+                                selectedUserId === mapping.mapped_user.id
+                                  ? darkMode 
+                                    ? 'bg-gray-600 text-blue-400' 
+                                    : 'bg-blue-50 text-blue-600'
+                                  : darkMode 
+                                    ? 'hover:bg-gray-600 text-gray-300' 
+                                    : 'hover:bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              <img
+                                src={mapping.mapped_user.profile_image || 'https://via.placeholder.com/24'}
+                                alt={mapping.mapped_user.full_name}
+                                className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                                onError={(e) => {
+                                  e.target.src = 'https://via.placeholder.com/24?text=' + mapping.mapped_user.full_name.charAt(0);
+                                }}
+                              />
+                              <div className="flex-1 text-left">
+                                <div className="text-xs font-medium truncate">
+                                  {mapping.nickname || mapping.mapped_user.full_name}
+                                </div>
+                                {selectedUserId === mapping.mapped_user.id && (
+                                  <div className="text-xs opacity-75">Currently viewing</div>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {loadingMappedUsers && (
+                      <div className="p-3">
+                        <div className="flex items-center justify-center">
+                          <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Date Display */}
+            <div className={`rounded-xl p-4 border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+              <div className="flex items-center gap-3">
+                <Calendar className="w-5 h-5 text-gray-500" />
+                <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {new Date().toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  })}
+                </span>
+              </div>
+            </div>
+
+            {/* Period Filter for Home Tab */}
+            {activeTab === 'home' && (
+              <div className={`rounded-xl p-4 border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                <p className={`text-sm font-medium mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Filter Period
+                </p>
+                <div className="space-y-2">
+                  {['today', 'week', 'month'].map((period) => (
+                    <button
+                      key={period}
+                      onClick={() => {
+                        setSelectedPeriod(period);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                        selectedPeriod === period
+                          ? darkMode 
+                            ? 'bg-purple-600 text-white' 
+                            : 'bg-purple-500 text-white'
+                          : darkMode 
+                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                            : 'bg-white text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      <SlidersHorizontal className="w-4 h-4" />
+                      <span className="text-sm font-medium capitalize">
+                        {period === 'today' ? 'Today' : period === 'week' ? 'This Week' : 'This Month'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="space-y-2">
               <button
                 onClick={() => { handleTabChange('settings'); setIsMobileMenuOpen(false); }}
-                className={`flex items-center gap-3 w-full p-4 rounded-xl text-left ${
+                className={`w-full flex items-center gap-3 p-4 rounded-xl transition-colors ${
                   darkMode 
                     ? 'text-gray-300 hover:bg-gray-800' 
                     : 'text-gray-700 hover:bg-gray-100'
-                } transition-colors`}
+                }`}
               >
                 <Settings className="w-6 h-6" />
                 <span className="font-medium">Settings</span>
               </button>
+              
+              <button
+                className={`w-full flex items-center gap-3 p-4 rounded-xl transition-colors ${
+                  darkMode 
+                    ? 'text-gray-300 hover:bg-gray-800' 
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <Bell className="w-6 h-6" />
+                <span className="font-medium">Notifications</span>
+                <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 ml-auto">3</span>
+              </button>
+              
               <button
                 onClick={() => { handleLogoutClick(); setIsMobileMenuOpen(false); }}
-                className="flex items-center gap-3 w-full p-4 rounded-xl text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                className="w-full flex items-center gap-3 p-4 rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               >
                 <LogOut className="w-6 h-6" />
                 <span className="font-medium">Logout</span>
