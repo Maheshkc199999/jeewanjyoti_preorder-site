@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Mail, X, Loader2, CheckCircle, XCircle, ArrowRight, Shield, Check } from 'lucide-react';
+import { UserPlus, Mail, X, Loader2, CheckCircle, XCircle, ArrowRight, Shield, Check, Users, Calendar, DollarSign } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { API_BASE_URL } from '../../lib/api';
+
+const API_BASE_URL = 'http://jeewanjyoti-backend.smart.org.np';
 
 const UserMappingTab = ({ darkMode }) => {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -18,11 +19,53 @@ const UserMappingTab = ({ darkMode }) => {
   const [mappingDetails, setMappingDetails] = useState(null);
   const [paymentError, setPaymentError] = useState('');
 
+  const [mappings, setMappings] = useState([]);
+  const [loadingMappings, setLoadingMappings] = useState(true);
+
   const getAccessToken = () => {
     return localStorage.getItem('access_token');
   };
 
-  // Payment verification is now handled by the MappingSuccessPage component
+  const fetchMappings = async () => {
+    setLoadingMappings(true);
+    const token = getAccessToken();
+    
+    if (!token) {
+      console.error('No access token found');
+      setLoadingMappings(false);
+      return;
+    }
+
+    try {
+      console.log('Fetching mappings from:', `${API_BASE_URL}/api/user-mapping/list/`);
+      const response = await fetch(`${API_BASE_URL}/api/user-mapping/list/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Mappings data:', data);
+        setMappings(data);
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to fetch mappings:', response.status, errorText);
+      }
+    } catch (error) {
+      console.error('Error fetching mappings:', error);
+    } finally {
+      setLoadingMappings(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMappings();
+  }, []);
 
   const handleEmailSubmit = async () => {
     setIsLoading(true);
@@ -111,7 +154,6 @@ const UserMappingTab = ({ darkMode }) => {
         setSubmitStatus('success');
         setErrorMessage('OTP verified! Redirecting to payment...');
         
-        // Redirect to Khalti payment with success URL pointing to our mapping success page
         if (result.pidx) {
           const successUrl = `${window.location.origin}/mapping-success`;
           window.location.href = `https://test-pay.khalti.com/?pidx=${result.pidx}&purchase_order_id=${result.payment_ref}&success_url=${encodeURIComponent(successUrl)}`;
@@ -175,6 +217,16 @@ const UserMappingTab = ({ darkMode }) => {
     });
   };
 
+  const formatShortDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric'
+    });
+  };
+
   const handleEmailKeyPress = (e) => {
     if (e.key === 'Enter' && !isLoading && email) {
       handleEmailSubmit();
@@ -185,6 +237,11 @@ const UserMappingTab = ({ darkMode }) => {
     if (e.key === 'Enter' && !isLoading && otp) {
       handleOtpSubmit();
     }
+  };
+
+  const handleAddSuccess = () => {
+    fetchMappings();
+    handleCloseForm();
   };
 
   return (
@@ -203,11 +260,105 @@ const UserMappingTab = ({ darkMode }) => {
         </button>
       </div>
 
-      <div className={`text-center py-12 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-        <UserPlus className="w-16 h-16 mx-auto mb-4 opacity-50" />
-        <p className="text-lg font-medium mb-2">No user mappings yet</p>
-        <p className="text-sm">Click "Add User Mapping" to connect with family members or loved ones</p>
-      </div>
+      {loadingMappings ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className={`w-8 h-8 animate-spin ${darkMode ? 'text-violet-400' : 'text-violet-600'}`} />
+        </div>
+      ) : mappings.length === 0 ? (
+        <div className={`text-center py-12 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <UserPlus className="w-16 h-16 mx-auto mb-4 opacity-50" />
+          <p className="text-lg font-medium mb-2">No user mappings yet</p>
+          <p className="text-sm">Click "Add User Mapping" to connect with family members or loved ones</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {mappings.map((mapping) => (
+            <motion.div
+              key={mapping.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`rounded-2xl p-6 shadow-lg ${
+                darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+              }`}
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="relative">
+                  <img
+                    src={mapping.mapped_user.profile_image || 'https://via.placeholder.com/100'}
+                    alt={mapping.mapped_user.full_name}
+                    className="w-16 h-16 rounded-full object-cover border-2 border-violet-500"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/100?text=' + mapping.mapped_user.full_name.charAt(0);
+                    }}
+                  />
+                  {mapping.is_verified && (
+                    <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className={`font-bold text-lg truncate ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                    {mapping.nickname || mapping.mapped_user.full_name}
+                  </h3>
+                  <p className={`text-sm truncate ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {mapping.mapped_user.email}
+                  </p>
+                </div>
+              </div>
+
+              <div className={`space-y-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    Created
+                  </span>
+                  <span className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {formatShortDate(mapping.created_at)}
+                  </span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    Expires
+                  </span>
+                  <span className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {formatShortDate(mapping.expires_at)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4" />
+                    Amount
+                  </span>
+                  <span className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    NPR {mapping.amount}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-gray-700/50 flex gap-2">
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  mapping.is_verified 
+                    ? 'bg-green-500/20 text-green-400' 
+                    : 'bg-yellow-500/20 text-yellow-400'
+                }`}>
+                  {mapping.is_verified ? '✓ Verified' : '⏳ Pending'}
+                </span>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  mapping.is_paid 
+                    ? 'bg-blue-500/20 text-blue-400' 
+                    : 'bg-red-500/20 text-red-400'
+                }`}>
+                  {mapping.is_paid ? '✓ Paid' : '✗ Unpaid'}
+                </span>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       <AnimatePresence>
         {showPaymentSuccess && (
