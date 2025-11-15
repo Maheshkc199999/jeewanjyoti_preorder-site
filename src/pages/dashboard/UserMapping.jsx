@@ -23,7 +23,14 @@ const UserMappingTab = ({ darkMode }) => {
   const [loadingMappings, setLoadingMappings] = useState(true);
 
   const getAccessToken = () => {
-    return localStorage.getItem('access_token');
+    // Try multiple possible token keys
+    const token = localStorage.getItem('access_token') || 
+                  localStorage.getItem('accessToken') || 
+                  localStorage.getItem('token') ||
+                  localStorage.getItem('authToken');
+    console.log('Retrieved token:', token ? 'Token found' : 'No token found');
+    console.log('Token starts with:', token ? token.substring(0, 20) + '...' : 'N/A');
+    return token;
   };
 
   const fetchMappings = async () => {
