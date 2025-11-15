@@ -3,7 +3,7 @@ import { LineChart, Line, AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Ca
 import { Heart, TrendingUp, AlertCircle, RefreshCw, Activity, Clock, Zap } from 'lucide-react';
 import { getHeartRateData } from '../lib/api';
 
-const HeartRateDataComponent = ({ darkMode, onHeartRateDataUpdate }) => {
+const HeartRateDataComponent = ({ darkMode, onHeartRateDataUpdate, selectedUserId }) => {
   const [heartRateData, setHeartRateData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -14,7 +14,7 @@ const HeartRateDataComponent = ({ darkMode, onHeartRateDataUpdate }) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getHeartRateData();
+      const data = await getHeartRateData(selectedUserId);
       setHeartRateData(data);
       
       // Notify parent component about Heart Rate data update
@@ -31,7 +31,7 @@ const HeartRateDataComponent = ({ darkMode, onHeartRateDataUpdate }) => {
 
   useEffect(() => {
     fetchHeartRateData();
-  }, []);
+  }, [selectedUserId]);
 
   // Process Heart Rate data for visualization
   const processHeartRateData = (data) => {

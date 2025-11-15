@@ -3,7 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis
 import { Moon, Clock, TrendingUp, Eye, EyeOff, Activity, Zap, Brain, Calendar, AlertCircle, RefreshCw } from 'lucide-react';
 import { getSleepData } from '../lib/api';
 
-const SleepDataComponent = ({ darkMode, onSleepDataUpdate }) => {
+const SleepDataComponent = ({ darkMode, onSleepDataUpdate, selectedUserId }) => {
   const [sleepData, setSleepData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,7 +15,7 @@ const SleepDataComponent = ({ darkMode, onSleepDataUpdate }) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getSleepData();
+      const data = await getSleepData(selectedUserId);
       setSleepData(data);
       
       // Set the most recent date as selected by default
@@ -37,7 +37,7 @@ const SleepDataComponent = ({ darkMode, onSleepDataUpdate }) => {
 
   useEffect(() => {
     fetchSleepData();
-  }, []);
+  }, [selectedUserId]);
 
   // Process sleep data for visualization
   const processSleepData = (data) => {

@@ -6,7 +6,7 @@ import SpO2DataComponent from '../../components/SpO2DataComponent';
 import HeartRateDataComponent from '../../components/HeartRateDataComponent';
 import { getBloodPressureData, getStressData, getHRVData } from '../../lib/api';
 
-const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
+const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, selectedUserId }) => {
   const [sleepData, setSleepData] = useState(null);
   const [spo2Data, setSpO2Data] = useState(null);
   const [heartRateData, setHeartRateData] = useState(null);
@@ -68,9 +68,9 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
     const fetchHealthData = async () => {
       try {
         const [bloodPressureDataResult, stressDataResult, hrvDataResult] = await Promise.all([
-          getBloodPressureData(),
-          getStressData(),
-          getHRVData()
+          getBloodPressureData(selectedUserId),
+          getStressData(selectedUserId),
+          getHRVData(selectedUserId)
         ]);
         setBloodPressureData(bloodPressureDataResult);
         setStressApiData(stressDataResult);
@@ -80,7 +80,7 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
       }
     };
     fetchHealthData();
-  }, []);
+  }, [selectedUserId]);
 
   // Sample data for different metrics
 
@@ -236,12 +236,14 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
         <HeartRateDataComponent 
           darkMode={darkMode} 
           onHeartRateDataUpdate={setHeartRateData}
+          selectedUserId={selectedUserId}
         />
 
         {/* Blood Oxygen */}
         <SpO2DataComponent 
           darkMode={darkMode} 
           onSpO2DataUpdate={setSpO2Data}
+          selectedUserId={selectedUserId}
         />
       </div>
 
@@ -251,6 +253,7 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod }) => {
         <SleepDataComponent 
           darkMode={darkMode} 
           onSleepDataUpdate={setSleepData}
+          selectedUserId={selectedUserId}
         />
 
         {/* Activity Tracking */}

@@ -3,7 +3,7 @@ import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tool
 import { Droplets, TrendingUp, AlertCircle, RefreshCw, Activity, Clock } from 'lucide-react';
 import { getSpO2Data } from '../lib/api';
 
-const SpO2DataComponent = ({ darkMode, onSpO2DataUpdate }) => {
+const SpO2DataComponent = ({ darkMode, onSpO2DataUpdate, selectedUserId }) => {
   const [spo2Data, setSpO2Data] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -14,7 +14,7 @@ const SpO2DataComponent = ({ darkMode, onSpO2DataUpdate }) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getSpO2Data();
+      const data = await getSpO2Data(selectedUserId);
       setSpO2Data(data);
       
       // Notify parent component about SpO2 data update
@@ -31,7 +31,7 @@ const SpO2DataComponent = ({ darkMode, onSpO2DataUpdate }) => {
 
   useEffect(() => {
     fetchSpO2Data();
-  }, []);
+  }, [selectedUserId]);
 
   // Process SpO2 data for visualization
   const processSpO2Data = (data) => {

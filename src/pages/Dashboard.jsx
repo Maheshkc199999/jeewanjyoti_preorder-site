@@ -38,6 +38,7 @@ const Dashboard = () => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [mappedUsers, setMappedUsers] = useState([]);
   const [loadingMappedUsers, setLoadingMappedUsers] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   // Check authentication status
   useEffect(() => {
@@ -211,6 +212,12 @@ const Dashboard = () => {
     }
   }, [backendUser, user]);
 
+  // Handle user selection from dropdown
+  const handleUserSelection = (userId) => {
+    setSelectedUserId(userId === selectedUserId ? null : userId);
+    setShowUserDropdown(false);
+  };
+
   // Handle tab change with persistence
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -296,7 +303,7 @@ const Dashboard = () => {
     
     switch (activeTab) {
       case 'home':
-        return <HomeTab darkMode={darkMode} selectedPeriod={selectedPeriod} setSelectedPeriod={setSelectedPeriod} />;
+        return <HomeTab darkMode={darkMode} selectedPeriod={selectedPeriod} setSelectedPeriod={setSelectedPeriod} selectedUserId={selectedUserId} />;
       case 'appointments':
         console.log('Rendering AppointmentsTab with ErrorBoundary...');
         return (
@@ -467,19 +474,36 @@ const Dashboard = () => {
                         </p>
                         <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
                           {mappedUsers.map((mapping) => (
-                            <div key={mapping.id} className="flex items-center gap-2 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <button
+                              key={mapping.id}
+                              onClick={() => handleUserSelection(mapping.mapped_user.id)}
+                              className={`w-full flex items-center gap-2 p-2 rounded transition-colors ${
+                                selectedUserId === mapping.mapped_user.id
+                                  ? darkMode 
+                                    ? 'bg-gray-700 text-blue-400' 
+                                    : 'bg-blue-50 text-blue-600'
+                                  : darkMode 
+                                    ? 'hover:bg-gray-700 text-gray-300' 
+                                    : 'hover:bg-gray-100 text-gray-700'
+                              }`}
+                            >
                               <img
                                 src={mapping.mapped_user.profile_image || 'https://via.placeholder.com/24'}
                                 alt={mapping.mapped_user.full_name}
-                                className="w-6 h-6 rounded-full object-cover"
+                                className="w-6 h-6 rounded-full object-cover flex-shrink-0"
                                 onError={(e) => {
                                   e.target.src = 'https://via.placeholder.com/24?text=' + mapping.mapped_user.full_name.charAt(0);
                                 }}
                               />
-                              <span className={`text-xs truncate ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                                {mapping.nickname || mapping.mapped_user.full_name}
-                              </span>
-                            </div>
+                              <div className="flex-1 text-left">
+                                <div className="text-xs font-medium truncate">
+                                  {mapping.nickname || mapping.mapped_user.full_name}
+                                </div>
+                                {selectedUserId === mapping.mapped_user.id && (
+                                  <div className="text-xs opacity-75">Currently viewing</div>
+                                )}
+                              </div>
+                            </button>
                           ))}
                         </div>
                       </div>

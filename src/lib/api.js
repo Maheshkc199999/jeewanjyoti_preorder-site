@@ -213,10 +213,12 @@ export async function getDoctorList() {
 
 /**
  * Get sleep data
+ * @param {string} userId - Optional user ID
  * @returns {Promise<Array>} List of sleep data records
  */
-export async function getSleepData() {
-  const response = await apiRequest('/api/sleep-data/')
+export async function getSleepData(userId = null) {
+  const url = userId ? `/api/sleep-data/?user_id=${userId}` : '/api/sleep-data/'
+  const response = await apiRequest(url)
   
   if (!response.ok) {
     throw new Error('Failed to fetch sleep data')
@@ -227,10 +229,12 @@ export async function getSleepData() {
 
 /**
  * Get SpO2/Blood Oxygen data
+ * @param {string} userId - Optional user ID
  * @returns {Promise<Array>} List of SpO2 data records
  */
-export async function getSpO2Data() {
-  const response = await apiRequest('/api/Spo2-data/')
+export async function getSpO2Data(userId = null) {
+  const url = userId ? `/api/Spo2-data/?user_id=${userId}` : '/api/Spo2-data/'
+  const response = await apiRequest(url)
   
   if (!response.ok) {
     throw new Error('Failed to fetch SpO2 data')
@@ -241,10 +245,12 @@ export async function getSpO2Data() {
 
 /**
  * Get Heart Rate data
+ * @param {string} userId - Optional user ID
  * @returns {Promise<Array>} List of Heart Rate data records
  */
-export async function getHeartRateData() {
-  const response = await apiRequest('/api/HeartRate_Data/')
+export async function getHeartRateData(userId = null) {
+  const url = userId ? `/api/HeartRate_Data/?user_id=${userId}` : '/api/HeartRate_Data/'
+  const response = await apiRequest(url)
   
   if (!response.ok) {
     throw new Error('Failed to fetch Heart Rate data')
@@ -255,10 +261,12 @@ export async function getHeartRateData() {
 
 /**
  * Get Blood Pressure data
+ * @param {string} userId - Optional user ID
  * @returns {Promise<Array>} List of Blood Pressure data records
  */
-export async function getBloodPressureData() {
-  const response = await apiRequest('/api/BloodPressure_Data/')
+export async function getBloodPressureData(userId = null) {
+  const url = userId ? `/api/BloodPressure_Data/?user_id=${userId}` : '/api/BloodPressure_Data/'
+  const response = await apiRequest(url)
   
   if (!response.ok) {
     throw new Error('Failed to fetch Blood Pressure data')
@@ -269,10 +277,12 @@ export async function getBloodPressureData() {
 
 /**
  * Get Stress data
+ * @param {string} userId - Optional user ID
  * @returns {Promise<Array>} List of Stress data records
  */
-export async function getStressData() {
-  const response = await apiRequest('/api/Stress_Data/')
+export async function getStressData(userId = null) {
+  const url = userId ? `/api/Stress_Data/?user_id=${userId}` : '/api/Stress_Data/'
+  const response = await apiRequest(url)
   
   if (!response.ok) {
     throw new Error('Failed to fetch Stress data')
@@ -283,10 +293,12 @@ export async function getStressData() {
 
 /**
  * Get HRV (Heart Rate Variability) data
+ * @param {string} userId - Optional user ID
  * @returns {Promise<Array>} List of HRV data records
  */
-export async function getHRVData() {
-  const response = await apiRequest('/api/HRV_Iso_Data/')
+export async function getHRVData(userId = null) {
+  const url = userId ? `/api/HRV_Iso_Data/?user_id=${userId}` : '/api/HRV_Iso_Data/'
+  const response = await apiRequest(url)
   
   if (!response.ok) {
     throw new Error('Failed to fetch HRV data')
