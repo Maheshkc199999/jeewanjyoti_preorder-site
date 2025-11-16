@@ -781,7 +781,7 @@ const Dashboard = () => {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className={`md:hidden fixed inset-0 z-20 ${darkMode ? 'bg-gray-900' : 'bg-white'} pt-16 animate-in slide-in-from-top duration-300`}>
+        <div className={`md:hidden fixed inset-0 z-50 ${darkMode ? 'bg-gray-900' : 'bg-white'} pt-16 animate-in slide-in-from-top duration-300`}>
           {/* Mobile Menu Header with Back Button */}
           <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} bg-gradient-to-r ${
             darkMode 
@@ -875,7 +875,7 @@ const Dashboard = () => {
                                 // Delay menu closing to allow data to update
                                 setTimeout(() => setIsMobileMenuOpen(false), 500);
                               }}
-                              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 transform hover:scale-[1.02] ${
+                              className={`w-full flex items-center gap-3 p-4 rounded-xl transition-all duration-200 transform hover:scale-[1.02] touch-manipulation ${
                                 selectedUserId === mapping.mapped_user.id
                                   ? darkMode 
                                     ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 

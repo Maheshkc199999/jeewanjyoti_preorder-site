@@ -276,8 +276,15 @@ const UserMappingTab = ({ darkMode }) => {
               key={mapping.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`rounded-2xl p-6 shadow-lg ${
-                darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                console.log('Mapping card clicked:', mapping.mapped_user.id);
+                // Navigate to dashboard with selected user
+                window.location.href = `/dashboard?user=${mapping.mapped_user.id}`;
+              }}
+              className={`rounded-2xl p-6 shadow-lg cursor-pointer transition-all duration-200 hover:shadow-xl touch-manipulation ${
+                darkMode ? 'bg-gray-800 border border-gray-700 hover:bg-gray-750' : 'bg-white border border-gray-200 hover:bg-gray-50'
               }`}
             >
               <div className="flex items-center gap-4 mb-4">
