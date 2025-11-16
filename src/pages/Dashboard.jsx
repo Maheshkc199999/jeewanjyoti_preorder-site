@@ -39,6 +39,7 @@ const Dashboard = () => {
   const [mappedUsers, setMappedUsers] = useState([]);
   const [loadingMappedUsers, setLoadingMappedUsers] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
+  const [selectionFeedback, setSelectionFeedback] = useState(null);
 
   // Check authentication status
   useEffect(() => {
@@ -214,8 +215,27 @@ const Dashboard = () => {
 
   // Handle user selection from dropdown
   const handleUserSelection = (userId) => {
-    setSelectedUserId(userId === selectedUserId ? null : userId);
+    console.log('User selected:', userId);
+    const newUserId = userId === selectedUserId ? null : userId;
+    setSelectedUserId(newUserId);
     setShowUserDropdown(false);
+    
+    // Show feedback
+    if (newUserId) {
+      const selectedUser = mappedUsers.find(m => m.mapped_user.id === userId);
+      if (selectedUser) {
+        setSelectionFeedback(`Switched to ${selectedUser.nickname || selectedUser.mapped_user.full_name}`);
+        setTimeout(() => setSelectionFeedback(null), 3000);
+      }
+    } else {
+      setSelectionFeedback('Switched back to your account');
+      setTimeout(() => setSelectionFeedback(null), 3000);
+    }
+    
+    // Force a re-render by updating the state
+    setTimeout(() => {
+      console.log('selectedUserId updated to:', newUserId);
+    }, 100);
   };
 
   // Handle tab change with persistence
@@ -677,9 +697,11 @@ const Dashboard = () => {
                     }`}
                   >
                     <User className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm font-medium truncate max-w-[6rem]">
-                      {backendUser?.first_name || user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}
-                    </span>
+                    {showUserDropdown && (
+                      <span className="text-sm font-medium truncate max-w-[6rem]">
+                        {backendUser?.first_name || user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}
+                      </span>
+                    )}
                     <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showUserDropdown ? 'rotate-180' : ''}`} />
                   </button>
                   
@@ -1192,6 +1214,19 @@ const Dashboard = () => {
           onClose={handleProfileFormClose}
           onSuccess={handleProfileFormSuccess}
         />
+      )}
+
+      {/* Selection Feedback Toast */}
+      {selectionFeedback && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 animate-pulse">
+          <div className={`px-4 py-2 rounded-lg shadow-lg text-sm font-medium ${
+            darkMode 
+              ? 'bg-green-600 text-white' 
+              : 'bg-green-500 text-white'
+          }`}>
+            {selectionFeedback}
+          </div>
+        </div>
       )}
     </div>
   );
