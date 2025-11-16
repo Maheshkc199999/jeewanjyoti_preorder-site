@@ -757,31 +757,22 @@ const Dashboard = () => {
                   )}
                 </div>
                 
-                {/* Mobile Dark Mode Toggle */}
-                <button 
-                  onClick={toggleDarkMode}
-                  className={`md:hidden p-2 rounded-lg transition-all duration-200 transform hover:scale-105 ${
-                    darkMode 
-                      ? 'text-yellow-400 hover:bg-gray-700' 
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  {darkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-                </button>
-                
-                <button 
-                  className={`md:hidden p-2 rounded-lg transition-all duration-200 transform hover:scale-105 ${
-                    darkMode 
-                      ? 'text-gray-300 hover:bg-gray-700' 
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                >
-                  {isMobileMenuOpen ? 
-                    <X className="w-6 h-6" /> : 
-                    <Menu className="w-6 h-6" />
-                  }
-                </button>
+                {/* Mobile Menu Toggle */}
+                <div className="flex items-center gap-1">
+                  <button 
+                    className={`md:hidden p-2 rounded-lg transition-all duration-200 transform hover:scale-105 ${
+                      darkMode 
+                        ? 'text-gray-300 hover:bg-gray-700' 
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  >
+                    {isMobileMenuOpen ? 
+                      <X className="w-6 h-6" /> : 
+                      <Menu className="w-6 h-6" />
+                    }
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -879,8 +870,10 @@ const Dashboard = () => {
                             <button
                               key={mapping.id}
                               onClick={() => {
+                                console.log('Mobile user clicked:', mapping.mapped_user.id);
                                 handleUserSelection(mapping.mapped_user.id);
-                                setIsMobileMenuOpen(false);
+                                // Delay menu closing to allow data to update
+                                setTimeout(() => setIsMobileMenuOpen(false), 500);
                               }}
                               className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 transform hover:scale-[1.02] ${
                                 selectedUserId === mapping.mapped_user.id
@@ -888,8 +881,8 @@ const Dashboard = () => {
                                     ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
                                     : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
                                   : darkMode 
-                                    ? 'hover:bg-gray-600 text-gray-300' 
-                                    : 'hover:bg-gray-100 text-gray-700'
+                                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                               }`}
                             >
                               <img

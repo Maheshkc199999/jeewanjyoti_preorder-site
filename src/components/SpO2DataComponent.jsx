@@ -14,7 +14,19 @@ const SpO2DataComponent = ({ darkMode, onSpO2DataUpdate, selectedUserId }) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getSpO2Data(selectedUserId);
+      
+      // Calculate date range for last 24 hours
+      const now = new Date();
+      const startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+      const endDate = now;
+      
+      // Format dates for API (ISO format)
+      const startDateStr = startDate.toISOString();
+      const endDateStr = endDate.toISOString();
+      
+      console.log('Fetching SpO2 data from last 24 hours:', { startDate: startDateStr, endDate: endDateStr });
+      
+      const data = await getSpO2Data(selectedUserId, startDateStr, endDateStr);
       setSpO2Data(data);
       
       // Notify parent component about SpO2 data update
@@ -23,7 +35,10 @@ const SpO2DataComponent = ({ darkMode, onSpO2DataUpdate, selectedUserId }) => {
       }
     } catch (err) {
       console.error('Error fetching SpO2 data:', err);
-      setError('Failed to load SpO2 data');
+      // Don't set error for empty data - only for actual fetch failures
+      if (err.message && !err.message.includes('404')) {
+        setError('Failed to load SpO2 data');
+      }
     } finally {
       setLoading(false);
     }
@@ -144,7 +159,7 @@ const SpO2DataComponent = ({ darkMode, onSpO2DataUpdate, selectedUserId }) => {
           <div className="text-center">
             <Droplets className="w-8 h-8 text-gray-400 mx-auto mb-4" />
             <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              No SpO2 data available
+              No SpO2 data available in the last 24 hours
             </p>
           </div>
         </div>
@@ -213,6 +228,14 @@ const SpO2DataComponent = ({ darkMode, onSpO2DataUpdate, selectedUserId }) => {
 
       {/* SpO2 Chart */}
       <div className="mb-6">
+        {/* Data Count Indicator */}
+        <div className={`mb-3 flex items-center justify-between text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <span>Last 24 hours</span>
+          <span className={`font-medium ${spo2Data.length < 20 ? 'text-yellow-500' : 'text-green-500'}`}>
+            {spo2Data.length} reading{spo2Data.length !== 1 ? 's' : ''} available
+            {spo2Data.length < 20 && ' (incomplete data)'}
+          </span>
+        </div>
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={chartData}>
             {darkMode ? (

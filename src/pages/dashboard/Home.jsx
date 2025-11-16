@@ -67,10 +67,21 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
   useEffect(() => {
     const fetchHealthData = async () => {
       try {
+        // Calculate date range for last 24 hours
+        const now = new Date();
+        const startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+        const endDate = now;
+        
+        // Format dates for API (ISO format)
+        const startDateStr = startDate.toISOString();
+        const endDateStr = endDate.toISOString();
+        
+        console.log('Fetching data from last 24 hours:', { startDate: startDateStr, endDate: endDateStr });
+        
         const [bloodPressureDataResult, stressDataResult, hrvDataResult] = await Promise.all([
-          getBloodPressureData(selectedUserId),
-          getStressData(selectedUserId),
-          getHRVData(selectedUserId)
+          getBloodPressureData(selectedUserId, startDateStr, endDateStr),
+          getStressData(selectedUserId, startDateStr, endDateStr),
+          getHRVData(selectedUserId, startDateStr, endDateStr)
         ]);
         setBloodPressureData(bloodPressureDataResult);
         setStressApiData(stressDataResult);

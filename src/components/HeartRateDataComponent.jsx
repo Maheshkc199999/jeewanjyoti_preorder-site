@@ -14,16 +14,39 @@ const HeartRateDataComponent = ({ darkMode, onHeartRateDataUpdate, selectedUserI
     try {
       setLoading(true);
       setError(null);
-      const data = await getHeartRateData(selectedUserId);
-      setHeartRateData(data);
       
-      // Notify parent component about Heart Rate data update
-      if (onHeartRateDataUpdate) {
-        onHeartRateDataUpdate(data);
+      // Calculate date range for last 24 hours
+      const now = new Date();
+      const startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+      const endDate = now;
+      
+      // Format dates for API (ISO format)
+      const startDateStr = startDate.toISOString();
+      const endDateStr = endDate.toISOString();
+      
+      console.log('Fetching heart rate data from last 24 hours:', { startDate: startDateStr, endDate: endDateStr });
+      
+      const data = await getHeartRateData(selectedUserId, startDateStr, endDateStr);
+      
+      if (data && data.length > 0) {
+        // Sort by date and take all data from the last 24 hours
+        const sortedData = data
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        setHeartRateData(sortedData);
+        onHeartRateDataUpdate(sortedData);
+      } else {
+        setHeartRateData([]);
+        onHeartRateDataUpdate([]);
       }
-    } catch (err) {
-      console.error('Error fetching Heart Rate data:', err);
-      setError('Failed to load Heart Rate data');
+    } catch (error) {
+      console.error('Error fetching heart rate data:', error);
+      // Don't set error for empty data - only for actual fetch failures
+      if (error.message && !error.message.includes('404')) {
+        setError('Failed to fetch heart rate data');
+      }
+      setHeartRateData([]);
+      onHeartRateDataUpdate([]);
     } finally {
       setLoading(false);
     }
@@ -37,10 +60,9 @@ const HeartRateDataComponent = ({ darkMode, onHeartRateDataUpdate, selectedUserI
   const processHeartRateData = (data) => {
     if (!data || data.length === 0) return [];
 
-    // Sort by date and take the most recent 10 readings
+    // Sort by date and take all data from the last 24 hours
     const sortedData = data
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-      .slice(-10);
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
 
     return sortedData.map((item, index) => ({
       time: new Date(item.date).toLocaleTimeString('en-US', { 
@@ -155,7 +177,7 @@ const HeartRateDataComponent = ({ darkMode, onHeartRateDataUpdate, selectedUserI
           <div className="text-center">
             <Heart className="w-8 h-8 text-gray-400 mx-auto mb-4" />
             <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              No Heart Rate data available
+              No Heart Rate data available in the last 24 hours
             </p>
           </div>
         </div>
@@ -233,6 +255,14 @@ const HeartRateDataComponent = ({ darkMode, onHeartRateDataUpdate, selectedUserI
 
       {/* Heart Rate Chart */}
       <div className="mb-6">
+        {/* Data Count Indicator */}
+        <div className={`mb-3 flex items-center justify-between text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <span>Last 24 hours</span>
+          <span className={`font-medium ${heartRateData.length < 20 ? 'text-yellow-500' : 'text-green-500'}`}>
+            {heartRateData.length} reading{heartRateData.length !== 1 ? 's' : ''} available
+            {heartRateData.length < 20 && ' (incomplete data)'}
+          </span>
+        </div>
         <ResponsiveContainer width="100%" height={200}>
           <AreaChart data={chartData}>
             {darkMode ? (

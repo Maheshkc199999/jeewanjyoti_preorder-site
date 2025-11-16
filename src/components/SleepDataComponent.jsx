@@ -15,7 +15,19 @@ const SleepDataComponent = ({ darkMode, onSleepDataUpdate, selectedUserId }) => 
     try {
       setLoading(true);
       setError(null);
-      const data = await getSleepData(selectedUserId);
+      
+      // Calculate date range for last 24 hours
+      const now = new Date();
+      const startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+      const endDate = now;
+      
+      // Format dates for API (ISO format)
+      const startDateStr = startDate.toISOString();
+      const endDateStr = endDate.toISOString();
+      
+      console.log('Fetching sleep data from last 24 hours:', { startDate: startDateStr, endDate: endDateStr });
+      
+      const data = await getSleepData(selectedUserId, startDateStr, endDateStr);
       setSleepData(data);
       
       // Set the most recent date as selected by default
@@ -29,7 +41,10 @@ const SleepDataComponent = ({ darkMode, onSleepDataUpdate, selectedUserId }) => 
       }
     } catch (err) {
       console.error('Error fetching sleep data:', err);
-      setError('Failed to load sleep data');
+      // Don't set error for empty data - only for actual fetch failures
+      if (err.message && !err.message.includes('404')) {
+        setError('Failed to load sleep data');
+      }
     } finally {
       setLoading(false);
     }
@@ -230,7 +245,7 @@ const SleepDataComponent = ({ darkMode, onSleepDataUpdate, selectedUserId }) => 
           <div className="text-center">
             <Moon className="w-8 h-8 text-gray-400 mx-auto mb-4" />
             <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              No sleep data available
+              No sleep data available in the last 24 hours
             </p>
           </div>
         </div>
@@ -312,6 +327,14 @@ const SleepDataComponent = ({ darkMode, onSleepDataUpdate, selectedUserId }) => 
 
       {/* Sleep Stages Chart */}
       <div className="mb-6">
+        {/* Data Count Indicator */}
+        <div className={`mb-3 flex items-center justify-between text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <span>Last 24 hours</span>
+          <span className={`font-medium ${sleepData.length < 2 ? 'text-yellow-500' : 'text-green-500'}`}>
+            {sleepData.length} sleep session{sleepData.length !== 1 ? 's' : ''} available
+            {sleepData.length < 2 && ' (incomplete data)'}
+          </span>
+        </div>
         <div className="flex items-center justify-between">
           <ResponsiveContainer width="60%" height={200}>
             <PieChart>
