@@ -691,6 +691,21 @@ const Dashboard = () => {
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <div className={`md:hidden fixed inset-0 z-20 ${darkMode ? 'bg-gray-900' : 'bg-white'} pt-16`}>
+          {/* Mobile Menu Header with Back Button */}
+          <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Menu</h2>
+            <button
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`p-2 rounded-lg transition-colors ${
+                darkMode
+                  ? 'text-gray-300 hover:bg-gray-700'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          
           <div className="p-4 space-y-4">
             {/* User Section */}
             <div className={`rounded-xl p-4 border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
@@ -801,6 +816,23 @@ const Dashboard = () => {
                   })}
                 </span>
               </div>
+            </div>
+
+            {/* Dark Mode Toggle */}
+            <div className={`rounded-xl p-4 border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+              <button
+                onClick={toggleDarkMode}
+                className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                  darkMode 
+                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {darkMode ? <Moon className="w-5 h-5 text-yellow-400" /> : <Sun className="w-5 h-5 text-yellow-500" />}
+                <span className="text-sm font-medium">
+                  {darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                </span>
+              </button>
             </div>
 
             {/* Period Filter for Home Tab */}
