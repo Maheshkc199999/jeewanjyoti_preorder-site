@@ -428,10 +428,11 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
+              {/* User Dropdown - Before dark mode */}
               <div className="hidden lg:flex items-center gap-2 px-2 py-1.5 rounded-lg whitespace-nowrap user-dropdown relative">
                 <button
                   onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className={`flex items-center gap-2 transition-all duration-200 ${
+                  className={`flex items-center gap-2 transition-all duration-200 transform hover:scale-105 ${
                     darkMode 
                       ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' 
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -443,7 +444,7 @@ const Dashboard = () => {
                   </span>
                   <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showUserDropdown ? 'rotate-180' : ''}`} />
                 </button>
-                
+
                 {/* User Dropdown */}
                 {showUserDropdown && (
                   <div className={`absolute top-full left-0 mt-2 w-64 rounded-xl shadow-lg border z-50 ${
@@ -464,7 +465,7 @@ const Dashboard = () => {
                         </span>
                       </div>
                     </div>
-                    
+
                     {mappedUsers.length > 0 && (
                       <div className={`p-3 border-b ${
                         darkMode ? 'border-gray-700' : 'border-gray-200'
@@ -508,7 +509,7 @@ const Dashboard = () => {
                         </div>
                       </div>
                     )}
-                    
+
                     {loadingMappedUsers && (
                       <div className="p-3">
                         <div className="flex items-center justify-center">
@@ -516,7 +517,7 @@ const Dashboard = () => {
                         </div>
                       </div>
                     )}
-                    
+
                     {!loadingMappedUsers && mappedUsers.length === 0 && (
                       <div className="p-3">
                         <p className={`text-xs text-center ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
@@ -527,12 +528,12 @@ const Dashboard = () => {
                   </div>
                 )}
               </div>
-              
+
               {/* Date Display */}
-              <div className={`hidden md:flex items-center gap-2 px-2 py-1.5 rounded-lg whitespace-nowrap ${
+              <div className={`hidden md:flex items-center gap-2 px-2 py-1.5 rounded-lg whitespace-nowrap transition-all duration-200 transform hover:scale-105 ${
                 darkMode 
-                  ? 'bg-gray-800 text-gray-300' 
-                  : 'bg-gray-100 text-gray-700'
+                  ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}>
                 <Calendar className="w-4 h-4 text-gray-500" />
                 <span className="text-sm font-medium">
@@ -549,7 +550,7 @@ const Dashboard = () => {
                 <div className="hidden lg:block relative filter-dropdown">
                   <button
                     onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                    className={`p-2 rounded-lg transition-all duration-200 ${
+                    className={`p-2 rounded-lg transition-all duration-200 transform hover:scale-105 ${
                       showFilterDropdown
                         ? darkMode 
                           ? 'bg-purple-600 hover:bg-purple-700' 
@@ -635,7 +636,7 @@ const Dashboard = () => {
               <div className="flex items-center gap-1">
                 <button 
                   onClick={toggleDarkMode}
-                  className={`p-2 rounded-lg transition-colors ${
+                  className={`p-2 rounded-lg transition-all duration-200 transform hover:scale-105 ${
                     darkMode 
                       ? 'text-yellow-400 hover:bg-gray-700' 
                       : 'text-gray-600 hover:bg-gray-100'
@@ -644,7 +645,7 @@ const Dashboard = () => {
                   {darkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
                 </button>
                 <div className="hidden md:flex items-center gap-1">
-                  <button className={`p-2 rounded-lg transition-colors ${
+                  <button className={`p-2 rounded-lg transition-all duration-200 transform hover:scale-105 ${
                     darkMode 
                       ? 'hover:bg-gray-700' 
                       : 'hover:bg-gray-100'
@@ -653,7 +654,7 @@ const Dashboard = () => {
                   </button>
                   <button 
                     onClick={() => handleTabChange('settings')}
-                    className={`p-2 rounded-lg transition-colors ${
+                    className={`p-2 rounded-lg transition-all duration-200 transform hover:scale-105 ${
                       darkMode 
                         ? 'hover:bg-gray-700' 
                         : 'hover:bg-gray-100'
@@ -662,7 +663,7 @@ const Dashboard = () => {
                   </button>
                   <button 
                     onClick={handleLogoutClick}
-                    className={`p-2 rounded-lg transition-colors ${
+                    className={`p-2 rounded-lg transition-all duration-200 transform hover:scale-105 ${
                       darkMode 
                         ? 'hover:bg-red-700' 
                         : 'hover:bg-red-50'
@@ -673,14 +674,17 @@ const Dashboard = () => {
                   </button>
                 </div>
                 <button 
-                  className={`md:hidden p-2 rounded-lg transition-colors ${
+                  className={`md:hidden p-2 rounded-lg transition-all duration-200 transform hover:scale-105 ${
                     darkMode 
                       ? 'text-gray-300 hover:bg-gray-700' 
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 >
-                  {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                  {isMobileMenuOpen ? 
+                    <X className="w-6 h-6" /> : 
+                    <Menu className="w-6 h-6" />
+                  }
                 </button>
               </div>
             </div>
@@ -690,36 +694,54 @@ const Dashboard = () => {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className={`md:hidden fixed inset-0 z-20 ${darkMode ? 'bg-gray-900' : 'bg-white'} pt-16`}>
+        <div className={`md:hidden fixed inset-0 z-20 ${darkMode ? 'bg-gray-900' : 'bg-white'} pt-16 animate-in slide-in-from-top duration-300`}>
           {/* Mobile Menu Header with Back Button */}
-          <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-            <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Menu</h2>
+          <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} bg-gradient-to-r ${
+            darkMode 
+              ? 'from-gray-800 to-gray-900' 
+              : 'from-blue-50 to-purple-50'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                darkMode ? 'bg-gray-700' : 'bg-white shadow-md'
+              }`}>
+                <Menu className="w-4 h-4 text-blue-600" />
+              </div>
+              <h2 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Menu</h2>
+            </div>
             <button
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`p-2 rounded-lg transition-colors ${
+              className={`p-2 rounded-xl transition-all duration-200 transform hover:scale-110 ${
                 darkMode
-                  ? 'text-gray-300 hover:bg-gray-700'
-                  : 'text-gray-600 hover:bg-gray-100'
+                  ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  : 'bg-white text-gray-600 hover:bg-gray-100 shadow-md'
               }`}
             >
               <X className="w-5 h-5" />
             </button>
           </div>
           
-          <div className="p-4 space-y-4">
+          <div className="p-4 space-y-4 overflow-y-auto h-full pb-20">
             {/* User Section */}
-            <div className={`rounded-xl p-4 border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-              <div className="flex items-center gap-3 mb-3">
-                <img
-                  src={user?.photoURL || 'https://via.placeholder.com/40'}
-                  alt={user?.displayName || user?.email || 'User'}
-                  className="w-10 h-10 rounded-full object-cover"
-                  onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/40?text=' + (user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U');
-                  }}
-                />
+            <div className={`rounded-2xl p-4 border shadow-lg transition-all duration-200 hover:shadow-xl ${
+              darkMode 
+                ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' 
+                : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'
+            }`}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="relative">
+                  <img
+                    src={user?.photoURL || 'https://via.placeholder.com/40'}
+                    alt={user?.displayName || user?.email || 'User'}
+                    className="w-12 h-12 rounded-full object-cover ring-2 ring-blue-500 ring-offset-2"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/40?text=' + (user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U');
+                    }}
+                  />
+                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                </div>
                 <div className="flex-1">
-                  <p className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  <p className={`font-bold text-base ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                     {backendUser?.first_name || user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}
                   </p>
                   <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -732,27 +754,31 @@ const Dashboard = () => {
               <div className="space-y-2">
                 <button
                   onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
+                  className={`w-full flex items-center justify-between p-3 rounded-xl transition-all duration-200 transform hover:scale-[1.02] ${
                     darkMode 
-                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
-                      : 'bg-white text-gray-700 hover:bg-gray-100'
+                      ? 'bg-gradient-to-r from-gray-700 to-gray-600 text-gray-300 hover:from-gray-600 hover:to-gray-500' 
+                      : 'bg-gradient-to-r from-blue-50 to-purple-50 text-gray-700 hover:from-blue-100 hover:to-purple-100'
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4" />
                     <span className="text-sm font-medium">Switch User</span>
                   </div>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${showUserDropdown ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showUserDropdown ? 'rotate-180' : ''}`} />
                 </button>
                 
                 {showUserDropdown && (
-                  <div className={`rounded-lg border ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
+                  <div className={`rounded-xl border shadow-lg animate-in slide-in-from-top duration-200 ${
+                    darkMode 
+                      ? 'bg-gray-700 border-gray-600' 
+                      : 'bg-white border-gray-200'
+                  }`}>
                     {mappedUsers.length > 0 && (
                       <div className="p-3">
-                        <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <p className={`text-xs font-bold mb-3 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                           MAPPED USERS
                         </p>
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                           {mappedUsers.map((mapping) => (
                             <button
                               key={mapping.id}
@@ -760,11 +786,11 @@ const Dashboard = () => {
                                 handleUserSelection(mapping.mapped_user.id);
                                 setIsMobileMenuOpen(false);
                               }}
-                              className={`w-full flex items-center gap-2 p-2 rounded transition-colors ${
+                              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 transform hover:scale-[1.02] ${
                                 selectedUserId === mapping.mapped_user.id
                                   ? darkMode 
-                                    ? 'bg-gray-600 text-blue-400' 
-                                    : 'bg-blue-50 text-blue-600'
+                                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
+                                    : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
                                   : darkMode 
                                     ? 'hover:bg-gray-600 text-gray-300' 
                                     : 'hover:bg-gray-100 text-gray-700'
@@ -773,17 +799,17 @@ const Dashboard = () => {
                               <img
                                 src={mapping.mapped_user.profile_image || 'https://via.placeholder.com/24'}
                                 alt={mapping.mapped_user.full_name}
-                                className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                                className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-2 ring-gray-300"
                                 onError={(e) => {
                                   e.target.src = 'https://via.placeholder.com/24?text=' + mapping.mapped_user.full_name.charAt(0);
                                 }}
                               />
                               <div className="flex-1 text-left">
-                                <div className="text-xs font-medium truncate">
+                                <div className="text-sm font-medium truncate">
                                   {mapping.nickname || mapping.mapped_user.full_name}
                                 </div>
                                 {selectedUserId === mapping.mapped_user.id && (
-                                  <div className="text-xs opacity-75">Currently viewing</div>
+                                  <div className="text-xs opacity-90">Currently viewing</div>
                                 )}
                               </div>
                             </button>
@@ -793,9 +819,9 @@ const Dashboard = () => {
                     )}
                     
                     {loadingMappedUsers && (
-                      <div className="p-3">
+                      <div className="p-4">
                         <div className="flex items-center justify-center">
-                          <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+                          <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                         </div>
                       </div>
                     )}
@@ -805,42 +831,82 @@ const Dashboard = () => {
             </div>
 
             {/* Date Display */}
-            <div className={`rounded-xl p-4 border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+            <div className={`rounded-2xl p-4 border shadow-lg transition-all duration-200 hover:shadow-xl ${
+              darkMode 
+                ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' 
+                : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'
+            }`}>
               <div className="flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-gray-500" />
-                <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {new Date().toLocaleDateString('en-US', { 
-                    weekday: 'short', 
-                    month: 'short', 
-                    day: 'numeric' 
-                  })}
-                </span>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  darkMode ? 'bg-blue-600/20' : 'bg-blue-100'
+                }`}>
+                  <Calendar className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Today</p>
+                  <span className={`text-sm font-bold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {new Date().toLocaleDateString('en-US', { 
+                      weekday: 'short', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
+                  </span>
+                </div>
               </div>
             </div>
 
             {/* Dark Mode Toggle */}
-            <div className={`rounded-xl p-4 border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+            <div className={`rounded-2xl p-4 border shadow-lg transition-all duration-200 hover:shadow-xl ${
+              darkMode 
+                ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' 
+                : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'
+            }`}>
               <button
                 onClick={toggleDarkMode}
-                className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 transform hover:scale-[1.02] ${
                   darkMode 
-                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                    ? 'bg-gradient-to-r from-yellow-600/20 to-orange-600/20 text-gray-300 hover:from-yellow-600/30 hover:to-orange-600/30' 
+                    : 'bg-gradient-to-r from-yellow-50 to-orange-50 text-gray-700 hover:from-yellow-100 hover:to-orange-100'
                 }`}
               >
-                {darkMode ? <Moon className="w-5 h-5 text-yellow-400" /> : <Sun className="w-5 h-5 text-yellow-500" />}
-                <span className="text-sm font-medium">
-                  {darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-                </span>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  darkMode ? 'bg-yellow-600/30' : 'bg-yellow-100'
+                }`}>
+                  {darkMode ? <Moon className="w-5 h-5 text-yellow-400" /> : <Sun className="w-5 h-5 text-yellow-500" />}
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold">
+                    {darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                  </p>
+                  <p className="text-xs opacity-75">
+                    {darkMode ? 'Disable dark theme' : 'Enable dark theme'}
+                  </p>
+                </div>
               </button>
             </div>
 
             {/* Period Filter for Home Tab */}
             {activeTab === 'home' && (
-              <div className={`rounded-xl p-4 border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-                <p className={`text-sm font-medium mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Filter Period
-                </p>
+              <div className={`rounded-2xl p-4 border shadow-lg transition-all duration-200 hover:shadow-xl ${
+                darkMode 
+                  ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700' 
+                  : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'
+              }`}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    darkMode ? 'bg-purple-600/20' : 'bg-purple-100'
+                  }`}>
+                    <SlidersHorizontal className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className={`text-sm font-bold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Filter Period
+                    </p>
+                    <p className={`text-xs opacity-75 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Select time range
+                    </p>
+                  </div>
+                </div>
                 <div className="space-y-2">
                   {['today', 'week', 'month'].map((period) => (
                     <button
@@ -849,20 +915,25 @@ const Dashboard = () => {
                         setSelectedPeriod(period);
                         setIsMobileMenuOpen(false);
                       }}
-                      className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                      className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 transform hover:scale-[1.02] ${
                         selectedPeriod === period
                           ? darkMode 
-                            ? 'bg-purple-600 text-white' 
-                            : 'bg-purple-500 text-white'
+                            ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg' 
+                            : 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg'
                           : darkMode 
                             ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
-                            : 'bg-white text-gray-700 hover:bg-gray-100'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
                       <SlidersHorizontal className="w-4 h-4" />
                       <span className="text-sm font-medium capitalize">
                         {period === 'today' ? 'Today' : period === 'week' ? 'This Week' : 'This Month'}
                       </span>
+                      {selectedPeriod === period && (
+                        <div className="ml-auto">
+                          <div className="w-2 h-2 bg-white rounded-full"></div>
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -870,37 +941,58 @@ const Dashboard = () => {
             )}
 
             {/* Action Buttons */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <button
                 onClick={() => { handleTabChange('settings'); setIsMobileMenuOpen(false); }}
-                className={`w-full flex items-center gap-3 p-4 rounded-xl transition-colors ${
+                className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all duration-200 transform hover:scale-[1.02] hover:shadow-lg ${
                   darkMode 
-                    ? 'text-gray-300 hover:bg-gray-800' 
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-gradient-to-r from-gray-800 to-gray-700 text-gray-300 hover:from-gray-700 hover:to-gray-600' 
+                    : 'bg-gradient-to-r from-white to-gray-100 text-gray-700 hover:from-gray-50 hover:to-gray-200 shadow-md'
                 }`}
               >
-                <Settings className="w-6 h-6" />
-                <span className="font-medium">Settings</span>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  darkMode ? 'bg-gray-600' : 'bg-gray-200'
+                }`}>
+                  <Settings className="w-5 h-5 text-gray-600" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="font-bold">Settings</p>
+                  <p className="text-xs opacity-75">Manage preferences</p>
+                </div>
               </button>
               
               <button
-                className={`w-full flex items-center gap-3 p-4 rounded-xl transition-colors ${
+                className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all duration-200 transform hover:scale-[1.02] hover:shadow-lg ${
                   darkMode 
-                    ? 'text-gray-300 hover:bg-gray-800' 
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-gradient-to-r from-gray-800 to-gray-700 text-gray-300 hover:from-gray-700 hover:to-gray-600' 
+                    : 'bg-gradient-to-r from-white to-gray-100 text-gray-700 hover:from-gray-50 hover:to-gray-200 shadow-md'
                 }`}
               >
-                <Bell className="w-6 h-6" />
-                <span className="font-medium">Notifications</span>
-                <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 ml-auto">3</span>
+                <div className="relative">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    darkMode ? 'bg-gray-600' : 'bg-gray-200'
+                  }`}>
+                    <Bell className="w-5 h-5 text-gray-600" />
+                  </div>
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">3</span>
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="font-bold">Notifications</p>
+                  <p className="text-xs opacity-75">3 new messages</p>
+                </div>
               </button>
               
               <button
                 onClick={() => { handleLogoutClick(); setIsMobileMenuOpen(false); }}
-                className="w-full flex items-center gap-3 p-4 rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                className="w-full flex items-center gap-3 p-4 rounded-2xl transition-all duration-200 transform hover:scale-[1.02] hover:shadow-lg bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700"
               >
-                <LogOut className="w-6 h-6" />
-                <span className="font-medium">Logout</span>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white/20">
+                  <LogOut className="w-5 h-5" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="font-bold">Logout</p>
+                  <p className="text-xs opacity-90">Sign out of account</p>
+                </div>
               </button>
             </div>
           </div>
