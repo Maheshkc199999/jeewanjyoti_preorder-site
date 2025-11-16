@@ -63,6 +63,20 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
     return Math.min(score, 100);
   };
 
+  // Helper function to get data time range
+  const getDataTimeRange = (data) => {
+    if (!data || data.length === 0) return 'No data available';
+    
+    const now = new Date();
+    const oldestDate = new Date(data[0].date);
+    const hoursDiff = Math.floor((now - oldestDate) / (1000 * 60 * 60));
+    
+    if (hoursDiff < 1) return 'Last hour';
+    if (hoursDiff === 1) return 'Last 1 hour';
+    if (hoursDiff < 24) return `Last ${hoursDiff} hours`;
+    return 'Last 24+ hours';
+  };
+
   // Fetch health data
   useEffect(() => {
     const fetchHealthData = async () => {
@@ -83,6 +97,12 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
           getStressData(selectedUserId, startDateStr, endDateStr),
           getHRVData(selectedUserId, startDateStr, endDateStr)
         ]);
+        
+        // Log data availability
+        console.log('Blood Pressure data points:', bloodPressureDataResult?.length || 0);
+        console.log('Stress data points:', stressDataResult?.length || 0);
+        console.log('HRV data points:', hrvDataResult?.length || 0);
+        
         setBloodPressureData(bloodPressureDataResult);
         setStressApiData(stressDataResult);
         setHrvApiData(hrvDataResult);
@@ -341,6 +361,14 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
           color="bg-purple-500"
           chartType="area"
         >
+          <div className="mb-2">
+            <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              {stressApiData && stressApiData.length > 0 
+                ? `Showing ${stressApiData.length} data point${stressApiData.length !== 1 ? 's' : ''} • ${getDataTimeRange(stressApiData)}`
+                : 'No data available'
+              }
+            </span>
+          </div>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={stressApiData && stressApiData.length > 0 
               ? stressApiData.map(item => ({
@@ -414,7 +442,12 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
                       hour: '2-digit', 
                       minute: '2-digit',
                       hour12: true 
-                    })}
+                    })} • {getDataTimeRange(bloodPressureData)}
+                  </div>
+                )}
+                {(!bloodPressureData || bloodPressureData.length === 0) && (
+                  <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'} mt-1`}>
+                    No data available
                   </div>
                 )}
               </div>
@@ -454,7 +487,7 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
             </div>
           </div>
 
-              <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
+          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
             darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
           }`}>
             <div className="flex items-center gap-3 mb-4">
@@ -483,7 +516,12 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
                       hour: '2-digit', 
                       minute: '2-digit',
                       hour12: true 
-                    })}
+                    })} • {getDataTimeRange(hrvApiData)}
+                  </div>
+                )}
+                {(!hrvApiData || hrvApiData.length === 0) && (
+                  <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'} mt-1`}>
+                    No data available
                   </div>
                 )}
               </div>
