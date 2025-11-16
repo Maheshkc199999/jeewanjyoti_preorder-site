@@ -649,30 +649,104 @@ const Dashboard = () => {
                     darkMode 
                       ? 'hover:bg-gray-700' 
                       : 'hover:bg-gray-100'
-                  }`}>
-                    <Bell className="w-5 h-5 text-gray-500" />
-                  </button>
-                  <button 
-                    onClick={() => handleTabChange('settings')}
-                    className={`p-2 rounded-lg transition-all duration-200 transform hover:scale-105 ${
+                  }`}
+                >
+                  <Settings className="w-5 h-5 text-gray-500" />
+                </button>
+                <button 
+                  onClick={handleLogoutClick}
+                  className={`p-2 rounded-lg transition-all duration-200 transform hover:scale-105 ${
+                    darkMode 
+                      ? 'hover:bg-red-700' 
+                      : 'hover:bg-red-50'
+                  }`}
+                  title="Logout"
+                >
+                  <LogOut className="w-5 h-5 text-red-500" />
+                </button>
+              </div>
+                
+                {/* Mobile Profile Dropdown */}
+                <div className="md:hidden relative">
+                  <button
+                    onClick={() => setShowUserDropdown(!showUserDropdown)}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all duration-200 transform hover:scale-105 ${
                       darkMode 
-                        ? 'hover:bg-gray-700' 
-                        : 'hover:bg-gray-100'
-                    }`}>
-                    <Settings className="w-5 h-5 text-gray-500" />
-                  </button>
-                  <button 
-                    onClick={handleLogoutClick}
-                    className={`p-2 rounded-lg transition-all duration-200 transform hover:scale-105 ${
-                      darkMode 
-                        ? 'hover:bg-red-700' 
-                        : 'hover:bg-red-50'
+                        ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' 
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
-                    title="Logout"
                   >
-                    <LogOut className="w-5 h-5 text-red-500" />
+                    <User className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm font-medium truncate max-w-[6rem]">
+                      {backendUser?.first_name || user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}
+                    </span>
+                    <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showUserDropdown ? 'rotate-180' : ''}`} />
                   </button>
+                  
+                  {showUserDropdown && (
+                    <div className={`absolute right-0 mt-2 w-48 rounded-lg border shadow-lg animate-in slide-in-from-top duration-200 ${
+                      darkMode 
+                        ? 'bg-gray-800 border-gray-700' 
+                        : 'bg-white border-gray-200'
+                    }`}>
+                      {mappedUsers.length > 0 && (
+                        <div className="p-2">
+                          <p className={`text-xs font-medium mb-2 px-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            SWITCH USER
+                          </p>
+                          {mappedUsers.map((mapping) => (
+                            <button
+                              key={mapping.id}
+                              onClick={() => {
+                                handleUserSelection(mapping.mapped_user.id);
+                                setShowUserDropdown(false);
+                              }}
+                              className={`w-full flex items-center gap-2 p-2 rounded transition-colors ${
+                                selectedUserId === mapping.mapped_user.id
+                                  ? darkMode
+                                    ? 'bg-gray-700 text-blue-400'
+                                    : 'bg-blue-50 text-blue-600'
+                                  : darkMode
+                                    ? 'hover:bg-gray-700 text-gray-300'
+                                    : 'hover:bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              <img
+                                src={mapping.mapped_user.profile_image || 'https://via.placeholder.com/24'}
+                                alt={mapping.mapped_user.full_name}
+                                className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                                onError={(e) => {
+                                  e.target.src = 'https://via.placeholder.com/24?text=' + mapping.mapped_user.full_name.charAt(0);
+                                }}
+                              />
+                              <div className="flex-1 text-left">
+                                <div className="text-xs font-medium truncate">
+                                  {mapping.nickname || mapping.mapped_user.full_name}
+                                </div>
+                                {selectedUserId === mapping.mapped_user.id && (
+                                  <div className="text-xs opacity-75">Currently viewing</div>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
+                
+                {/* Mobile Dark Mode Toggle */}
+                <button 
+                  onClick={toggleDarkMode}
+                  className={`md:hidden p-2 rounded-lg transition-all duration-200 transform hover:scale-105 ${
+                    darkMode 
+                      ? 'text-yellow-400 hover:bg-gray-700' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {darkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+                </button>
+                
                 <button 
                   className={`md:hidden p-2 rounded-lg transition-all duration-200 transform hover:scale-105 ${
                     darkMode 
