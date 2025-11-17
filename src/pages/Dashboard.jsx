@@ -197,7 +197,25 @@ const Dashboard = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setMappedUsers(data);
+        
+        // Get current user ID to filter out own profile from mapped users
+        const userData = getUserData();
+        const currentUserId = userData?.id;
+        
+        console.log('Current user ID:', currentUserId);
+        console.log('Raw mapped users data:', data);
+        
+        // Filter out current user from mapped users list
+        const filteredMappedUsers = data.filter(mapping => {
+          const isNotCurrentUser = mapping.mapped_user.id !== currentUserId;
+          if (!isNotCurrentUser) {
+            console.log('Filtering out current user from mapped list:', mapping.mapped_user.id);
+          }
+          return isNotCurrentUser;
+        });
+        
+        console.log('Filtered mapped users:', filteredMappedUsers);
+        setMappedUsers(filteredMappedUsers);
       }
     } catch (error) {
       console.error('Error fetching mapped users:', error);
@@ -213,29 +231,27 @@ const Dashboard = () => {
     }
   }, [backendUser, user]);
 
-  // Handle user selection from dropdown
+  // Handle user selection from dropdown with debouncing
   const handleUserSelection = (userId) => {
     console.log('User selected:', userId);
+    console.log('Current selectedUserId:', selectedUserId);
     const newUserId = userId === selectedUserId ? null : userId;
+    console.log('Setting newUserId to:', newUserId);
     setSelectedUserId(newUserId);
     setShowUserDropdown(false);
     
-    // Show feedback
+    // Show feedback with loading state
     if (newUserId) {
       const selectedUser = mappedUsers.find(m => m.mapped_user.id === userId);
       if (selectedUser) {
-        setSelectionFeedback(`Switched to ${selectedUser.nickname || selectedUser.mapped_user.full_name}`);
-        setTimeout(() => setSelectionFeedback(null), 3000);
+        setSelectionFeedback(`Loading data for ${selectedUser.nickname || selectedUser.mapped_user.full_name}...`);
       }
     } else {
-      setSelectionFeedback('Switched back to your account');
-      setTimeout(() => setSelectionFeedback(null), 3000);
+      setSelectionFeedback('Loading your data...');
     }
     
-    // Force a re-render by updating the state
-    setTimeout(() => {
-      console.log('selectedUserId updated to:', newUserId);
-    }, 100);
+    // Clear feedback after data loads (components will handle this)
+    setTimeout(() => setSelectionFeedback(null), 2000);
   };
 
   // Handle tab change with persistence

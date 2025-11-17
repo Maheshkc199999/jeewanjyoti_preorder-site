@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Heart, Moon, Activity, Zap, Brain, Gauge, Target, TrendingUp, Clock, Droplets, Thermometer, BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Activity as ActivityIcon } from 'lucide-react';
 import SleepDataComponent from '../../components/SleepDataComponent';
@@ -13,6 +13,10 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
   const [bloodPressureData, setBloodPressureData] = useState(null);
   const [stressApiData, setStressApiData] = useState(null);
   const [hrvApiData, setHrvApiData] = useState(null);
+
+  // Cache and debouncing refs
+  const cacheRef = useRef(new Map());
+  const debounceRef = useRef(null);
 
   // Calculate sleep score based on data (same as SleepDataComponent)
   const calculateSleepScore = (data) => {
@@ -77,41 +81,85 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
     return 'Last 24+ hours';
   };
 
-  // Fetch health data
-  useEffect(() => {
-    const fetchHealthData = async () => {
+  // Fetch health data with caching and debouncing
+  const fetchHealthData = useCallback(async () => {
+    // Clear previous debounce timeout
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    // Debounce the fetch to prevent rapid API calls
+    debounceRef.current = setTimeout(async () => {
       try {
-        // Calculate date range for last 24 hours
-        const now = new Date();
-        const startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
-        const endDate = now;
+        console.log('fetchHealthData called with selectedUserId:', selectedUserId);
         
-        // Format dates for API (ISO format)
-        const startDateStr = startDate.toISOString();
-        const endDateStr = endDate.toISOString();
+        // Map selectedPeriod to range values
+        let range = '24h'; // default
+        if (selectedPeriod === 'today') {
+          range = '24h';
+        } else if (selectedPeriod === 'week') {
+          range = '7d';
+        } else if (selectedPeriod === 'month') {
+          range = '30d';
+        }
         
-        console.log('Fetching data from last 24 hours:', { startDate: startDateStr, endDate: endDateStr });
+        // Check cache first
+        const cacheKey = `${selectedUserId || 'null'}-${range}-${new Date().toDateString()}`;
+        console.log('Cache key:', cacheKey);
+        if (cacheRef.current.has(cacheKey)) {
+          const cachedData = cacheRef.current.get(cacheKey);
+          setBloodPressureData(cachedData.bloodPressure);
+          setStressApiData(cachedData.stress);
+          setHrvApiData(cachedData.hrv);
+          console.log('Using cached data');
+          return;
+        }
+
+        console.log('Fetching data with range:', { 
+          selectedUserId, 
+          range,
+          selectedPeriod
+        });
         
         const [bloodPressureDataResult, stressDataResult, hrvDataResult] = await Promise.all([
-          getBloodPressureData(selectedUserId, startDateStr, endDateStr),
-          getStressData(selectedUserId, startDateStr, endDateStr),
-          getHRVData(selectedUserId, startDateStr, endDateStr)
+          getBloodPressureData(selectedUserId, null, null, range),
+          getStressData(selectedUserId, null, null, range),
+          getHRVData(selectedUserId, null, null, range)
         ]);
+        
+        console.log('API results:', {
+          bloodPressureData: bloodPressureDataResult?.length || 0,
+          stressData: stressDataResult?.length || 0,
+          hrvData: hrvDataResult?.length || 0
+        });
         
         // Log data availability
         console.log('Blood Pressure data points:', bloodPressureDataResult?.length || 0);
         console.log('Stress data points:', stressDataResult?.length || 0);
         console.log('HRV data points:', hrvDataResult?.length || 0);
         
+        // Cache the results
+        const healthData = {
+          bloodPressure: bloodPressureDataResult,
+          stress: stressDataResult,
+          hrv: hrvDataResult
+        };
+        
+        cacheRef.current.set(cacheKey, healthData);
+        
+        // Update state
         setBloodPressureData(bloodPressureDataResult);
         setStressApiData(stressDataResult);
         setHrvApiData(hrvDataResult);
       } catch (error) {
         console.error('Error fetching health data:', error);
       }
-    };
+    }, 300); // 300ms debounce
+  }, [selectedUserId, selectedPeriod]);
+
+  useEffect(() => {
     fetchHealthData();
-  }, [selectedUserId]);
+  }, [fetchHealthData]);
 
   // Sample data for different metrics
 

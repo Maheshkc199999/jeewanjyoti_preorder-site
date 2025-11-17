@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LineChart, Line, AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Heart, TrendingUp, AlertCircle, RefreshCw, Activity, Clock, Zap } from 'lucide-react';
 import { getHeartRateData } from '../lib/api';
@@ -8,49 +8,72 @@ const HeartRateDataComponent = ({ darkMode, onHeartRateDataUpdate, selectedUserI
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  
+  // Cache and debouncing refs
+  const cacheRef = useRef(new Map());
+  const debounceRef = useRef(null);
+  const lastUserIdRef = useRef(null);
 
-  // Fetch Heart Rate data from API
-  const fetchHeartRateData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Calculate date range for last 24 hours
-      const now = new Date();
-      const startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
-      const endDate = now;
-      
-      // Format dates for API (ISO format)
-      const startDateStr = startDate.toISOString();
-      const endDateStr = endDate.toISOString();
-      
-      console.log('Fetching heart rate data from last 24 hours:', { startDate: startDateStr, endDate: endDateStr });
-      
-      const data = await getHeartRateData(selectedUserId, startDateStr, endDateStr);
-      
-      if (data && data.length > 0) {
-        // Sort by date and take all data from the last 24 hours
-        const sortedData = data
-          .sort((a, b) => new Date(a.date) - new Date(b.date));
-        
-        setHeartRateData(sortedData);
-        onHeartRateDataUpdate(sortedData);
-      } else {
-        setHeartRateData([]);
-        onHeartRateDataUpdate([]);
-      }
-    } catch (error) {
-      console.error('Error fetching heart rate data:', error);
-      // Don't set error for empty data - only for actual fetch failures
-      if (error.message && !error.message.includes('404')) {
-        setError('Failed to fetch heart rate data');
-      }
-      setHeartRateData([]);
-      onHeartRateDataUpdate([]);
-    } finally {
-      setLoading(false);
+  // Fetch Heart Rate data from API with caching and debouncing
+  const fetchHeartRateData = useCallback(async () => {
+    // Clear previous debounce timeout
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
     }
-  };
+
+    // Debounce the fetch to prevent rapid API calls
+    debounceRef.current = setTimeout(async () => {
+      try {
+        // Check cache first
+        const cacheKey = `${selectedUserId || 'null'}-${new Date().toDateString()}`;
+        if (cacheRef.current.has(cacheKey)) {
+          const cachedData = cacheRef.current.get(cacheKey);
+          setHeartRateData(cachedData);
+          onHeartRateDataUpdate(cachedData);
+          setLoading(false);
+          return;
+        }
+
+        setLoading(true);
+        setError(null);
+        
+        // Calculate date range for last 24 hours
+        const now = new Date();
+        const startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+        const endDate = now;
+        
+        const startDateStr = startDate.toISOString();
+        const endDateStr = endDate.toISOString();
+        
+        console.log('Fetching heart rate data from last 24 hours:', { startDate: startDateStr, endDate: endDateStr });
+        
+        const data = await getHeartRateData(selectedUserId, startDateStr, endDateStr);
+        
+        if (data && data.length > 0) {
+          // Sort by date and take all data from the last 24 hours
+          const sortedData = data
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+          
+          // Cache the results
+          cacheRef.current.set(cacheKey, sortedData);
+          
+          setHeartRateData(sortedData);
+          onHeartRateDataUpdate(sortedData);
+        } else {
+          setHeartRateData([]);
+          onHeartRateDataUpdate([]);
+        }
+      } catch (error) {
+        console.error('Error fetching heart rate data:', error);
+        // Don't set error for empty data - only for actual fetch failures
+        if (error.message && !error.message.includes('404')) {
+          setError('Failed to load heart rate data');
+        }
+      } finally {
+        setLoading(false);
+      }
+    }, 300); // 300ms debounce
+  }, [selectedUserId, onHeartRateDataUpdate]);
 
   useEffect(() => {
     fetchHeartRateData();

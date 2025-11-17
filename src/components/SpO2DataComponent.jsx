@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Droplets, TrendingUp, AlertCircle, RefreshCw, Activity, Clock } from 'lucide-react';
 import { getSpO2Data } from '../lib/api';
@@ -8,41 +8,68 @@ const SpO2DataComponent = ({ darkMode, onSpO2DataUpdate, selectedUserId }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  
+  // Cache and debouncing refs
+  const cacheRef = useRef(new Map());
+  const debounceRef = useRef(null);
 
-  // Fetch SpO2 data from API
-  const fetchSpO2Data = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Calculate date range for last 24 hours
-      const now = new Date();
-      const startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
-      const endDate = now;
-      
-      // Format dates for API (ISO format)
-      const startDateStr = startDate.toISOString();
-      const endDateStr = endDate.toISOString();
-      
-      console.log('Fetching SpO2 data from last 24 hours:', { startDate: startDateStr, endDate: endDateStr });
-      
-      const data = await getSpO2Data(selectedUserId, startDateStr, endDateStr);
-      setSpO2Data(data);
-      
-      // Notify parent component about SpO2 data update
-      if (onSpO2DataUpdate) {
-        onSpO2DataUpdate(data);
-      }
-    } catch (err) {
-      console.error('Error fetching SpO2 data:', err);
-      // Don't set error for empty data - only for actual fetch failures
-      if (err.message && !err.message.includes('404')) {
-        setError('Failed to load SpO2 data');
-      }
-    } finally {
-      setLoading(false);
+  // Fetch SpO2 data from API with caching and debouncing
+  const fetchSpO2Data = useCallback(async () => {
+    // Clear previous debounce timeout
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
     }
-  };
+
+    // Debounce the fetch to prevent rapid API calls
+    debounceRef.current = setTimeout(async () => {
+      try {
+        // Check cache first
+        const cacheKey = `${selectedUserId || 'null'}-${new Date().toDateString()}`;
+        if (cacheRef.current.has(cacheKey)) {
+          const cachedData = cacheRef.current.get(cacheKey);
+          setSpO2Data(cachedData);
+          if (onSpO2DataUpdate) {
+            onSpO2DataUpdate(cachedData);
+          }
+          setLoading(false);
+          return;
+        }
+
+        setLoading(true);
+        setError(null);
+        
+        // Calculate date range for last 24 hours
+        const now = new Date();
+        const startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+        const endDate = now;
+        
+        const startDateStr = startDate.toISOString();
+        const endDateStr = endDate.toISOString();
+        
+        console.log('Fetching SpO2 data from last 24 hours:', { startDate: startDateStr, endDate: endDateStr });
+        
+        const data = await getSpO2Data(selectedUserId, startDateStr, endDateStr);
+        
+        // Cache the results
+        cacheRef.current.set(cacheKey, data);
+        
+        setSpO2Data(data);
+        
+        // Notify parent component about SpO2 data update
+        if (onSpO2DataUpdate) {
+          onSpO2DataUpdate(data);
+        }
+      } catch (err) {
+        console.error('Error fetching SpO2 data:', err);
+        // Don't set error for empty data - only for actual fetch failures
+        if (err.message && !err.message.includes('404')) {
+          setError('Failed to load SpO2 data');
+        }
+      } finally {
+        setLoading(false);
+      }
+    }, 300); // 300ms debounce
+  }, [selectedUserId, onSpO2DataUpdate]);
 
   useEffect(() => {
     fetchSpO2Data();

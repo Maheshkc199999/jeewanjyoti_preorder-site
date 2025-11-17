@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Moon, Clock, TrendingUp, Eye, EyeOff, Activity, Zap, Brain, Calendar, AlertCircle, RefreshCw } from 'lucide-react';
 import { getSleepData } from '../lib/api';
@@ -9,46 +9,68 @@ const SleepDataComponent = ({ darkMode, onSleepDataUpdate, selectedUserId }) => 
   const [error, setError] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  
+  // Cache and debouncing refs
+  const cacheRef = useRef(new Map());
+  const debounceRef = useRef(null);
 
-  // Fetch sleep data from API
-  const fetchSleepData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Calculate date range for last 24 hours
-      const now = new Date();
-      const startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
-      const endDate = now;
-      
-      // Format dates for API (ISO format)
-      const startDateStr = startDate.toISOString();
-      const endDateStr = endDate.toISOString();
-      
-      console.log('Fetching sleep data from last 24 hours:', { startDate: startDateStr, endDate: endDateStr });
-      
-      const data = await getSleepData(selectedUserId, startDateStr, endDateStr);
-      setSleepData(data);
-      
-      // Set the most recent date as selected by default
-      if (data && data.length > 0) {
-        setSelectedDate(data[0]);
-      }
-      
-      // Notify parent component about sleep data update
-      if (onSleepDataUpdate) {
-        onSleepDataUpdate(data);
-      }
-    } catch (err) {
-      console.error('Error fetching sleep data:', err);
-      // Don't set error for empty data - only for actual fetch failures
-      if (err.message && !err.message.includes('404')) {
-        setError('Failed to load sleep data');
-      }
-    } finally {
-      setLoading(false);
+  // Fetch sleep data from API with caching and debouncing
+  const fetchSleepData = useCallback(async () => {
+    // Clear previous debounce timeout
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
     }
-  };
+
+    // Debounce the fetch to prevent rapid API calls
+    debounceRef.current = setTimeout(async () => {
+      try {
+        // Check cache first
+        const cacheKey = `${selectedUserId || 'null'}-${new Date().toDateString()}`;
+        if (cacheRef.current.has(cacheKey)) {
+          const cachedData = cacheRef.current.get(cacheKey);
+          setSleepData(cachedData);
+          if (onSleepDataUpdate) {
+            onSleepDataUpdate(cachedData);
+          }
+          setLoading(false);
+          return;
+        }
+
+        setLoading(true);
+        setError(null);
+        
+        // Calculate date range for last 24 hours
+        const now = new Date();
+        const startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+        const endDate = now;
+        
+        const startDateStr = startDate.toISOString();
+        const endDateStr = endDate.toISOString();
+        
+        console.log('Fetching sleep data from last 24 hours:', { startDate: startDateStr, endDate: endDateStr });
+        
+        const data = await getSleepData(selectedUserId, startDateStr, endDateStr);
+        
+        // Cache the results
+        cacheRef.current.set(cacheKey, data);
+        
+        setSleepData(data);
+        
+        // Notify parent component about sleep data update
+        if (onSleepDataUpdate) {
+          onSleepDataUpdate(data);
+        }
+      } catch (err) {
+        console.error('Error fetching sleep data:', err);
+        // Don't set error for empty data - only for actual fetch failures
+        if (err.message && !err.message.includes('404')) {
+          setError('Failed to load sleep data');
+        }
+      } finally {
+        setLoading(false);
+      }
+    }, 300); // 300ms debounce
+  }, [selectedUserId, onSleepDataUpdate]);
 
   useEffect(() => {
     fetchSleepData();

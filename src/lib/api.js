@@ -1,4 +1,4 @@
-import { authenticatedFetch, getAuthHeaders, refreshAccessToken, clearTokens } from './tokenManager'
+import { authenticatedFetch, getAuthHeaders, refreshAccessToken, clearTokens, getUserData } from './tokenManager'
 
 export const API_BASE_URL = 'https://jeewanjyoti-backend.smart.org.np'
 
@@ -216,16 +216,23 @@ export async function getDoctorList() {
  * @param {string} userId - Optional user ID
  * @param {string} startDate - Optional start date filter (ISO string)
  * @param {string} endDate - Optional end date filter (ISO string)
+ * @param {string} range - Optional range filter (24h, 7d, 30d)
  * @returns {Promise<Array>} List of sleep data records
  */
-export async function getSleepData(userId = null, startDate = null, endDate = null) {
-  let url = userId ? `/api/sleep-data/?user_id=${userId}` : '/api/sleep-data/'
+export async function getSleepData(userId = null, startDate = null, endDate = null, range = null) {
+  let url = userId ? `/api/sleep-data/?user_id=${userId}` : '/api/sleep-data/?'
   
-  // Add date range filters if provided
-  if (startDate) {
-    url += `&start_date=${startDate}`
+  // Add range filter if provided
+  if (range) {
+    url += `&range=${range}`
   }
-  if (endDate) {
+  // Add date range filters if provided (fallback if range not used)
+  else if (startDate) {
+    url += `&start_date=${startDate}`
+    if (endDate) {
+      url += `&end_date=${endDate}`
+    }
+  } else if (endDate) {
     url += `&end_date=${endDate}`
   }
   
@@ -243,16 +250,23 @@ export async function getSleepData(userId = null, startDate = null, endDate = nu
  * @param {string} userId - Optional user ID
  * @param {string} startDate - Optional start date filter (ISO string)
  * @param {string} endDate - Optional end date filter (ISO string)
+ * @param {string} range - Optional range filter (24h, 7d, 30d)
  * @returns {Promise<Array>} List of SpO2 data records
  */
-export async function getSpO2Data(userId = null, startDate = null, endDate = null) {
-  let url = userId ? `/api/Spo2-data/?user_id=${userId}` : '/api/Spo2-data/'
+export async function getSpO2Data(userId = null, startDate = null, endDate = null, range = null) {
+  let url = userId ? `/api/Spo2-data/?user_id=${userId}` : '/api/Spo2-data/?'
   
-  // Add date range filters if provided
-  if (startDate) {
-    url += `&start_date=${startDate}`
+  // Add range filter if provided
+  if (range) {
+    url += `&range=${range}`
   }
-  if (endDate) {
+  // Add date range filters if provided (fallback if range not used)
+  else if (startDate) {
+    url += `&start_date=${startDate}`
+    if (endDate) {
+      url += `&end_date=${endDate}`
+    }
+  } else if (endDate) {
     url += `&end_date=${endDate}`
   }
   
@@ -270,16 +284,23 @@ export async function getSpO2Data(userId = null, startDate = null, endDate = nul
  * @param {string} userId - Optional user ID
  * @param {string} startDate - Optional start date filter (ISO string)
  * @param {string} endDate - Optional end date filter (ISO string)
+ * @param {string} range - Optional range filter (24h, 7d, 30d)
  * @returns {Promise<Array>} List of Heart Rate data records
  */
-export async function getHeartRateData(userId = null, startDate = null, endDate = null) {
-  let url = userId ? `/api/HeartRate_Data/?user_id=${userId}` : '/api/HeartRate_Data/'
+export async function getHeartRateData(userId = null, startDate = null, endDate = null, range = null) {
+  let url = userId ? `/api/HeartRate_Data/?user_id=${userId}` : '/api/HeartRate_Data/?'
   
-  // Add date range filters if provided
-  if (startDate) {
-    url += `&start_date=${startDate}`
+  // Add range filter if provided
+  if (range) {
+    url += `&range=${range}`
   }
-  if (endDate) {
+  // Add date range filters if provided (fallback if range not used)
+  else if (startDate) {
+    url += `&start_date=${startDate}`
+    if (endDate) {
+      url += `&end_date=${endDate}`
+    }
+  } else if (endDate) {
     url += `&end_date=${endDate}`
   }
   
@@ -297,16 +318,23 @@ export async function getHeartRateData(userId = null, startDate = null, endDate 
  * @param {string} userId - Optional user ID
  * @param {string} startDate - Optional start date filter (ISO string)
  * @param {string} endDate - Optional end date filter (ISO string)
+ * @param {string} range - Optional range filter (24h, 7d, 30d)
  * @returns {Promise<Array>} List of Blood Pressure data records
  */
-export async function getBloodPressureData(userId = null, startDate = null, endDate = null) {
-  let url = userId ? `/api/BloodPressure_Data/?user_id=${userId}` : '/api/BloodPressure_Data/'
+export async function getBloodPressureData(userId = null, startDate = null, endDate = null, range = null) {
+  let url = userId ? `/api/BloodPressure_Data/?user_id=${userId}` : '/api/BloodPressure_Data/?'
   
-  // Add date range filters if provided
-  if (startDate) {
-    url += `&start_date=${startDate}`
+  // Add range filter if provided
+  if (range) {
+    url += `&range=${range}`
   }
-  if (endDate) {
+  // Add date range filters if provided (fallback if range not used)
+  else if (startDate) {
+    url += `&start_date=${startDate}`
+    if (endDate) {
+      url += `&end_date=${endDate}`
+    }
+  } else if (endDate) {
     url += `&end_date=${endDate}`
   }
   
@@ -324,16 +352,23 @@ export async function getBloodPressureData(userId = null, startDate = null, endD
  * @param {string} userId - Optional user ID
  * @param {string} startDate - Optional start date filter (ISO string)
  * @param {string} endDate - Optional end date filter (ISO string)
+ * @param {string} range - Optional range filter (24h, 7d, 30d)
  * @returns {Promise<Array>} List of Stress data records
  */
-export async function getStressData(userId = null, startDate = null, endDate = null) {
-  let url = userId ? `/api/Stress_Data/?user_id=${userId}` : '/api/Stress_Data/'
+export async function getStressData(userId = null, startDate = null, endDate = null, range = null) {
+  let url = userId ? `/api/Stress_Data/?user_id=${userId}` : '/api/Stress_Data/?'
   
-  // Add date range filters if provided
-  if (startDate) {
-    url += `&start_date=${startDate}`
+  // Add range filter if provided
+  if (range) {
+    url += `&range=${range}`
   }
-  if (endDate) {
+  // Add date range filters if provided (fallback if range not used)
+  else if (startDate) {
+    url += `&start_date=${startDate}`
+    if (endDate) {
+      url += `&end_date=${endDate}`
+    }
+  } else if (endDate) {
     url += `&end_date=${endDate}`
   }
   
@@ -351,16 +386,23 @@ export async function getStressData(userId = null, startDate = null, endDate = n
  * @param {string} userId - Optional user ID
  * @param {string} startDate - Optional start date filter (ISO string)
  * @param {string} endDate - Optional end date filter (ISO string)
+ * @param {string} range - Optional range filter (24h, 7d, 30d)
  * @returns {Promise<Array>} List of HRV data records
  */
-export async function getHRVData(userId = null, startDate = null, endDate = null) {
-  let url = userId ? `/api/HRV_Iso_Data/?user_id=${userId}` : '/api/HRV_Iso_Data/'
+export async function getHRVData(userId = null, startDate = null, endDate = null, range = null) {
+  let url = userId ? `/api/HRV_Iso_Data/?user_id=${userId}` : '/api/HRV_Iso_Data/?'
   
-  // Add date range filters if provided
-  if (startDate) {
-    url += `&start_date=${startDate}`
+  // Add range filter if provided
+  if (range) {
+    url += `&range=${range}`
   }
-  if (endDate) {
+  // Add date range filters if provided (fallback if range not used)
+  else if (startDate) {
+    url += `&start_date=${startDate}`
+    if (endDate) {
+      url += `&end_date=${endDate}`
+    }
+  } else if (endDate) {
     url += `&end_date=${endDate}`
   }
   
