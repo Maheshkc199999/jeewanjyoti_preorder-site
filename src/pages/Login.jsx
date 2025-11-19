@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider, getFcmToken } from '../lib/firebase'
 import { storeTokens, getAccessToken } from '../lib/tokenManager'
-import { apiRequest, API_BASE_URL } from '../lib/api'
+import { apiRequest, API_BASE_URL, getUserEmailProfile } from '../lib/api'
 
 // Memoize the InputField component to prevent unnecessary re-renders
 const InputField = memo(({ icon: Icon, label, error, children, required = false }) => (
@@ -37,6 +37,72 @@ function Login() {
   const [errors, setErrors] = useState({})
   const [loginType, setLoginType] = useState('individual')
   const navigate = useNavigate()
+
+  // Handle profile verification after login
+  const handleProfileVerification = async () => {
+    try {
+      console.log('🔍 Checking user profile after login...')
+      const profileData = await getUserEmailProfile()
+      console.log('📋 Profile data received:', profileData)
+      
+      // Extract and save role information
+      if (profileData.role) {
+        console.log('👤 User role detected:', profileData.role)
+        console.log('👤 Profile data full object:', profileData)
+        // Update stored user data with role
+        const currentUserData = JSON.parse(localStorage.getItem('user_data') || '{}')
+        const updatedUserData = { ...currentUserData, role: profileData.role }
+        console.log('👤 Before update - localStorage user_data:', currentUserData)
+        console.log('👤 After update - new user_data:', updatedUserData)
+        localStorage.setItem('user_data', JSON.stringify(updatedUserData))
+        console.log('✅ Role saved to user data')
+      } else {
+        console.log('⚠️ No role found in profile data!')
+        console.log('⚠️ Profile data keys:', Object.keys(profileData))
+      }
+      
+      // Check for missing required fields
+      const requiredFields = ['first_name', 'last_name', 'birthdate', 'gender', 'height', 'weight', 'blood_group']
+      
+      console.log('🔍 Required fields check:')
+      console.log('- Required fields:', requiredFields)
+      
+      // Log each field's actual value
+      requiredFields.forEach(field => {
+        console.log(`- ${field}: "${profileData[field]}" (type: ${typeof profileData[field]})`)
+      })
+      
+      const missingFields = requiredFields.filter(field => {
+        const value = profileData[field]
+        const isMissing = !value || value === '' || value === '0.00' || value === null || value === undefined
+        console.log(`- ${field} is missing: ${isMissing}`)
+        return isMissing
+      })
+      
+      if (missingFields.length > 0) {
+        console.log(`⚠️ Profile incomplete: ${missingFields.length} fields missing`)
+        localStorage.setItem('show_profile_form_on_dashboard', 'true')
+        localStorage.removeItem('profile_form_skipped')
+      } else {
+        console.log('✅ Profile complete')
+        localStorage.removeItem('show_profile_form_on_dashboard')
+        localStorage.removeItem('profile_form_skipped')
+      }
+    } catch (error) {
+      console.error('❌ Error verifying profile:', error)
+      // If API call fails, fallback to checking stored user data
+      const userData = JSON.parse(localStorage.getItem('user_data') || '{}')
+      if (userData) {
+        const requiredFields = ['first_name', 'last_name', 'birthdate', 'gender', 'height', 'weight', 'blood_group']
+        const missingFields = requiredFields.filter(field => !userData[field] || userData[field] === '' || userData[field] === '0.00')
+        
+        if (missingFields.length > 3) {
+          localStorage.setItem('show_profile_form_on_dashboard', 'true')
+          localStorage.removeItem('profile_form_skipped')
+        }
+      }
+    }
+  }
 
   // Ask notification permission post-login and fetch FCM token if granted
   const handleNotificationsAfterLogin = useCallback(async () => {
@@ -442,6 +508,8 @@ function Login() {
       
       const data = await response.json()
       console.log('Google login successful:', data)
+      console.log('Google login - user data:', data.user)
+      console.log('Google login - user role:', data.user?.role)
       
       // Store tokens and user data
       storeTokens(data.access, data.refresh, data.user)
@@ -513,6 +581,8 @@ function Login() {
       
       const data = await response.json()
       console.log('Login successful:', data)
+      console.log('Login - user data:', data.user)
+      console.log('Login - user role:', data.user?.role)
       
       // Store tokens and user data
       storeTokens(data.access, data.refresh, data.user)

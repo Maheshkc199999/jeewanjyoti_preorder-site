@@ -7,7 +7,7 @@ import logo from '../assets/logo.png'
 import { storeTokens } from '../lib/tokenManager'
 import { signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider } from '../lib/firebase'
-import { API_BASE_URL } from '../lib/api'
+import { API_BASE_URL, getUserEmailProfile } from '../lib/api'
 
 // Custom CSS for range sliders
 const sliderStyles = `
@@ -47,6 +47,58 @@ const api = axios.create({
 function Register() {
   const { register, handleSubmit, watch, formState: { errors } } = useForm()
   const navigate = useNavigate()
+
+  // Handle profile verification after login
+  const handleProfileVerification = async () => {
+    try {
+      console.log('🔍 Checking user profile after registration...')
+      const profileData = await getUserEmailProfile()
+      console.log('📋 Profile data received:', profileData)
+      
+      // Extract and save role information
+      if (profileData.role) {
+        console.log('👤 User role detected:', profileData.role)
+        // Update stored user data with role
+        const currentUserData = JSON.parse(localStorage.getItem('user_data') || '{}')
+        const updatedUserData = { ...currentUserData, role: profileData.role }
+        localStorage.setItem('user_data', JSON.stringify(updatedUserData))
+        console.log('✅ Role saved to user data')
+      }
+      
+      // Check for missing required fields
+      const requiredFields = ['first_name', 'last_name', 'birthdate', 'gender', 'height', 'weight', 'blood_group']
+      const missingFields = requiredFields.filter(field => !profileData[field] || profileData[field] === '' || profileData[field] === '0.00')
+      
+      console.log('🔍 Required fields check:')
+      console.log('- Required fields:', requiredFields)
+      console.log('- Missing fields:', missingFields)
+      
+      if (missingFields.length > 0) {
+        console.log(`⚠️ Profile incomplete: ${missingFields.length} fields missing`)
+        localStorage.setItem('show_profile_form_on_dashboard', 'true')
+        localStorage.removeItem('profile_form_skipped')
+      } else {
+        console.log('✅ Profile complete')
+        localStorage.removeItem('show_profile_form_on_dashboard')
+        localStorage.removeItem('profile_form_skipped')
+      }
+    } catch (error) {
+      console.error('❌ Error verifying profile:', error)
+      // If API call fails, fallback to checking stored user data
+      const userData = JSON.parse(localStorage.getItem('user_data') || '{}')
+      if (userData) {
+        const requiredFields = ['first_name', 'last_name', 'birthdate', 'gender', 'height', 'weight', 'blood_group']
+        const missingFields = requiredFields.filter(field => !userData[field] || userData[field] === '' || userData[field] === '0.00')
+        
+        if (missingFields.length > 3) {
+          localStorage.setItem('show_profile_form_on_dashboard', 'true')
+          localStorage.removeItem('profile_form_skipped')
+        }
+      }
+    }
+  }
+
+
   const [type, setType] = useState('individual')
   const [role, setRole] = useState('USER')
   const [isLoading, setIsLoading] = useState(false)

@@ -26,6 +26,9 @@ const AppointmentsTab = ({ darkMode }) => {
 
   // Check if current user is a doctor
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+  console.log('Appointments - userData from localStorage:', userData);
+  console.log('Appointments - userData.role:', userData.role);
+  console.log('Appointments - isDoctor check:', userData.role === 'DOCTOR');
   const isDoctor = userData.role === 'DOCTOR';
 
   // API base URL - use environment variable or fallback to the API_BASE_URL from api.js

@@ -86,11 +86,22 @@ const Dashboard = () => {
         // If we have user data, check for missing profile fields
         if (userData) {
           const requiredFields = ['first_name', 'last_name', 'birthdate', 'gender', 'height', 'weight', 'blood_group'];
-          const missingFields = requiredFields.filter(field => !userData[field] || userData[field] === '');
           
-          // If more than half the fields are missing, show the form
-          // This helps catch Google login users who might not have filled their profile
-          if (missingFields.length > 3) {
+          console.log('🔍 Dashboard checking profile completion with stored user data:')
+          console.log('- User data:', userData)
+          
+          const missingFields = requiredFields.filter(field => {
+            const value = userData[field]
+            const isMissing = !value || value === '' || value === '0.00' || value === null || value === undefined
+            console.log(`- ${field}: "${value}" (type: ${typeof value}) - missing: ${isMissing}`)
+            return isMissing
+          });
+          
+          console.log(`- Missing fields count: ${missingFields.length}/7`)
+          console.log(`- Should show form flag: ${shouldShowForm}`)
+          
+          // If ANY fields are missing, show the form
+          if (missingFields.length > 0) {
             // If flag is set from login/register, always show the form (ignore skip)
             if (shouldShowForm === 'true') {
               setShowProfileForm(true);
@@ -117,9 +128,12 @@ const Dashboard = () => {
           try {
             const profileData = await getUserEmailProfile();
             const requiredFields = ['first_name', 'last_name', 'birthdate', 'gender', 'height', 'weight', 'blood_group'];
-            const missingFields = requiredFields.filter(field => !profileData[field] || profileData[field] === '');
+            const missingFields = requiredFields.filter(field => {
+              const value = profileData[field]
+              return !value || value === '' || value === '0.00' || value === null || value === undefined
+            });
             
-            if (missingFields.length > 3) {
+            if (missingFields.length > 0) {
               // If flag is set from login/register, always show the form (ignore skip)
               if (shouldShowForm === 'true') {
                 setShowProfileForm(true);
