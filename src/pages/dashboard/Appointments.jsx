@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, Video, Phone, MapPin, X, Search, Star, GraduationCap, Building, Mail, User, CreditCard } from 'lucide-react';
-import { getDoctorList, API_BASE_URL } from '../../lib/api';
+import { getDoctorList, API_BASE_URL, getUserEmailProfile } from '../../lib/api';
 
 const AppointmentsTab = ({ darkMode }) => {
   console.log('AppointmentsTab component rendering...', { darkMode });
@@ -16,6 +16,8 @@ const AppointmentsTab = ({ darkMode }) => {
   const [loading, setLoading] = useState(false);
   const [loadingAppointments, setLoadingAppointments] = useState(true);
   const [error, setError] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [loadingRole, setLoadingRole] = useState(true);
   const [bookingData, setBookingData] = useState({
     appointment_date: '',
     appointment_time: '',
@@ -24,12 +26,13 @@ const AppointmentsTab = ({ darkMode }) => {
     user_report: null
   });
 
-  // Check if current user is a doctor
-  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
-  console.log('Appointments - userData from localStorage:', userData);
-  console.log('Appointments - userData.role:', userData.role);
-  console.log('Appointments - isDoctor check:', userData.role === 'DOCTOR');
-  const isDoctor = userData.role === 'DOCTOR';
+  // Determine if current user is a doctor based on role from API
+  // Role is normalized to uppercase in state, so check uppercase variants
+  const isDoctor = userRole && (
+    userRole === 'DOCTOR' || 
+    userRole === 'DR' ||
+    userRole === 'DR.'
+  );
 
   // API base URL - use environment variable or fallback to the API_BASE_URL from api.js
   // In dev mode, use proxy '/api', in production use the full API URL
@@ -43,6 +46,70 @@ const AppointmentsTab = ({ darkMode }) => {
     return base.includes('/api') ? base : `${base}/api`;
   };
   const API_BASE = getApiBase();
+
+  // Fetch user role from API on component mount
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        setLoadingRole(true);
+        console.log('Fetching user role from API...');
+        const profileData = await getUserEmailProfile();
+        console.log('User profile data received:', profileData);
+        console.log('Profile data keys:', profileData ? Object.keys(profileData) : 'No data');
+        
+        // Check for role in different possible locations
+        let role = null;
+        if (profileData) {
+          // Check direct role field
+          if (profileData.role) {
+            role = profileData.role;
+          }
+          // Check if role is nested in user object
+          else if (profileData.user && profileData.user.role) {
+            role = profileData.user.role;
+          }
+          // Check if it's in a nested data structure
+          else if (profileData.data && profileData.data.role) {
+            role = profileData.data.role;
+          }
+        }
+        
+        if (role) {
+          const normalizedRole = typeof role === 'string' ? role.toUpperCase().trim() : String(role).toUpperCase().trim();
+          setUserRole(normalizedRole);
+          console.log('User role set to:', normalizedRole);
+          console.log('Is doctor:', normalizedRole === 'DOCTOR');
+          
+          // Update localStorage for consistency (but API is the source of truth)
+          const currentUserData = JSON.parse(localStorage.getItem('user_data') || '{}');
+          const updatedUserData = { ...currentUserData, role: role };
+          localStorage.setItem('user_data', JSON.stringify(updatedUserData));
+          console.log('Role saved to localStorage:', role);
+        } else {
+          console.warn('No role found in profile data. Available keys:', profileData ? Object.keys(profileData) : 'No profile data');
+          console.warn('Profile data full object:', profileData);
+          setUserRole(null);
+        }
+      } catch (err) {
+        console.error('Error fetching user role:', err);
+        console.error('Error details:', err.message, err.stack);
+        // Fallback to localStorage if API fails
+        const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+        if (userData && userData.role) {
+          const fallbackRole = typeof userData.role === 'string' ? userData.role.toUpperCase().trim() : String(userData.role).toUpperCase().trim();
+          setUserRole(fallbackRole);
+          console.log('Using role from localStorage as fallback:', fallbackRole);
+        } else {
+          console.warn('No role found in localStorage either');
+          setUserRole(null);
+        }
+      } finally {
+        setLoadingRole(false);
+      }
+    };
+
+    fetchUserRole();
+  }, []);
 
   // Fetch appointments on component mount
   useEffect(() => {
