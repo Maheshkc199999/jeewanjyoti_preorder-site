@@ -396,7 +396,7 @@ const Dashboard = () => {
         : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
     }`}>
       {/* Navigation */}
-      <nav className={`shadow-lg border-b sticky top-0 z-10 ${
+      <nav className={`shadow-lg border-b z-10 ${
         darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-100'
       } ${isChatRoomOpen ? 'md:block hidden' : ''}`}>
         <div className="max-w-7xl mx-auto px-3 md:px-4">

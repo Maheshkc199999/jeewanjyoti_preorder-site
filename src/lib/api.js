@@ -222,7 +222,7 @@ export async function getDoctorList() {
 export async function getSleepData(userId = null, startDate = null, endDate = null, range = null) {
   let url = userId ? `/api/sleep-data/?user_id=${userId}` : '/api/sleep-data/?'
   
-  // Add range filter if provided
+  // Add range filter if provided (prefer range over date filters)
   if (range) {
     url += `&range=${range}`
   }
@@ -234,15 +234,12 @@ export async function getSleepData(userId = null, startDate = null, endDate = nu
     }
   } else if (endDate) {
     url += `&end_date=${endDate}`
+  } else {
+    // Default to 24h if no filters provided
+    url += `&range=24h`
   }
   
-  const response = await apiRequest(url)
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch sleep data')
-  }
-  
-  return await response.json()
+  return await fetchAllPages(url)
 }
 
 /**
@@ -256,7 +253,7 @@ export async function getSleepData(userId = null, startDate = null, endDate = nu
 export async function getSpO2Data(userId = null, startDate = null, endDate = null, range = null) {
   let url = userId ? `/api/Spo2-data/?user_id=${userId}` : '/api/Spo2-data/?'
   
-  // Add range filter if provided
+  // Add range filter if provided (prefer range over date filters)
   if (range) {
     url += `&range=${range}`
   }
@@ -268,15 +265,88 @@ export async function getSpO2Data(userId = null, startDate = null, endDate = nul
     }
   } else if (endDate) {
     url += `&end_date=${endDate}`
+  } else {
+    // Default to 24h if no filters provided
+    url += `&range=24h`
   }
   
-  const response = await apiRequest(url)
+  return await fetchAllPages(url)
+}
+
+/**
+ * Helper function to fetch all pages from a paginated API response
+ * @param {string} initialUrl - Initial API URL to fetch (relative path like /api/HeartRate_Data/)
+ * @returns {Promise<Array>} Combined results from all pages
+ */
+async function fetchAllPages(initialUrl) {
+  let allResults = [];
+  let currentUrl = initialUrl;
+  let isFirstRequest = true;
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch SpO2 data')
+  while (currentUrl) {
+    // For the first request, ensure page=1 is included if not already present
+    let url = currentUrl;
+    if (isFirstRequest && !currentUrl.includes('page=')) {
+      const hasParams = currentUrl.includes('?');
+      url = hasParams 
+        ? `${currentUrl}&page=1` 
+        : `${currentUrl}?page=1`;
+    }
+    // For subsequent requests, use the URL from data.next which already includes page parameter
+    
+    console.log(`Fetching: ${url}`);
+    
+    const response = await apiRequest(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch data: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Check if response is paginated (has count, next, previous, results)
+    if (data && typeof data === 'object' && 'results' in data && Array.isArray(data.results)) {
+      // Paginated response
+      allResults = allResults.concat(data.results);
+      console.log(`Received ${data.results.length} items (Total: ${allResults.length} / ${data.count || 'unknown'})`);
+      
+      // Check if there's a next page
+      if (data.next) {
+        // Extract relative URL from the next link
+        // Remove the base URL to get just the path
+        let nextRelativeUrl = data.next;
+        if (nextRelativeUrl.startsWith(API_BASE_URL)) {
+          nextRelativeUrl = nextRelativeUrl.replace(API_BASE_URL, '');
+        } else if (nextRelativeUrl.startsWith('http://') || nextRelativeUrl.startsWith('https://')) {
+          // Full URL, extract the path
+          try {
+            const urlObj = new URL(nextRelativeUrl);
+            nextRelativeUrl = urlObj.pathname + urlObj.search;
+          } catch (e) {
+            console.error('Error parsing next URL:', e);
+            currentUrl = null;
+            break;
+          }
+        }
+        currentUrl = nextRelativeUrl;
+        isFirstRequest = false;
+      } else {
+        currentUrl = null;
+      }
+    } else if (Array.isArray(data)) {
+      // Non-paginated response (direct array)
+      allResults = allResults.concat(data);
+      console.log(`Received ${data.length} items (non-paginated)`);
+      currentUrl = null;
+    } else {
+      // Single object response (not paginated)
+      allResults.push(data);
+      currentUrl = null;
+    }
   }
   
-  return await response.json()
+  console.log(`Total items fetched: ${allResults.length}`);
+  return allResults;
 }
 
 /**
@@ -290,7 +360,7 @@ export async function getSpO2Data(userId = null, startDate = null, endDate = nul
 export async function getHeartRateData(userId = null, startDate = null, endDate = null, range = null) {
   let url = userId ? `/api/HeartRate_Data/?user_id=${userId}` : '/api/HeartRate_Data/?'
   
-  // Add range filter if provided
+  // Add range filter if provided (prefer range over date filters)
   if (range) {
     url += `&range=${range}`
   }
@@ -302,15 +372,12 @@ export async function getHeartRateData(userId = null, startDate = null, endDate 
     }
   } else if (endDate) {
     url += `&end_date=${endDate}`
+  } else {
+    // Default to 24h if no filters provided
+    url += `&range=24h`
   }
   
-  const response = await apiRequest(url)
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch Heart Rate data')
-  }
-  
-  return await response.json()
+  return await fetchAllPages(url)
 }
 
 /**
@@ -324,7 +391,7 @@ export async function getHeartRateData(userId = null, startDate = null, endDate 
 export async function getBloodPressureData(userId = null, startDate = null, endDate = null, range = null) {
   let url = userId ? `/api/BloodPressure_Data/?user_id=${userId}` : '/api/BloodPressure_Data/?'
   
-  // Add range filter if provided
+  // Add range filter if provided (prefer range over date filters)
   if (range) {
     url += `&range=${range}`
   }
@@ -338,13 +405,7 @@ export async function getBloodPressureData(userId = null, startDate = null, endD
     url += `&end_date=${endDate}`
   }
   
-  const response = await apiRequest(url)
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch Blood Pressure data')
-  }
-  
-  return await response.json()
+  return await fetchAllPages(url)
 }
 
 /**
@@ -358,7 +419,7 @@ export async function getBloodPressureData(userId = null, startDate = null, endD
 export async function getStressData(userId = null, startDate = null, endDate = null, range = null) {
   let url = userId ? `/api/Stress_Data/?user_id=${userId}` : '/api/Stress_Data/?'
   
-  // Add range filter if provided
+  // Add range filter if provided (prefer range over date filters)
   if (range) {
     url += `&range=${range}`
   }
@@ -370,15 +431,12 @@ export async function getStressData(userId = null, startDate = null, endDate = n
     }
   } else if (endDate) {
     url += `&end_date=${endDate}`
+  } else {
+    // Default to 24h if no filters provided
+    url += `&range=24h`
   }
   
-  const response = await apiRequest(url)
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch Stress data')
-  }
-  
-  return await response.json()
+  return await fetchAllPages(url)
 }
 
 /**
@@ -392,7 +450,7 @@ export async function getStressData(userId = null, startDate = null, endDate = n
 export async function getHRVData(userId = null, startDate = null, endDate = null, range = null) {
   let url = userId ? `/api/HRV_Iso_Data/?user_id=${userId}` : '/api/HRV_Iso_Data/?'
   
-  // Add range filter if provided
+  // Add range filter if provided (prefer range over date filters)
   if (range) {
     url += `&range=${range}`
   }
@@ -406,13 +464,7 @@ export async function getHRVData(userId = null, startDate = null, endDate = null
     url += `&end_date=${endDate}`
   }
   
-  const response = await apiRequest(url)
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch HRV data')
-  }
-  
-  return await response.json()
+  return await fetchAllPages(url)
 }
 
 /**

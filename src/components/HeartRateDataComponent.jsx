@@ -37,17 +37,10 @@ const HeartRateDataComponent = ({ darkMode, onHeartRateDataUpdate, selectedUserI
         setLoading(true);
         setError(null);
         
-        // Calculate date range for last 24 hours
-        const now = new Date();
-        const startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
-        const endDate = now;
+        console.log('Fetching heart rate data from last 24 hours for user:', selectedUserId || 'self');
         
-        const startDateStr = startDate.toISOString();
-        const endDateStr = endDate.toISOString();
-        
-        console.log('Fetching heart rate data from last 24 hours:', { startDate: startDateStr, endDate: endDateStr });
-        
-        const data = await getHeartRateData(selectedUserId, startDateStr, endDateStr);
+        // Use range parameter instead of date filters for better API compatibility
+        const data = await getHeartRateData(selectedUserId, null, null, '24h');
         
         if (data && data.length > 0) {
           // Sort by date and take all data from the last 24 hours

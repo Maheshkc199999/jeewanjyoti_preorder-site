@@ -38,17 +38,10 @@ const SpO2DataComponent = ({ darkMode, onSpO2DataUpdate, selectedUserId }) => {
         setLoading(true);
         setError(null);
         
-        // Calculate date range for last 24 hours
-        const now = new Date();
-        const startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
-        const endDate = now;
+        console.log('Fetching SpO2 data from last 24 hours for user:', selectedUserId || 'self');
         
-        const startDateStr = startDate.toISOString();
-        const endDateStr = endDate.toISOString();
-        
-        console.log('Fetching SpO2 data from last 24 hours:', { startDate: startDateStr, endDate: endDateStr });
-        
-        const data = await getSpO2Data(selectedUserId, startDateStr, endDateStr);
+        // Use range parameter instead of date filters for better API compatibility
+        const data = await getSpO2Data(selectedUserId, null, null, '24h');
         
         // Cache the results
         cacheRef.current.set(cacheKey, data);

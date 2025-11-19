@@ -490,7 +490,7 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
                       hour: '2-digit', 
                       minute: '2-digit',
                       hour12: true 
-                    })} • {getDataTimeRange(bloodPressureData)}
+                    })}
                   </div>
                 )}
                 {(!bloodPressureData || bloodPressureData.length === 0) && (
@@ -564,7 +564,7 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
                       hour: '2-digit', 
                       minute: '2-digit',
                       hour12: true 
-                    })} • {getDataTimeRange(hrvApiData)}
+                    })}
                   </div>
                 )}
                 {(!hrvApiData || hrvApiData.length === 0) && (
