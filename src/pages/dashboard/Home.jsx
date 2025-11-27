@@ -4,12 +4,14 @@ import { Heart, Moon, Activity, Zap, Brain, Gauge, Target, TrendingUp, Clock, Dr
 import SleepDataComponent from '../../components/SleepDataComponent';
 import SpO2DataComponent from '../../components/SpO2DataComponent';
 import HeartRateDataComponent from '../../components/HeartRateDataComponent';
+import StepsDataComponent from '../../components/StepsDataComponent';
 import { getBloodPressureData, getStressData, getHRVData } from '../../lib/api';
 
 const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, selectedUserId }) => {
   const [sleepData, setSleepData] = useState(null);
   const [spo2Data, setSpO2Data] = useState(null);
   const [heartRateData, setHeartRateData] = useState(null);
+  const [stepsData, setStepsData] = useState(null);
   const [bloodPressureData, setBloodPressureData] = useState(null);
   const [stressApiData, setStressApiData] = useState(null);
   const [hrvApiData, setHrvApiData] = useState(null);
@@ -163,16 +165,6 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
 
   // Sample data for different metrics
 
-  const activityData = [
-    { day: 'Mon', steps: 8420, calories: 320 },
-    { day: 'Tue', steps: 12340, calories: 480 },
-    { day: 'Wed', steps: 9850, calories: 380 },
-    { day: 'Thu', steps: 15200, calories: 590 },
-    { day: 'Fri', steps: 11800, calories: 450 },
-    { day: 'Sat', steps: 16500, calories: 640 },
-    { day: 'Sun', steps: 13200, calories: 510 }
-  ];
-
   const bloodOxygenData = [
     { time: '6AM', value: 98 },
     { time: '10AM', value: 97 },
@@ -291,7 +283,12 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs md:text-sm text-green-100">Daily Steps</p>
-              <p className="text-xl md:text-3xl font-bold text-white">12,340</p>
+              <p className="text-xl md:text-3xl font-bold text-white">
+                {stepsData && stepsData.length > 0 
+                  ? stepsData[stepsData.length - 1].detail_minter_step.toLocaleString()
+                  : '12,340'
+                }
+              </p>
             </div>
             <div className="p-3 rounded-full bg-white/20 backdrop-blur-sm">
               <Activity className="w-6 h-6 md:w-8 md:h-8 text-white" />
@@ -344,38 +341,11 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
         />
 
         {/* Activity Tracking */}
-        <MetricCard
-          icon={Activity}
-          title="Weekly Activity"
-          value="12,340"
-          unit="steps today"
-          trend="+15%"
-          color="bg-green-500"
-          chartType="bar"
-        >
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={activityData}>
-              {darkMode ? (
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} vertical={false} />
-              ) : (
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              )}
-              <XAxis 
-                dataKey="day" 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <YAxis 
-                stroke={darkMode ? "#9CA3AF" : "#666"} 
-                axisLine 
-                tickLine 
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="steps" fill="#10b981" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </MetricCard>
+        <StepsDataComponent 
+          darkMode={darkMode} 
+          onStepsDataUpdate={setStepsData}
+          selectedUserId={selectedUserId}
+        />
       </div>
 
       {/* Stress and HRV Row */}

@@ -468,6 +468,37 @@ export async function getHRVData(userId = null, startDate = null, endDate = null
 }
 
 /**
+ * Get Steps data
+ * @param {string} userId - Optional user ID
+ * @param {string} startDate - Optional start date filter (ISO string)
+ * @param {string} endDate - Optional end date filter (ISO string)
+ * @param {string} range - Optional range filter (24h, 7d, 30d)
+ * @returns {Promise<Array>} List of Steps data records
+ */
+export async function getStepsData(userId = null, startDate = null, endDate = null, range = null) {
+  let url = userId ? `/api/Steps/?user_id=${userId}` : '/api/Steps/?'
+  
+  // Add range filter if provided (prefer range over date filters)
+  if (range) {
+    url += `&range=${range}`
+  }
+  // Add date range filters if provided (fallback if range not used)
+  else if (startDate) {
+    url += `&start_date=${startDate}`
+    if (endDate) {
+      url += `&end_date=${endDate}`
+    }
+  } else if (endDate) {
+    url += `&end_date=${endDate}`
+  } else {
+    // Default to 24h if no filters provided
+    url += `&range=24h`
+  }
+  
+  return await fetchAllPages(url)
+}
+
+/**
  * Get user profile data
  * @returns {Promise<object>} User profile data
  */
