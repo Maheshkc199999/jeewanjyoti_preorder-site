@@ -476,26 +476,63 @@ export async function getHRVData(userId = null, startDate = null, endDate = null
  * @returns {Promise<Array>} List of Steps data records
  */
 export async function getStepsData(userId = null, startDate = null, endDate = null, range = null) {
-  let url = userId ? `/api/Steps/?user_id=${userId}` : '/api/Steps/?'
-  
-  // Add range filter if provided (prefer range over date filters)
-  if (range) {
-    url += `&range=${range}`
-  }
-  // Add date range filters if provided (fallback if range not used)
-  else if (startDate) {
-    url += `&start_date=${startDate}`
-    if (endDate) {
-      url += `&end_date=${endDate}`
+  try {
+    let url = '/api/Steps/';
+    const params = new URLSearchParams();
+    
+    if (userId) params.append('user', userId);
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (range) params.append('range', range);
+    
+    if (params.toString()) {
+      url += `?${params.toString()}`;
     }
-  } else if (endDate) {
-    url += `&end_date=${endDate}`
-  } else {
-    // Default to 24h if no filters provided
-    url += `&range=24h`
+    
+    const response = await apiRequest(url);
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      console.error('Error fetching steps data:', error);
+      throw new Error(error.detail || 'Failed to fetch steps data');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error in getStepsData:', error);
+    throw error;
   }
-  
-  return await fetchAllPages(url)
+}
+
+/**
+ * Get daily total activity data
+ * @param {string} userId - Optional user ID
+ * @returns {Promise<object>} Daily activity data
+ */
+export async function getDayTotalActivity(userId = null) {
+  try {
+    let url = '/api/Day_total_activity/';
+    const params = new URLSearchParams();
+    
+    if (userId) params.append('user', userId);
+    
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+    
+    const response = await apiRequest(url);
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      console.error('Error fetching daily activity data:', error);
+      throw new Error(error.detail || 'Failed to fetch daily activity data');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error in getDayTotalActivity:', error);
+    throw error;
+  }
 }
 
 /**

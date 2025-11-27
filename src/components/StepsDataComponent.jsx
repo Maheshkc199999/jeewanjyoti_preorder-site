@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Activity, AlertCircle, RefreshCw } from 'lucide-react';
-import { getStepsData } from '../lib/api';
+import { getDayTotalActivity } from '../lib/api';
 import MultiRingChart from './MultiRingChart';
 
 const StepsDataComponent = ({ darkMode, onStepsDataUpdate, selectedUserId }) => {
-  const [stepsData, setStepsData] = useState([]);
+  const [activityData, setActivityData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -12,8 +12,8 @@ const StepsDataComponent = ({ darkMode, onStepsDataUpdate, selectedUserId }) => 
   const cacheRef = useRef(new Map());
   const debounceRef = useRef(null);
 
-  // Fetch Steps data from API with caching and debouncing
-  const fetchStepsData = useCallback(async () => {
+  // Fetch daily activity data from API with caching and debouncing
+  const fetchActivityData = useCallback(async () => {
     // Clear previous debounce timeout
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -22,11 +22,14 @@ const StepsDataComponent = ({ darkMode, onStepsDataUpdate, selectedUserId }) => 
     // Debounce the fetch to prevent rapid API calls
     debounceRef.current = setTimeout(async () => {
       try {
+        // Create a cache key that includes the current date
+        const today = new Date().toISOString().split('T')[0];
+        const cacheKey = `activity-${selectedUserId || 'default'}-${today}`;
+        
         // Check cache first
-        const cacheKey = `${selectedUserId || 'null'}-${new Date().toDateString()}`;
         if (cacheRef.current.has(cacheKey)) {
           const cachedData = cacheRef.current.get(cacheKey);
-          setStepsData(cachedData);
+          setActivityData(cachedData);
           if (onStepsDataUpdate) {
             onStepsDataUpdate(cachedData);
           }
@@ -37,26 +40,44 @@ const StepsDataComponent = ({ darkMode, onStepsDataUpdate, selectedUserId }) => 
         setLoading(true);
         setError(null);
         
-        console.log('Fetching steps data from last 24 hours for user:', selectedUserId || 'self');
+        console.log('Fetching daily activity data for user:', selectedUserId || 'self');
         
-        // Use range parameter instead of date filters for better API compatibility
-        const data = await getStepsData(selectedUserId, null, null, '24h');
+        // Fetch daily activity data
+        const response = await getDayTotalActivity(selectedUserId);
         
-        // Cache the results
-        cacheRef.current.set(cacheKey, data);
+        if (!response.results || response.results.length === 0) {
+          throw new Error('No activity data available');
+        }
         
-        setStepsData(data);
+        // Get today's date in YYYY-MM-DD format
+        const todayData = response.results
+          .filter(item => item.date === today)
+          .sort((a, b) => {
+            // Sort by timestamp if available, otherwise use the order in the response
+            const timeA = a.timestamp || 0;
+            const timeB = b.timestamp || 0;
+            return new Date(timeB) - new Date(timeA);
+          });
+
+        // Use the most recent data for today, or the most recent data if no today's data exists
+        const latestData = todayData.length > 0 ? todayData[0] : response.results[0];
+
+        if (!latestData) {
+          throw new Error('No valid activity data found');
+        }
         
-        // Notify parent component about steps data update
+        // Cache the results with today's date
+        cacheRef.current.set(cacheKey, latestData);
+        
+        setActivityData(latestData);
+        
+        // Notify parent component about activity data update
         if (onStepsDataUpdate) {
-          onStepsDataUpdate(data);
+          onStepsDataUpdate(latestData);
         }
       } catch (err) {
-        console.error('Error fetching steps data:', err);
-        // Don't set error for empty data - only for actual fetch failures
-        if (err.message && !err.message.includes('404')) {
-          setError('Failed to load steps data');
-        }
+        console.error('Error fetching activity data:', err);
+        setError('Failed to load activity data');
       } finally {
         setLoading(false);
       }
@@ -64,76 +85,79 @@ const StepsDataComponent = ({ darkMode, onStepsDataUpdate, selectedUserId }) => 
   }, [selectedUserId, onStepsDataUpdate]);
 
   useEffect(() => {
-    fetchStepsData();
-  }, [selectedUserId]);
+    fetchActivityData();
+  }, [fetchActivityData]);
 
-  // Transform steps data to chart format
-  const transformStepsDataToChart = (data) => {
-    if (!data || data.length === 0) {
+  // Transform activity data to chart format
+  const transformActivityDataToChart = (data) => {
+    if (!data) {
       // Return default/sample data when no API data is available
       return [
         { 
           id: 1, 
-          percentage: 6, // 600/10000 * 100
-          value: '600',
+          percentage: 61, // 6094/10000 * 100
+          value: '6,094',
           label: 'Steps',
           goal: '10,000 steps'
         },
         { 
           id: 2, 
-          percentage: 7, // 0.357/5 * 100
-          value: '0.36 km',
+          percentage: 75, // 3.75/5 * 100
+          value: '3.75 km',
           label: 'Distance',
           goal: '5 km'
         },
         { 
           id: 3, 
-          percentage: 32, // 159.3/500 * 100
-          value: '159',
+          percentage: 33, // 166.96/500 * 100
+          value: '167',
           label: 'Calories',
           goal: '500 cal'
         },
         { 
           id: 4, 
-          percentage: 42, // 10/24 * 100
-          value: '10 min',
-          label: 'Active Time',
-          goal: '24 min'
+          percentage: 0, // 0/100 * 100
+          value: '0%',
+          label: 'Goal',
+          goal: '100%'
         },
       ];
     }
-
-    // Use the latest data entry
-    const latestData = data[data.length - 1];
+    
+    // Calculate percentages based on goals
+    const stepsPercentage = Math.min(Math.round((data.step / 10000) * 100), 100);
+    const distancePercentage = Math.min(Math.round((data.distance / 5) * 100), 100);
+    const caloriesPercentage = Math.min(Math.round((data.calories / 500) * 100), 100);
+    const goalPercentage = Math.min(Math.round((data.goal || 0)), 100);
     
     return [
       { 
         id: 1, 
-        percentage: Math.min((latestData.detail_minter_step / 10000) * 100, 100),
-        value: latestData.detail_minter_step.toLocaleString(),
+        percentage: stepsPercentage,
+        value: data.step.toLocaleString(),
         label: 'Steps',
         goal: '10,000 steps'
       },
       { 
         id: 2, 
-        percentage: Math.min((latestData.distance / 5) * 100, 100),
-        value: `${latestData.distance.toFixed(2)} km`,
+        percentage: distancePercentage,
+        value: `${data.distance.toFixed(2)} km`,
         label: 'Distance',
         goal: '5 km'
       },
       { 
         id: 3, 
-        percentage: Math.min((latestData.calories / 500) * 100, 100),
-        value: Math.round(latestData.calories),
+        percentage: caloriesPercentage,
+        value: Math.round(data.calories),
         label: 'Calories',
         goal: '500 cal'
       },
       { 
         id: 4, 
-        percentage: Math.min((latestData.array_steps.split(' ').length / 24) * 100, 100),
-        value: `${latestData.array_steps.split(' ').length} min`,
-        label: 'Active Time',
-        goal: '24 min'
+        percentage: goalPercentage,
+        value: `${goalPercentage}%`,
+        label: 'Goal',
+        goal: '100%'
       },
     ];
   };
@@ -167,7 +191,7 @@ const StepsDataComponent = ({ darkMode, onStepsDataUpdate, selectedUserId }) => 
               {error}
             </p>
             <button
-              onClick={fetchStepsData}
+              onClick={fetchActivityData}
               className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
             >
               Retry
@@ -178,7 +202,7 @@ const StepsDataComponent = ({ darkMode, onStepsDataUpdate, selectedUserId }) => 
     );
   }
 
-  const chartData = transformStepsDataToChart(stepsData);
+  const chartData = transformActivityDataToChart(activityData);
 
   return (
     <MultiRingChart data={chartData} darkMode={darkMode} />
