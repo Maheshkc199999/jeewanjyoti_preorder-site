@@ -70,28 +70,37 @@ const SpO2DataComponent = ({ darkMode, onSpO2DataUpdate, selectedUserId }) => {
 
   // Process SpO2 data for visualization
   const processSpO2Data = (data) => {
-    if (!data || data.length === 0) return [];
+  if (!data || data.length === 0) return [];
 
-    // Sort by date and take the most recent 10 readings
-    const sortedData = data
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-      .slice(-10);
+  // Remove duplicates based on date
+  const uniqueData = [];
+  const seenDates = new Set();
+  
+  data.forEach(item => {
+    const dateKey = item.date;
+    if (!seenDates.has(dateKey)) {
+      seenDates.add(dateKey);
+      uniqueData.push(item);
+    }
+  });
 
-    return sortedData.map((item, index) => ({
-      time: new Date(item.date).toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }),
-      value: item.Blood_oxygen,
-      fullTime: new Date(item.date).toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    }));
-  };
+  // Sort by date (show all data, not just last 10)
+  const sortedData = uniqueData.sort((a, b) => new Date(a.date) - new Date(b.date));
 
+  return sortedData.map((item, index) => ({
+    time: new Date(item.date).toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    }),
+    value: item.Blood_oxygen,
+    fullTime: new Date(item.date).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }));
+};
   // Calculate average SpO2
   const calculateAverageSpO2 = (data) => {
     if (!data || data.length === 0) return 0;
