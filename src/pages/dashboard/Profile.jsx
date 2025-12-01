@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { clearTokens, getUserData } from '../../lib/tokenManager';
 import { getSleepData, getSpO2Data, getHeartRateData, getBloodPressureData, getStressData, getHRVData, getUserEmailProfile, updateProfile } from '../../lib/api';
 import UserMapping from './UserMapping';
+import TrailMap from '../../components/TrailMap';
 // Move InputField outside to prevent recreation on every render
 const InputField = React.memo(({ icon: Icon, label, name, type = 'text', required = false, error, value, onChange, min, max, darkMode }) => {
   return (
@@ -21,9 +22,8 @@ const InputField = React.memo(({ icon: Icon, label, name, type = 'text', require
           onChange={onChange}
           min={min}
           max={max}
-          className={`w-full p-4 border rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 backdrop-blur-sm placeholder-gray-400 ${
-            error ? 'border-red-500' : 'border-gray-200'
-          } ${darkMode ? 'bg-gray-700 text-white' : 'bg-white/80'}`}
+          className={`w-full p-4 border rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 backdrop-blur-sm placeholder-gray-400 ${error ? 'border-red-500' : 'border-gray-200'
+            } ${darkMode ? 'bg-gray-700 text-white' : 'bg-white/80'}`}
           placeholder={`Enter ${label.toLowerCase()}`}
         />
       </div>
@@ -53,7 +53,7 @@ const ProfileTab = ({ darkMode }) => {
   const [showUserMappingModal, setShowUserMappingModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const fileInputRef = useRef(null);
-  
+
   // Check if user is admin/superuser
   const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
   const isAdmin = userData.is_superuser || userData.role === 'ADMIN';
@@ -78,9 +78,9 @@ const ProfileTab = ({ darkMode }) => {
   // Calculate sleep score based on data (same as SleepDataComponent)
   const calculateSleepScore = (data) => {
     if (!data) return 0;
-    
+
     let score = 0;
-    
+
     // Duration score (optimal: 7-9 hours)
     const duration = data.duration;
     if (duration >= 7 && duration <= 9) {
@@ -90,7 +90,7 @@ const ProfileTab = ({ darkMode }) => {
     } else {
       score += 10;
     }
-    
+
     // Deep sleep percentage (optimal: 15-20%)
     const deepSleep = data.deep_sleep_percentage;
     if (deepSleep >= 15 && deepSleep <= 20) {
@@ -100,7 +100,7 @@ const ProfileTab = ({ darkMode }) => {
     } else {
       score += 5;
     }
-    
+
     // Light sleep percentage (optimal: 45-55%)
     const lightSleep = data.light_sleep_percentage;
     if (lightSleep >= 45 && lightSleep <= 55) {
@@ -110,7 +110,7 @@ const ProfileTab = ({ darkMode }) => {
     } else {
       score += 5;
     }
-    
+
     // Awake percentage (optimal: <5%)
     const awake = data.awake_percentage;
     if (awake < 5) {
@@ -120,7 +120,7 @@ const ProfileTab = ({ darkMode }) => {
     } else {
       score += 5;
     }
-    
+
     return Math.min(score, 100);
   };
 
@@ -155,10 +155,10 @@ const ProfileTab = ({ darkMode }) => {
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
     setDeleteError(null);
-    
+
     try {
       const token = localStorage.getItem('access_token');
-      
+
       // Prepare request based on user type
       let requestBody = {};
       if (isAdmin) {
@@ -166,7 +166,7 @@ const ProfileTab = ({ darkMode }) => {
         requestBody = { id: userData.id };
       }
       // Regular users: send empty body (will delete their own account)
-      
+
       const response = await fetch('https://jeewanjyoti-backend.smart.org.np/api/delete-account/', {
         method: 'DELETE',
         headers: {
@@ -231,7 +231,7 @@ const ProfileTab = ({ darkMode }) => {
         try {
           const existing = JSON.parse(localStorage.getItem('user_data') || '{}');
           localStorage.setItem('user_data', JSON.stringify({ ...existing, profile_image: newImageUrl }));
-        } catch {}
+        } catch { }
       }
 
       alert('Profile image updated successfully.');
@@ -249,14 +249,14 @@ const ProfileTab = ({ darkMode }) => {
       <div className="flex items-center justify-between mb-6">
         <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Profile</h2>
         <div className="flex items-center gap-2 md:gap-3">
-          <button 
+          <button
             onClick={() => setShowEditModal(true)}
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm md:text-base"
           >
             <Edit3 className="w-4 h-4" />
             <span className="hidden md:inline">Edit Profile</span>
           </button>
-          <button 
+          <button
             onClick={() => setShowUserMappingModal(true)}
             className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm md:text-base"
           >
@@ -269,16 +269,15 @@ const ProfileTab = ({ darkMode }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         {/* Profile Info */}
         <div className="lg:col-span-1">
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
+          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+            }`}>
             <div className="text-center mb-6">
               <div className="relative mx-auto w-16 h-16 md:w-24 md:h-24 mb-4">
                 {userProfile && userProfile.profile_image ? (
                   <button onClick={() => setShowImageModal(true)} className="block">
-                    <img 
-                      src={userProfile.profile_image} 
-                      alt="Profile" 
+                    <img
+                      src={userProfile.profile_image}
+                      alt="Profile"
                       className="w-16 h-16 md:w-24 md:h-24 rounded-full object-cover border-2 border-gray-200"
                     />
                   </button>
@@ -289,11 +288,10 @@ const ProfileTab = ({ darkMode }) => {
                 )}
                 <button
                   onClick={handleProfileImageSelect}
-                  className={`absolute bottom-0 right-0 border-2 rounded-full p-1 md:p-2 ${
-                    darkMode 
-                      ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' 
+                  className={`absolute bottom-0 right-0 border-2 rounded-full p-1 md:p-2 ${darkMode
+                      ? 'bg-gray-700 border-gray-600 hover:bg-gray-600'
                       : 'bg-white border-gray-200 hover:bg-gray-50'
-                  } transition-colors`}
+                    } transition-colors`}
                 >
                   <Camera className="w-3 h-3 md:w-4 md:h-4 text-gray-600" />
                 </button>
@@ -368,14 +366,13 @@ const ProfileTab = ({ darkMode }) => {
         {/* Health Stats & Achievements */}
         <div className="lg:col-span-2 space-y-4 md:space-y-6">
           {/* Health Stats */}
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
+          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+            }`}>
             <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Health Statistics</h3>
             <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
               <div className="text-center">
                 <div className="text-lg md:text-2xl font-bold text-blue-600">
-                  {heartRateData && heartRateData.length > 0 
+                  {heartRateData && heartRateData.length > 0
                     ? heartRateData[heartRateData.length - 1].once_heart_value
                     : '72'
                   }
@@ -384,7 +381,7 @@ const ProfileTab = ({ darkMode }) => {
               </div>
               <div className="text-center">
                 <div className="text-lg md:text-2xl font-bold text-green-600">
-                  {sleepData && sleepData.length > 0 
+                  {sleepData && sleepData.length > 0
                     ? calculateSleepScore(sleepData[0])
                     : '85'
                   }/100
@@ -399,7 +396,7 @@ const ProfileTab = ({ darkMode }) => {
               </div>
               <div className="text-center">
                 <div className="text-lg md:text-2xl font-bold text-orange-600">
-                  {spo2Data && spo2Data.length > 0 
+                  {spo2Data && spo2Data.length > 0
                     ? spo2Data[spo2Data.length - 1].Blood_oxygen
                     : '98'
                   }%
@@ -408,7 +405,7 @@ const ProfileTab = ({ darkMode }) => {
               </div>
               <div className="text-center">
                 <div className="text-lg md:text-2xl font-bold text-red-600">
-                  {bloodPressureData && bloodPressureData.length > 0 
+                  {bloodPressureData && bloodPressureData.length > 0
                     ? `${bloodPressureData[bloodPressureData.length - 1].sbp}/${bloodPressureData[bloodPressureData.length - 1].dbp}`
                     : '120/80'
                   }
@@ -417,7 +414,7 @@ const ProfileTab = ({ darkMode }) => {
               </div>
               <div className="text-center">
                 <div className="text-lg md:text-2xl font-bold text-purple-600">
-                  {stressData && stressData.length > 0 
+                  {stressData && stressData.length > 0
                     ? stressData[stressData.length - 1].stress
                     : '45'
                   }
@@ -426,7 +423,7 @@ const ProfileTab = ({ darkMode }) => {
               </div>
               <div className="text-center">
                 <div className="text-lg md:text-2xl font-bold text-teal-600">
-                  {hrvData && hrvData.length > 0 
+                  {hrvData && hrvData.length > 0
                     ? hrvData[hrvData.length - 1].hrv
                     : '45'
                   }
@@ -437,9 +434,8 @@ const ProfileTab = ({ darkMode }) => {
           </div>
 
           {/* Medical Information */}
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
+          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+            }`}>
             <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Medical Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>
@@ -448,8 +444,8 @@ const ProfileTab = ({ darkMode }) => {
                   <div className="flex justify-between">
                     <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Height:</span>
                     <span className={darkMode ? 'text-gray-300' : 'text-gray-800'}>
-                      {userProfile?.height && userProfile.height !== '0.00' 
-                        ? `${userProfile.height} cm` 
+                      {userProfile?.height && userProfile.height !== '0.00'
+                        ? `${userProfile.height} cm`
                         : 'N/A'
                       }
                     </span>
@@ -457,8 +453,8 @@ const ProfileTab = ({ darkMode }) => {
                   <div className="flex justify-between">
                     <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Weight:</span>
                     <span className={darkMode ? 'text-gray-300' : 'text-gray-800'}>
-                      {userProfile?.weight && userProfile.weight !== '0.00' 
-                        ? `${userProfile.weight} kg` 
+                      {userProfile?.weight && userProfile.weight !== '0.00'
+                        ? `${userProfile.weight} kg`
                         : 'N/A'
                       }
                     </span>
@@ -472,8 +468,8 @@ const ProfileTab = ({ darkMode }) => {
                   <div className="flex justify-between">
                     <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>BMI:</span>
                     <span className={darkMode ? 'text-gray-300' : 'text-gray-800'}>
-                      {userProfile?.height && userProfile?.weight && 
-                       userProfile.height !== '0.00' && userProfile.weight !== '0.00' 
+                      {userProfile?.height && userProfile?.weight &&
+                        userProfile.height !== '0.00' && userProfile.weight !== '0.00'
                         ? `${calculateBMI(userProfile.height, userProfile.weight)} (${getBMICategory(calculateBMI(userProfile.height, userProfile.weight))})`
                         : 'N/A'
                       }
@@ -516,7 +512,7 @@ const ProfileTab = ({ darkMode }) => {
                   <div className="space-y-2">
                     {userProfile?.medical_conditions && userProfile.medical_conditions.length > 0 ? (
                       userProfile.medical_conditions.map((condition, index) => (
-                        <span 
+                        <span
                           key={index}
                           className="inline-block bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs md:text-sm mr-2 mb-2"
                         >
@@ -534,17 +530,15 @@ const ProfileTab = ({ darkMode }) => {
 
           {/* Achievements */}
           {userProfile?.achievements && userProfile.achievements.length > 0 && (
-            <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-              darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-            }`}>
+            <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+              }`}>
               <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Health Achievements</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
                 {userProfile.achievements.map((achievement, index) => (
-                  <div key={index} className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl ${
-                    darkMode 
-                      ? 'bg-gradient-to-r from-yellow-900 to-yellow-800' 
+                  <div key={index} className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl ${darkMode
+                      ? 'bg-gradient-to-r from-yellow-900 to-yellow-800'
                       : 'bg-gradient-to-r from-yellow-100 to-yellow-50'
-                  }`}>
+                    }`}>
                     <Award className="w-6 h-6 md:w-8 md:h-8 text-yellow-600" />
                     <div>
                       <div className={`font-semibold text-sm md:text-base ${darkMode ? 'text-white' : 'text-gray-800'}`}>
@@ -562,15 +556,13 @@ const ProfileTab = ({ darkMode }) => {
 
           {/* Emergency Contacts */}
           {userProfile?.emergency_contacts && userProfile.emergency_contacts.length > 0 && (
-            <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-              darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-            }`}>
+            <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+              }`}>
               <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Emergency Contacts</h3>
               <div className="space-y-3 md:space-y-4">
                 {userProfile.emergency_contacts.map((contact, index) => (
-                  <div key={index} className={`flex items-center justify-between p-3 md:p-4 rounded-xl ${
-                    darkMode ? 'bg-gray-700' : 'bg-gray-50'
-                  }`}>
+                  <div key={index} className={`flex items-center justify-between p-3 md:p-4 rounded-xl ${darkMode ? 'bg-gray-700' : 'bg-gray-50'
+                    }`}>
                     <div className="flex items-center gap-3">
                       <Users className="w-4 h-4 md:w-5 md:h-5 text-gray-500" />
                       <div>
@@ -599,14 +591,12 @@ const ProfileTab = ({ darkMode }) => {
           )}
 
           {/* Settings Section */}
-          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-          }`}>
+          <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+            }`}>
             <h3 className={`text-base md:text-lg font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'} mb-4`}>Account Settings</h3>
             <div className="space-y-4">
-              <div className={`p-4 rounded-xl border ${
-                darkMode ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'
-              }`}>
+              <div className={`p-4 rounded-xl border ${darkMode ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'
+                }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg ${darkMode ? 'bg-red-800' : 'bg-red-100'}`}>
@@ -617,8 +607,8 @@ const ProfileTab = ({ darkMode }) => {
                         Delete Account
                       </h4>
                       <p className={`text-xs md:text-sm ${darkMode ? 'text-red-300' : 'text-red-600'}`}>
-                        {isAdmin 
-                          ? 'Permanently delete your account and all associated data' 
+                        {isAdmin
+                          ? 'Permanently delete your account and all associated data'
                           : 'Permanently delete your own account and all associated data'
                         }
                       </p>
@@ -626,11 +616,10 @@ const ProfileTab = ({ darkMode }) => {
                   </div>
                   <button
                     onClick={() => setShowDeleteModal(true)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      darkMode 
-                        ? 'bg-red-800 text-red-200 hover:bg-red-700' 
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode
+                        ? 'bg-red-800 text-red-200 hover:bg-red-700'
                         : 'bg-red-600 text-white hover:bg-red-700'
-                    }`}
+                      }`}
                   >
                     Delete Account
                   </button>
@@ -638,6 +627,9 @@ const ProfileTab = ({ darkMode }) => {
               </div>
             </div>
           </div>
+
+          {/* Trail Map Section */}
+          <TrailMap darkMode={darkMode} />
         </div>
       </div>
 
@@ -654,18 +646,16 @@ const ProfileTab = ({ darkMode }) => {
                   setShowDeleteModal(false);
                   setDeleteError(null);
                 }}
-                className={`p-2 rounded-lg hover:bg-gray-100 ${
-                  darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                }`}
+                className={`p-2 rounded-lg hover:bg-gray-100 ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                  }`}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="mb-6">
-              <div className={`flex items-center gap-3 p-4 rounded-xl mb-4 ${
-                darkMode ? 'bg-red-900/20 border border-red-800' : 'bg-red-50 border border-red-200'
-              }`}>
+              <div className={`flex items-center gap-3 p-4 rounded-xl mb-4 ${darkMode ? 'bg-red-900/20 border border-red-800' : 'bg-red-50 border border-red-200'
+                }`}>
                 <AlertTriangle className={`w-6 h-6 ${darkMode ? 'text-red-400' : 'text-red-600'}`} />
                 <div>
                   <h4 className={`font-semibold ${darkMode ? 'text-red-200' : 'text-red-800'}`}>
@@ -694,11 +684,10 @@ const ProfileTab = ({ darkMode }) => {
                   setShowDeleteModal(false);
                   setDeleteError(null);
                 }}
-                className={`flex-1 px-4 py-2 rounded-lg ${
-                  darkMode 
-                    ? 'bg-gray-700 text-white hover:bg-gray-600' 
+                className={`flex-1 px-4 py-2 rounded-lg ${darkMode
+                    ? 'bg-gray-700 text-white hover:bg-gray-600'
                     : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                }`}
+                  }`}
                 disabled={isDeleting}
               >
                 Cancel
@@ -706,11 +695,10 @@ const ProfileTab = ({ darkMode }) => {
               <button
                 onClick={handleDeleteAccount}
                 disabled={isDeleting}
-                className={`flex-1 px-4 py-2 rounded-lg text-white font-medium transition-colors ${
-                  isDeleting
+                className={`flex-1 px-4 py-2 rounded-lg text-white font-medium transition-colors ${isDeleting
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-red-600 hover:bg-red-700'
-                }`}
+                  }`}
               >
                 {isDeleting ? (
                   <div className="flex items-center justify-center gap-2">
@@ -752,7 +740,7 @@ const ProfileTab = ({ darkMode }) => {
             try {
               const updatedProfile = await getUserEmailProfile();
               setUserProfile(updatedProfile);
-              
+
               // Update localStorage
               const userData = getUserData();
               if (userData) {
@@ -770,13 +758,11 @@ const ProfileTab = ({ darkMode }) => {
       {/* User Mapping Modal */}
       {showUserMappingModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto ${
-            darkMode ? 'bg-gray-800' : 'bg-white'
-          }`}>
-            {/* Header */}
-            <div className={`sticky top-0 border-b px-6 py-4 rounded-t-3xl flex items-center justify-between ${
-              darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          <div className={`rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-gray-800' : 'bg-white'
             }`}>
+            {/* Header */}
+            <div className={`sticky top-0 border-b px-6 py-4 rounded-t-3xl flex items-center justify-between ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+              }`}>
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
                   <Users className="w-6 h-6 text-white" />
@@ -788,9 +774,8 @@ const ProfileTab = ({ darkMode }) => {
               </div>
               <button
                 onClick={() => setShowUserMappingModal(false)}
-                className={`text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full ${
-                  darkMode ? 'hover:bg-gray-700' : ''
-                }`}
+                className={`text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full ${darkMode ? 'hover:bg-gray-700' : ''
+                  }`}
               >
                 <X className="w-6 h-6" />
               </button>
@@ -868,7 +853,7 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
         if (value === '' || value === null || value === undefined) {
           return;
         }
-        
+
         // Handle different field types
         if (key === 'height' || key === 'weight') {
           // Convert height and weight to string with 2 decimal places
@@ -898,7 +883,7 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
       console.log('Sending payload to API:', payload); // Debug log
       const result = await updateProfile(payload);
       console.log('Profile update result:', result); // Debug log
-      
+
       // Update user data in localStorage
       const userData = getUserData();
       if (userData) {
@@ -912,7 +897,7 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
       console.error('Error updating profile:', error);
       console.error('Error details:', error.details);
       console.error('Error response:', error.response);
-      
+
       // Handle different error formats
       if (error.details) {
         // Django validation errors format
@@ -930,7 +915,7 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
           setErrors({ general: error.details });
         }
       }
-      
+
       // Show error message to user
       const errorMessage = error.details?.detail || error.details?.message || error.message || 'Failed to update profile. Please check your inputs and try again.';
       alert(`Failed to update profile: ${errorMessage}`);
@@ -942,13 +927,11 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className={`rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${
-        darkMode ? 'bg-gray-800' : 'bg-white'
-      }`}>
-        {/* Header */}
-        <div className={`sticky top-0 border-b px-6 py-4 rounded-t-3xl flex items-center justify-between ${
-          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      <div className={`rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-gray-800' : 'bg-white'
         }`}>
+        {/* Header */}
+        <div className={`sticky top-0 border-b px-6 py-4 rounded-t-3xl flex items-center justify-between ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-r from-violet-500 to-purple-600 rounded-full flex items-center justify-center">
               <Edit3 className="w-6 h-6 text-white" />
@@ -960,9 +943,8 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
           </div>
           <button
             onClick={onClose}
-            className={`text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full ${
-              darkMode ? 'hover:bg-gray-700' : ''
-            }`}
+            className={`text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full ${darkMode ? 'hover:bg-gray-700' : ''
+              }`}
           >
             <X className="w-6 h-6" />
           </button>
@@ -1017,9 +999,8 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
                 name="gender"
                 value={formData.gender}
                 onChange={handleChange}
-                className={`w-full p-4 border rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 backdrop-blur-sm ${
-                  errors.gender ? 'border-red-500' : 'border-gray-200'
-                } ${darkMode ? 'bg-gray-700 text-white' : 'bg-white/80'}`}
+                className={`w-full p-4 border rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 backdrop-blur-sm ${errors.gender ? 'border-red-500' : 'border-gray-200'
+                  } ${darkMode ? 'bg-gray-700 text-white' : 'bg-white/80'}`}
               >
                 <option value="">Select Gender</option>
                 <option value="Male">Male</option>
@@ -1068,9 +1049,8 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
                 name="blood_group"
                 value={formData.blood_group}
                 onChange={handleChange}
-                className={`w-full p-4 border rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 backdrop-blur-sm ${
-                  errors.blood_group ? 'border-red-500' : 'border-gray-200'
-                } ${darkMode ? 'bg-gray-700 text-white' : 'bg-white/80'}`}
+                className={`w-full p-4 border rounded-2xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all duration-300 backdrop-blur-sm ${errors.blood_group ? 'border-red-500' : 'border-gray-200'
+                  } ${darkMode ? 'bg-gray-700 text-white' : 'bg-white/80'}`}
               >
                 <option value="">Select Blood Group</option>
                 <option value="A+">A+</option>
@@ -1096,11 +1076,10 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
             <button
               type="button"
               onClick={onClose}
-              className={`flex-1 px-6 py-3 border-2 rounded-2xl font-semibold transition-all duration-300 ${
-                darkMode 
-                  ? 'border-gray-600 text-gray-300 hover:bg-gray-700' 
+              className={`flex-1 px-6 py-3 border-2 rounded-2xl font-semibold transition-all duration-300 ${darkMode
+                  ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
                   : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
+                }`}
               disabled={isLoading}
             >
               Cancel
