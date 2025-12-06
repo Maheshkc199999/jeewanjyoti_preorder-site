@@ -128,8 +128,8 @@ const TrailMap = ({ darkMode }) => {
                     onClick={fetchLocationData}
                     disabled={isLoading}
                     className={`px-3 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm ${isLoading
-                            ? 'bg-gray-400 cursor-not-allowed'
-                            : 'bg-green-500 hover:bg-green-600 text-white'
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-green-500 hover:bg-green-600 text-white'
                         }`}
                 >
                     <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -194,7 +194,7 @@ const TrailMap = ({ darkMode }) => {
 
             {/* Map Container */}
             {!isLoading && !error && (
-                <div className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-600" style={{ height: '400px' }}>
+                <div className="rounded-xl overflow-hidden shadow-lg" style={{ height: '500px' }}>
                     <MapContainer
                         center={mapCenter}
                         zoom={mapZoom}
@@ -212,14 +212,19 @@ const TrailMap = ({ darkMode }) => {
                             <Polyline
                                 positions={trailPoints.map(p => [p.lat, p.lng])}
                                 color="#10b981"
-                                weight={4}
-                                opacity={0.7}
+                                weight={5}
+                                opacity={0.8}
+                                smoothFactor={1}
                             />
                         )}
 
-                        {/* Add directional arrow markers between consecutive points */}
+                        {/* Add directional arrow markers at intervals to avoid clutter */}
                         {trailPoints.length > 1 && trailPoints.map((point, index) => {
-                            if (index === trailPoints.length - 1) return null;
+                            // Only show arrows at intervals to reduce clutter
+                            // Show arrow every 3 points, or if there are few points, show more frequently
+                            const interval = trailPoints.length <= 5 ? 1 : trailPoints.length <= 10 ? 2 : 3;
+
+                            if (index === trailPoints.length - 1 || index % interval !== 0) return null;
 
                             const nextPoint = trailPoints[index + 1];
                             const midLat = (point.lat + nextPoint.lat) / 2;
@@ -242,42 +247,104 @@ const TrailMap = ({ darkMode }) => {
                         transform: rotate(${angle + 90}deg);
                         width: 0;
                         height: 0;
-                        border-left: 8px solid transparent;
-                        border-right: 8px solid transparent;
-                        border-bottom: 16px solid #10b981;
-                        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+                        border-left: 6px solid transparent;
+                        border-right: 6px solid transparent;
+                        border-bottom: 12px solid #10b981;
+                        filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+                        opacity: 0.9;
                       "></div>
                     `,
-                                        iconSize: [16, 16],
-                                        iconAnchor: [8, 8]
+                                        iconSize: [12, 12],
+                                        iconAnchor: [6, 6]
                                     })}
                                 />
                             );
                         })}
 
-                        {/* Add markers for each point */}
-                        {trailPoints.map((point, index) => (
-                            <Marker key={point.id || index} position={[point.lat, point.lng]}>
-                                <Popup>
-                                    <div className="text-sm">
-                                        <strong>Point {index + 1}</strong><br />
-                                        <strong>Location:</strong> {point.locality || 'Unknown'}<br />
-                                        <strong>City:</strong> {point.city || 'Unknown'}<br />
-                                        <strong>State:</strong> {point.state || 'Unknown'}<br />
-                                        <strong>Country:</strong> {point.country || 'Unknown'}<br />
-                                        <strong>Coordinates:</strong><br />
-                                        Lat: {point.lat.toFixed(6)}<br />
-                                        Lng: {point.lng.toFixed(6)}<br />
-                                        <strong>Time:</strong> {new Date(point.timestamp).toLocaleString()}<br />
-                                        {point.device_id && (
-                                            <>
-                                                <strong>Device:</strong> {point.device_id}
-                                            </>
-                                        )}
-                                    </div>
-                                </Popup>
-                            </Marker>
-                        ))}
+                        {/* Add markers for start and end points only to reduce clutter */}
+                        {trailPoints.length > 0 && (
+                            <>
+                                {/* Start Point */}
+                                <Marker
+                                    key="start"
+                                    position={[trailPoints[0].lat, trailPoints[0].lng]}
+                                    icon={L.divIcon({
+                                        className: 'custom-marker',
+                                        html: `
+                                            <div style="
+                                                background: #3b82f6;
+                                                width: 24px;
+                                                height: 24px;
+                                                border-radius: 50%;
+                                                border: 3px solid white;
+                                                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                                                display: flex;
+                                                align-items: center;
+                                                justify-content: center;
+                                                color: white;
+                                                font-weight: bold;
+                                                font-size: 10px;
+                                            ">S</div>
+                                        `,
+                                        iconSize: [24, 24],
+                                        iconAnchor: [12, 12]
+                                    })}
+                                >
+                                    <Popup>
+                                        <div className="text-sm">
+                                            <strong className="text-blue-600">Start Point</strong><br />
+                                            <strong>Location:</strong> {trailPoints[0].locality || 'Unknown'}<br />
+                                            <strong>City:</strong> {trailPoints[0].city || 'Unknown'}<br />
+                                            <strong>Coordinates:</strong><br />
+                                            Lat: {trailPoints[0].lat.toFixed(6)}<br />
+                                            Lng: {trailPoints[0].lng.toFixed(6)}<br />
+                                            <strong>Time:</strong> {new Date(trailPoints[0].timestamp).toLocaleString()}
+                                        </div>
+                                    </Popup>
+                                </Marker>
+
+                                {/* End Point */}
+                                {trailPoints.length > 1 && (
+                                    <Marker
+                                        key="end"
+                                        position={[trailPoints[trailPoints.length - 1].lat, trailPoints[trailPoints.length - 1].lng]}
+                                        icon={L.divIcon({
+                                            className: 'custom-marker',
+                                            html: `
+                                                <div style="
+                                                    background: #ef4444;
+                                                    width: 24px;
+                                                    height: 24px;
+                                                    border-radius: 50%;
+                                                    border: 3px solid white;
+                                                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                                                    display: flex;
+                                                    align-items: center;
+                                                    justify-content: center;
+                                                    color: white;
+                                                    font-weight: bold;
+                                                    font-size: 10px;
+                                                ">E</div>
+                                            `,
+                                            iconSize: [24, 24],
+                                            iconAnchor: [12, 12]
+                                        })}
+                                    >
+                                        <Popup>
+                                            <div className="text-sm">
+                                                <strong className="text-red-600">End Point</strong><br />
+                                                <strong>Location:</strong> {trailPoints[trailPoints.length - 1].locality || 'Unknown'}<br />
+                                                <strong>City:</strong> {trailPoints[trailPoints.length - 1].city || 'Unknown'}<br />
+                                                <strong>Coordinates:</strong><br />
+                                                Lat: {trailPoints[trailPoints.length - 1].lat.toFixed(6)}<br />
+                                                Lng: {trailPoints[trailPoints.length - 1].lng.toFixed(6)}<br />
+                                                <strong>Time:</strong> {new Date(trailPoints[trailPoints.length - 1].timestamp).toLocaleString()}
+                                            </div>
+                                        </Popup>
+                                    </Marker>
+                                )}
+                            </>
+                        )}
                     </MapContainer>
                 </div>
             )}

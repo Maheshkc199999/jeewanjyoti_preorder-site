@@ -7,7 +7,7 @@ import HeartRateDataComponent from '../../components/HeartRateDataComponent';
 import ActivitySummary from '../../components/ActivitySummary';
 import { getBloodPressureData, getStressData, getHRVData } from '../../lib/api';
 
-const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, selectedUserId }) => {
+const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, selectedUserId, selectedUserInfo }) => {
   const [sleepData, setSleepData] = useState(null);
   const [spo2Data, setSpO2Data] = useState(null);
   const [heartRateData, setHeartRateData] = useState(null);
@@ -211,8 +211,8 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
         </div>
         {trend && (
           <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs md:text-sm ${trend.includes('+') || trend === 'Normal' || trend === 'Excellent' || trend === 'Improving' || trend === 'Good Recovery'
-              ? 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400'
-              : 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400'
+            ? 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400'
+            : 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400'
             }`}>
             <TrendingUp className="w-3 h-3 md:w-4 md:h-4" />
             {trend}
@@ -240,6 +240,35 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
 
   return (
     <div>
+      {/* User Header */}
+      {selectedUserInfo && (
+        <div className={`rounded-2xl p-4 md:p-6 mb-6 md:mb-8 shadow-lg border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+          }`}>
+          <div className="flex items-center gap-4">
+            {selectedUserInfo.profileImage && (
+              <img
+                src={selectedUserInfo.profileImage}
+                alt={selectedUserInfo.name}
+                className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover ring-2 ring-blue-500"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
+            )}
+            <div>
+              <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'
+                }`}>
+                {selectedUserInfo.name}'s Health Dashboard
+              </h2>
+              <p className={`text-sm md:text-base ${darkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                Viewing health data for {selectedUserInfo.fullName}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
         <div className="rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg bg-gradient-to-br from-red-500 to-red-600 text-white">
@@ -281,9 +310,9 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
             <div>
               <p className="text-xs md:text-sm text-green-100">Daily Steps</p>
               <p className="text-xl md:text-3xl font-bold text-white">
-                {stepsData && stepsData.length > 0
-                  ? stepsData[stepsData.length - 1].detail_minter_step.toLocaleString()
-                  : '12,340'
+                {stepsData && stepsData.step
+                  ? stepsData.step.toLocaleString()
+                  : '0'
                 }
               </p>
             </div>
@@ -468,20 +497,20 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
             </div>
             <div className="flex items-center justify-between">
               <span className={`px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium ${bloodPressureData && bloodPressureData.length > 0
-                  ? (() => {
-                    const latest = bloodPressureData[bloodPressureData.length - 1];
-                    const sbp = latest.sbp;
-                    const dbp = latest.dbp;
+                ? (() => {
+                  const latest = bloodPressureData[bloodPressureData.length - 1];
+                  const sbp = latest.sbp;
+                  const dbp = latest.dbp;
 
-                    if (sbp < 120 && dbp < 80) {
-                      return 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400';
-                    } else if (sbp < 140 && dbp < 90) {
-                      return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400';
-                    } else {
-                      return 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400';
-                    }
-                  })()
-                  : 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400'
+                  if (sbp < 120 && dbp < 80) {
+                    return 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400';
+                  } else if (sbp < 140 && dbp < 90) {
+                    return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400';
+                  } else {
+                    return 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400';
+                  }
+                })()
+                : 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400'
                 }`}>
                 {bloodPressureData && bloodPressureData.length > 0
                   ? (() => {
@@ -540,17 +569,17 @@ const HomeTab = ({ darkMode, selectedPeriod = 'today', setSelectedPeriod, select
             </div>
             <div className="flex items-center justify-between">
               <span className={`px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium ${hrvApiData && hrvApiData.length > 0
-                  ? (() => {
-                    const hrv = hrvApiData[hrvApiData.length - 1].hrv;
-                    if (hrv >= 50) {
-                      return 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400';
-                    } else if (hrv >= 30) {
-                      return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400';
-                    } else {
-                      return 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400';
-                    }
-                  })()
-                  : 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400'
+                ? (() => {
+                  const hrv = hrvApiData[hrvApiData.length - 1].hrv;
+                  if (hrv >= 50) {
+                    return 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400';
+                  } else if (hrv >= 30) {
+                    return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400';
+                  } else {
+                    return 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400';
+                  }
+                })()
+                : 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400'
                 }`}>
                 {hrvApiData && hrvApiData.length > 0
                   ? (() => {

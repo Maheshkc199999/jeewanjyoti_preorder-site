@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Edit3, Mail, Phone, MapPin, Calendar, Users, Award, Star, Heart, Camera, Trash2, AlertTriangle, X, User, UserCircle, Ruler, Scale, Droplets } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { clearTokens, getUserData } from '../../lib/tokenManager';
-import { getSleepData, getSpO2Data, getHeartRateData, getBloodPressureData, getStressData, getHRVData, getUserEmailProfile, updateProfile } from '../../lib/api';
+import { getSleepData, getSpO2Data, getHeartRateData, getBloodPressureData, getStressData, getHRVData, getUserEmailProfile, updateProfile, getDayTotalActivity } from '../../lib/api';
 import UserMapping from './UserMapping';
 import TrailMap from '../../components/TrailMap';
 // Move InputField outside to prevent recreation on every render
@@ -49,6 +49,7 @@ const ProfileTab = ({ darkMode }) => {
   const [stressData, setStressData] = useState(null);
   const [hrvData, setHrvData] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [activityData, setActivityData] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
   const [showUserMappingModal, setShowUserMappingModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -128,14 +129,15 @@ const ProfileTab = ({ darkMode }) => {
   useEffect(() => {
     const fetchHealthData = async () => {
       try {
-        const [sleepDataResult, spo2DataResult, heartRateDataResult, bloodPressureDataResult, stressDataResult, hrvDataResult, userProfileResult] = await Promise.all([
+        const [sleepDataResult, spo2DataResult, heartRateDataResult, bloodPressureDataResult, stressDataResult, hrvDataResult, userProfileResult, activityDataResult] = await Promise.all([
           getSleepData(),
           getSpO2Data(),
           getHeartRateData(),
           getBloodPressureData(),
           getStressData(),
           getHRVData(),
-          getUserEmailProfile()
+          getUserEmailProfile(),
+          getDayTotalActivity()
         ]);
         setSleepData(sleepDataResult);
         setSpO2Data(spo2DataResult);
@@ -144,6 +146,15 @@ const ProfileTab = ({ darkMode }) => {
         setStressData(stressDataResult);
         setHrvData(hrvDataResult);
         setUserProfile(userProfileResult);
+
+        // Process activity data to get the latest entry
+        if (activityDataResult?.results && activityDataResult.results.length > 0) {
+          const today = new Date().toISOString().split('T')[0];
+          const todayData = activityDataResult.results.filter(item => item.date === today);
+          const dataToProcess = todayData.length > 0 ? todayData : activityDataResult.results;
+          const latestData = dataToProcess[dataToProcess.length - 1];
+          setActivityData(latestData);
+        }
       } catch (error) {
         console.error('Error fetching health data for profile:', error);
       }
@@ -289,8 +300,8 @@ const ProfileTab = ({ darkMode }) => {
                 <button
                   onClick={handleProfileImageSelect}
                   className={`absolute bottom-0 right-0 border-2 rounded-full p-1 md:p-2 ${darkMode
-                      ? 'bg-gray-700 border-gray-600 hover:bg-gray-600'
-                      : 'bg-white border-gray-200 hover:bg-gray-50'
+                    ? 'bg-gray-700 border-gray-600 hover:bg-gray-600'
+                    : 'bg-white border-gray-200 hover:bg-gray-50'
                     } transition-colors`}
                 >
                   <Camera className="w-3 h-3 md:w-4 md:h-4 text-gray-600" />
@@ -390,7 +401,10 @@ const ProfileTab = ({ darkMode }) => {
               </div>
               <div className="text-center">
                 <div className="text-lg md:text-2xl font-bold text-purple-600">
-                  {userProfile?.daily_steps || 'N/A'}
+                  {activityData && activityData.step
+                    ? activityData.step.toLocaleString()
+                    : '0'
+                  }
                 </div>
                 <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Daily Steps</div>
               </div>
@@ -536,8 +550,8 @@ const ProfileTab = ({ darkMode }) => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
                 {userProfile.achievements.map((achievement, index) => (
                   <div key={index} className={`flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-xl ${darkMode
-                      ? 'bg-gradient-to-r from-yellow-900 to-yellow-800'
-                      : 'bg-gradient-to-r from-yellow-100 to-yellow-50'
+                    ? 'bg-gradient-to-r from-yellow-900 to-yellow-800'
+                    : 'bg-gradient-to-r from-yellow-100 to-yellow-50'
                     }`}>
                     <Award className="w-6 h-6 md:w-8 md:h-8 text-yellow-600" />
                     <div>
@@ -617,8 +631,8 @@ const ProfileTab = ({ darkMode }) => {
                   <button
                     onClick={() => setShowDeleteModal(true)}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode
-                        ? 'bg-red-800 text-red-200 hover:bg-red-700'
-                        : 'bg-red-600 text-white hover:bg-red-700'
+                      ? 'bg-red-800 text-red-200 hover:bg-red-700'
+                      : 'bg-red-600 text-white hover:bg-red-700'
                       }`}
                   >
                     Delete Account
@@ -685,8 +699,8 @@ const ProfileTab = ({ darkMode }) => {
                   setDeleteError(null);
                 }}
                 className={`flex-1 px-4 py-2 rounded-lg ${darkMode
-                    ? 'bg-gray-700 text-white hover:bg-gray-600'
-                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                  ? 'bg-gray-700 text-white hover:bg-gray-600'
+                  : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                   }`}
                 disabled={isDeleting}
               >
@@ -696,8 +710,8 @@ const ProfileTab = ({ darkMode }) => {
                 onClick={handleDeleteAccount}
                 disabled={isDeleting}
                 className={`flex-1 px-4 py-2 rounded-lg text-white font-medium transition-colors ${isDeleting
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-red-600 hover:bg-red-700'
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-red-600 hover:bg-red-700'
                   }`}
               >
                 {isDeleting ? (
@@ -1077,8 +1091,8 @@ const EditProfileModal = ({ darkMode, userProfile, onClose, onSuccess }) => {
               type="button"
               onClick={onClose}
               className={`flex-1 px-6 py-3 border-2 rounded-2xl font-semibold transition-all duration-300 ${darkMode
-                  ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
-                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               disabled={isLoading}
             >
