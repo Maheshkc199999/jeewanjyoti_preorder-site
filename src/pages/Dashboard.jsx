@@ -384,7 +384,7 @@ const Dashboard = () => {
       case 'chat':
         return <ChatTab darkMode={darkMode} onChatRoomStateChange={handleChatRoomStateChange} />;
       case 'profile':
-        return <ProfileTab darkMode={darkMode} />;
+        return <ProfileTab darkMode={darkMode} selectedUserId={selectedUserId} />;
       case 'settings':
         return <SettingsTab darkMode={darkMode} />;
       default:

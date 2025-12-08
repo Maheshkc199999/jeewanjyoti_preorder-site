@@ -26,7 +26,7 @@ const MapController = ({ center }) => {
     return null;
 };
 
-const TrailMap = ({ darkMode }) => {
+const TrailMap = ({ darkMode, userId = null }) => {
     const [trailPoints, setTrailPoints] = useState([]);
     const [mapCenter, setMapCenter] = useState([27.7172, 85.3240]); // Default: Kathmandu, Nepal
     const [mapZoom, setMapZoom] = useState(13);
@@ -39,7 +39,7 @@ const TrailMap = ({ darkMode }) => {
         setError(null);
 
         try {
-            const data = await getLocationData();
+            const data = await getLocationData(userId);
 
             if (data && data.length > 0) {
                 // Sort by timestamp to ensure correct order
@@ -52,12 +52,14 @@ const TrailMap = ({ darkMode }) => {
                     lat: parseFloat(location.latitude),
                     lng: parseFloat(location.longitude),
                     id: location.id,
-                    locality: location.locality,
-                    city: location.city,
-                    state: location.state,
-                    country: location.country,
-                    timestamp: location.created_at,
-                    device_id: location.device_id
+                    accuracy: location.accuracy,
+                    altitude: location.altitude,
+                    speed: location.speed,
+                    bearing: location.bearing,
+                    timestamp: new Date(location.timestamp).toLocaleString(),
+                    created_at: new Date(location.created_at).toLocaleString(),
+                    device_id: location.device_id,
+                    mode: location.mode
                 }));
 
                 setTrailPoints(points);
@@ -78,10 +80,10 @@ const TrailMap = ({ darkMode }) => {
         }
     };
 
-    // Load data on component mount
+    // Load data when component mounts or userId changes
     useEffect(() => {
         fetchLocationData();
-    }, []);
+    }, [userId]);
 
     // Calculate total distance (approximate)
     const calculateDistance = () => {

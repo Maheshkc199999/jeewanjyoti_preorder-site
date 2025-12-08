@@ -537,16 +537,28 @@ export async function getDayTotalActivity(userId = null) {
 
 /**
  * Get user profile data
+ * @param {string} userId - Optional user ID
  * @returns {Promise<object>} User profile data
  */
-export async function getUserEmailProfile() {
-  const response = await apiRequest('/api/useremailprofile/')
+export async function getUserEmailProfile(userId = null) {
+  let url = '/api/useremailprofile/';
+  const params = new URLSearchParams();
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch user profile')
+  if (userId) params.append('user_id', userId);
+  
+  if (params.toString()) {
+    url += `?${params.toString()}`;
   }
   
-  return await response.json()
+  const response = await apiRequest(url);
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    console.error('Error fetching user profile:', error);
+    throw new Error(error.detail || 'Failed to fetch user profile');
+  }
+  
+  return await response.json();
 }
 
 /**

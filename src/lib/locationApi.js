@@ -1,16 +1,16 @@
 import { apiRequest } from './api';
 
 /**
- * Get location/GPS trail data
+ * Get live location/GPS trail data
  * @param {string} userId - Optional user ID
  * @returns {Promise<Array>} List of location data records
  */
 export async function getLocationData(userId = null) {
     try {
-        let url = '/api/location/';
+        let url = '/api/live_location/';
         const params = new URLSearchParams();
 
-        if (userId) params.append('user', userId);
+        if (userId) params.append('user_id', userId);
 
         if (params.toString()) {
             url += `?${params.toString()}`;
@@ -20,8 +20,8 @@ export async function getLocationData(userId = null) {
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            console.error('Error fetching location data:', error);
-            throw new Error(error.detail || 'Failed to fetch location data');
+            console.error('Error fetching live location data:', error);
+            throw new Error(error.detail || 'Failed to fetch live location data');
         }
 
         const data = await response.json();

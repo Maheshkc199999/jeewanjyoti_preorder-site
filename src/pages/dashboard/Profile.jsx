@@ -37,7 +37,7 @@ const InputField = React.memo(({ icon: Icon, label, name, type = 'text', require
   );
 });
 
-const ProfileTab = ({ darkMode }) => {
+const ProfileTab = ({ darkMode, selectedUserId = null }) => {
   const navigate = useNavigate();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -130,14 +130,14 @@ const ProfileTab = ({ darkMode }) => {
     const fetchHealthData = async () => {
       try {
         const [sleepDataResult, spo2DataResult, heartRateDataResult, bloodPressureDataResult, stressDataResult, hrvDataResult, userProfileResult, activityDataResult] = await Promise.all([
-          getSleepData(),
-          getSpO2Data(),
-          getHeartRateData(),
-          getBloodPressureData(),
-          getStressData(),
-          getHRVData(),
-          getUserEmailProfile(),
-          getDayTotalActivity()
+          getSleepData(selectedUserId),
+          getSpO2Data(selectedUserId),
+          getHeartRateData(selectedUserId),
+          getBloodPressureData(selectedUserId),
+          getStressData(selectedUserId),
+          getHRVData(selectedUserId),
+          selectedUserId ? getUserEmailProfile(selectedUserId) : getUserEmailProfile(),
+          getDayTotalActivity(selectedUserId)
         ]);
         setSleepData(sleepDataResult);
         setSpO2Data(spo2DataResult);
@@ -160,7 +160,7 @@ const ProfileTab = ({ darkMode }) => {
       }
     };
     fetchHealthData();
-  }, []);
+  }, [selectedUserId]);
 
   // Handle delete account
   const handleDeleteAccount = async () => {
@@ -322,7 +322,7 @@ const ProfileTab = ({ darkMode }) => {
                   ID: #{userProfile.id}
                 </p>
               )}
-              {userProfile && userProfile.role === 'DOCTOR' && (
+              {userProfile?.role === 'DOCTOR' && (
                 <p className={`text-xs ${darkMode ? 'text-blue-400' : 'text-blue-600'} font-medium mt-1`}>
                   {userProfile.specialization || 'Doctor'}
                 </p>
@@ -643,7 +643,7 @@ const ProfileTab = ({ darkMode }) => {
           </div>
 
           {/* Trail Map Section */}
-          <TrailMap darkMode={darkMode} />
+          <TrailMap darkMode={darkMode} userId={selectedUserId} />
         </div>
       </div>
 
