@@ -70,8 +70,8 @@ const ActivitySummary = ({ darkMode = false, onActivityDataUpdate, selectedUserI
 
                 console.log('Fetching daily activity data for user:', selectedUserId || 'self');
 
-                // Fetch daily activity data
-                const response = await getDayTotalActivity(selectedUserId);
+                // Fetch daily activity data with 24h range
+                const response = await getDayTotalActivity(selectedUserId, '24h');
 
                 console.log('=== Activity API Response ===');
                 console.log('Full response:', response);
@@ -141,7 +141,7 @@ const ActivitySummary = ({ darkMode = false, onActivityDataUpdate, selectedUserI
 
     useEffect(() => {
         fetchActivityData();
-    }, [fetchActivityData]);
+    }, [fetchActivityData, selectedUserId]);
 
     // Transform activity data to chart format
     const getChartData = () => {
@@ -268,16 +268,17 @@ const ActivitySummary = ({ darkMode = false, onActivityDataUpdate, selectedUserI
                     }`}>
                     Activity Summary
                 </h3>
-                <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                    {new Date().toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                    })}
-                </p>
-            </div>
+                <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {activityData?.date &&
+                        new Date(activityData.date).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                        })
+                    }
+                </p></div>
+
 
             <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
                 {/* Chart */}
