@@ -77,21 +77,40 @@ const HomeTab = ({
 
   // Format date range for display
   const getDateRangeDisplay = () => {
+    const formatDateLabel = (value) => {
+      if (!value) return null;
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return value;
+      return d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    };
+
     if (globalDateRange?.customRange && globalDateRange.date) {
-      return `Filtering: ${globalDateRange.date}`;
+      return `Showing data for (${formatDateLabel(globalDateRange.date) || globalDateRange.date})`;
+    }
+
+    if (globalDateRange?.date) {
+      return `Showing data for (${formatDateLabel(globalDateRange.date) || globalDateRange.date})`;
     }
 
     switch (globalDateFilter) {
       case 'today':
-        return 'Showing data for today';
+        return new Date().toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        });
       case 'week':
-        return 'Showing data for the last 7 days';
+        return 'Last 7 days';
       case 'month':
-        return 'Showing data for the last 30 days';
+        return 'Last 30 days';
       case 'custom':
-        return 'Showing custom date';
+        return 'Custom date';
       default:
-        return 'Showing latest data';
+        return 'Latest data';
     }
   };
 
@@ -125,6 +144,14 @@ const HomeTab = ({
     fetchBattery();
     return () => { cancelled = true; };
   }, [selectedUserId]);
+
+  const latestBatteryTimestamp = useMemo(() => {
+    if (!batteryData) return null;
+    const readings = Array.isArray(batteryData) ? batteryData : [batteryData];
+    const validReadings = readings.filter((item) => item?.timestamp);
+    if (validReadings.length === 0) return null;
+    return [...validReadings].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).at(-1).timestamp;
+  }, [batteryData]);
 
   // Get latest timestamps
   const latestHeartRateTime = useMemo(() => {
@@ -229,6 +256,11 @@ const HomeTab = ({
     }
   };
 
+  const batteryTimestampDisplay = useMemo(() => {
+    if (!latestBatteryTimestamp) return 'No recent battery data';
+    return formatDateTime(latestBatteryTimestamp);
+  }, [latestBatteryTimestamp]);
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
@@ -286,9 +318,12 @@ const HomeTab = ({
             </div>
           )}
 
-          {/* Right: Battery Widget with history chart popup */}
-          <div className="flex-shrink-0 flex items-center justify-end">
+          {/* Right: Battery Widget with charge timestamp below */}
+          <div className="flex-shrink-0 flex flex-col items-end justify-center gap-2">
             <BatteryWidget batteryData={batteryData} size={48} darkMode={darkMode} />
+            <div className={`text-right text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <div className="font-semibold">{batteryTimestampDisplay}</div>
+            </div>
           </div>
 
         </div>
