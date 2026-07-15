@@ -26,14 +26,28 @@ export async function getLocationData(userId = null) {
 
         const data = await response.json();
 
-        // Handle both paginated and non-paginated responses
-        if (Array.isArray(data)) {
-            return data;
-        } else if (data && data.results && Array.isArray(data.results)) {
-            return data.results;
-        } else {
+        const extractRecords = (payload) => {
+            if (Array.isArray(payload)) {
+                return payload;
+            }
+
+            if (payload && Array.isArray(payload.live_location)) {
+                return payload.live_location;
+            }
+
+            if (payload && payload.live_location && Array.isArray(payload.live_location.results)) {
+                return payload.live_location.results;
+            }
+
+            if (payload && payload.results && Array.isArray(payload.results)) {
+                return payload.results;
+            }
+
             return [];
-        }
+        };
+
+        const records = extractRecords(data);
+        return Array.isArray(records) ? records : [];
     } catch (error) {
         console.error('Error in getLocationData:', error);
         throw error;
