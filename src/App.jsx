@@ -7,6 +7,7 @@ import InstitutionDashboard from './pages/InstitutionDashboard'
 import PaymentSuccess from './pages/PaymentSuccess'
 import MappingSuccess from './lib/MappingSuccess'
 import Blogs from './pages/Blogs'
+import Leaderboard from './pages/Leaderboard'
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
       <Route path="/payment-success" element={<PaymentSuccess />} />
       <Route path="/mapping-success" element={<MappingSuccess />} />
       <Route path="/blogs" element={<Blogs />} />
+      <Route path="/leaderboard" element={<Leaderboard />} />
     </Routes>
   )
 }
