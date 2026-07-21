@@ -54,6 +54,14 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const getUserFromSearch = (search) => {
+    const params = new URLSearchParams(search);
+    const userId = params.get('user') || params.get('user_id');
+    if (!userId || userId === 'null' || userId === 'undefined') return null;
+    const numericId = Number(userId);
+    return Number.isFinite(numericId) ? numericId : userId;
+  };
+
   // Initialize activeTab from URL hash or localStorage, default to 'home'
   const [activeTab, setActiveTab] = useState(() => {
     const hash = location.hash.replace('#', '');
@@ -74,7 +82,7 @@ const Dashboard = () => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [mappedUsers, setMappedUsers] = useState([]);
   const [loadingMappedUsers, setLoadingMappedUsers] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState(() => getUserFromSearch(location.search));
   const [selectionFeedback, setSelectionFeedback] = useState(null);
   const [imageErrors, setImageErrors] = useState({}); // Track image loading errors
   const [totalUnread, setTotalUnread] = useState(0); // Real unread count from ChatTab
