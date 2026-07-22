@@ -34,16 +34,25 @@ const PLAN_STYLES = [
   }
 ];
 
-export default function SubscriptionTab() {
+export default function SubscriptionTab({ darkMode = false }) {
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [expandedFaq, setExpandedFaq] = useState(null);
   const [hoveredPlan, setHoveredPlan] = useState(null);
-  
+
   const [plans, setPlans] = useState([]);
   const [mySubscriptions, setMySubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
+  // Color tokens
+  const cardBg = darkMode ? '#1e293b' : '#fff';
+  const cardBorder = darkMode ? '#334155' : '#e2e8f0';
+  const subtleBorder = darkMode ? '#334155' : '#f1f5f9';
+  const textPrimary = darkMode ? '#fff' : '#0f172a';
+  const textSecondary = darkMode ? '#94a3b8' : '#64748b';
+  const textMuted = darkMode ? '#64748b' : '#94a3b8';
+  const subtleBg = darkMode ? '#0f172a' : '#f8fafc';
+
   // Find the currently active plan from my subscriptions
   const activeSubscription = mySubscriptions.find(sub => sub.is_active);
   const currentPlanId = activeSubscription ? activeSubscription.package : null;
@@ -54,7 +63,7 @@ export default function SubscriptionTab() {
         setLoading(true);
         // Import authenticatedFetch here to avoid circular dependencies
         const { authenticatedFetch } = await import('../../lib/tokenManager');
-        
+
         // Fetch both available plans and user's subscriptions in parallel
         const [plansRes, mySubsRes] = await Promise.all([
           authenticatedFetch('https://jeewanjyoti-backend.smart.org.np/api/set_ins_subscription/'),
@@ -66,7 +75,7 @@ export default function SubscriptionTab() {
 
         const plansData = await plansRes.json();
         let mySubsData = await mySubsRes.json();
-        
+
         // The API might return a single object instead of an array for a single subscription
         if (mySubsData && !Array.isArray(mySubsData) && mySubsData.id) {
           mySubsData = [mySubsData];
@@ -74,7 +83,7 @@ export default function SubscriptionTab() {
           // If it's some other non-array response (like an error object), default to empty
           mySubsData = [];
         }
-        
+
         setPlans(plansData);
         setMySubscriptions(mySubsData);
       } catch (err) {
@@ -92,7 +101,7 @@ export default function SubscriptionTab() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 16 }}>
         <Loader className="animate-spin" size={40} color="#3b82f6" />
-        <div style={{ color: '#64748b', fontSize: 16, fontWeight: 500 }}>Loading subscription data...</div>
+        <div style={{ color: textSecondary, fontSize: 16, fontWeight: 500 }}>Loading subscription data...</div>
       </div>
     );
   }
@@ -101,7 +110,7 @@ export default function SubscriptionTab() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 16 }}>
         <div style={{ color: '#ef4444', fontSize: 18, fontWeight: 700 }}>Failed to load subscriptions</div>
-        <div style={{ color: '#64748b', fontSize: 14 }}>{error}</div>
+        <div style={{ color: textSecondary, fontSize: 14 }}>{error}</div>
         <button onClick={() => window.location.reload()} style={{ padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 10 }}>Try Again</button>
       </div>
     );
@@ -113,9 +122,9 @@ export default function SubscriptionTab() {
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <Crown size={22} color="#f59e0b" />
-          <span style={{ fontSize: 22, fontWeight: 800, color: '#0f172a' }}>Subscription Plans</span>
+          <span style={{ fontSize: 22, fontWeight: 800, color: textPrimary }}>Subscription Plans</span>
         </div>
-        <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>
+        <p style={{ fontSize: 14, color: textSecondary, margin: 0 }}>
           Manage your active subscriptions and explore new plans for your institution.
         </p>
       </div>
@@ -123,14 +132,14 @@ export default function SubscriptionTab() {
       {/* My Subscriptions */}
       {mySubscriptions.length > 0 ? (
         <div style={{ marginBottom: 40 }}>
-          <div style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>
+          <div style={{ fontSize: 17, fontWeight: 800, color: textPrimary, marginBottom: 16 }}>
             My Subscriptions
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {mySubscriptions.map(sub => (
               <div key={sub.id} style={{
-                background: 'linear-gradient(135deg, #eff6ff, #eef2ff)',
-                border: '1px solid #bfdbfe',
+                background: darkMode ? 'linear-gradient(135deg, #1e2b4d, #1e2440)' : 'linear-gradient(135deg, #eff6ff, #eef2ff)',
+                border: `1px solid ${darkMode ? '#334155' : '#bfdbfe'}`,
                 borderRadius: 16,
                 padding: '20px 24px',
                 display: 'flex',
@@ -148,34 +157,34 @@ export default function SubscriptionTab() {
                     <Shield size={20} color="#fff" />
                   </div>
                   <div>
-                    <div style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', textTransform: 'capitalize' }}>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: textPrimary, textTransform: 'capitalize' }}>
                       {sub.package_name}
                     </div>
-                    <div style={{ fontSize: 13, color: '#64748b', fontWeight: 600, display: 'flex', gap: 12, marginTop: 4 }}>
+                    <div style={{ fontSize: 13, color: textSecondary, fontWeight: 600, display: 'flex', gap: 12, marginTop: 4 }}>
                       <span>Max {sub.max_users} Users</span>
                       <span>•</span>
                       <span>Rs. {parseFloat(sub.amount_paid).toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
-                
+
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Clock size={14} color="#64748b" />
-                      <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>
+                      <Clock size={14} color={textSecondary} />
+                      <span style={{ fontSize: 12, color: textSecondary, fontWeight: 500 }}>
                         Expires: {new Date(sub.end_date).toLocaleDateString()}
                       </span>
                     </div>
-                    <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                    <div style={{ fontSize: 11, color: textMuted }}>
                       Started: {new Date(sub.start_date).toLocaleDateString()}
                     </div>
                   </div>
-                  
+
                   <div style={{
                     padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
-                    background: sub.is_active ? '#dcfce7' : '#fef2f2',
-                    color: sub.is_active ? '#16a34a' : '#ef4444',
+                    background: sub.is_active ? (darkMode ? '#14532d' : '#dcfce7') : (darkMode ? '#450a0a' : '#fef2f2'),
+                    color: sub.is_active ? (darkMode ? '#4ade80' : '#16a34a') : (darkMode ? '#f87171' : '#ef4444'),
                     textTransform: 'uppercase', letterSpacing: '0.05em'
                   }}>
                     {sub.is_active ? 'Active' : 'Expired'}
@@ -187,20 +196,20 @@ export default function SubscriptionTab() {
         </div>
       ) : (
         <div style={{
-          background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: 16,
+          background: subtleBg, border: `1px dashed ${darkMode ? '#475569' : '#cbd5e1'}`, borderRadius: 16,
           padding: '32px', textAlign: 'center', marginBottom: 40
         }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#475569', marginBottom: 8 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: darkMode ? '#cbd5e1' : '#475569', marginBottom: 8 }}>
             No Active Subscriptions
           </div>
-          <div style={{ fontSize: 13, color: '#64748b' }}>
+          <div style={{ fontSize: 13, color: textSecondary }}>
             You don't have any active subscriptions yet. Choose a plan below to get started.
           </div>
         </div>
       )}
 
       {/* Available Plans Header */}
-      <div style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>
+      <div style={{ fontSize: 17, fontWeight: 800, color: textPrimary, marginBottom: 16 }}>
         Available Plans
       </div>
 
@@ -215,7 +224,7 @@ export default function SubscriptionTab() {
           const isCurrentPlan = currentPlanId === plan.id;
           const isHovered = hoveredPlan === plan.id;
           const isPopular = index === 1; // Highlight the second plan as popular if it exists
-          
+
           const style = PLAN_STYLES[index % PLAN_STYLES.length];
           const displayPrice = parseFloat(plan.price) === 0 ? 'Free' : `Rs. ${parseFloat(plan.price).toLocaleString()}`;
           const period = `/${plan.duration_type}`;
@@ -228,9 +237,9 @@ export default function SubscriptionTab() {
               style={{
                 background: isPopular
                   ? 'linear-gradient(160deg, #1e293b 0%, #0f172a 100%)'
-                  : '#fff',
+                  : cardBg,
                 borderRadius: 20,
-                border: isPopular ? '1px solid #334155' : '1px solid #e2e8f0',
+                border: isPopular ? '1px solid #334155' : `1px solid ${cardBorder}`,
                 padding: isPopular ? '4px 4px 4px 4px' : 0,
                 position: 'relative',
                 transition: 'all 0.3s cubic-bezier(.4,0,.2,1)',
@@ -255,7 +264,7 @@ export default function SubscriptionTab() {
               )}
 
               <div style={{
-                background: isPopular ? '#fff' : 'transparent',
+                background: isPopular ? cardBg : 'transparent',
                 borderRadius: isPopular ? 16 : 20,
                 padding: '28px 24px',
                 height: '100%',
@@ -272,25 +281,25 @@ export default function SubscriptionTab() {
                   }}>
                     {style.icon}
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: textPrimary, marginBottom: 4 }}>
                     {plan.name}
                   </div>
-                  <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5, minHeight: 36 }}>
+                  <div style={{ fontSize: 12, color: textSecondary, lineHeight: 1.5, minHeight: 36 }}>
                     {plan.description}
                   </div>
                 </div>
 
                 {/* Price */}
                 <div style={{ marginBottom: 24 }}>
-                  <span style={{ fontSize: 36, fontWeight: 800, color: '#0f172a' }}>
+                  <span style={{ fontSize: 36, fontWeight: 800, color: textPrimary }}>
                     {displayPrice}
                   </span>
                   {displayPrice !== 'Free' && (
-                    <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
+                    <span style={{ fontSize: 14, color: textMuted, fontWeight: 500 }}>
                       {period}
                     </span>
                   )}
-                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ fontSize: 12, color: textSecondary, marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
                     <Users size={14} /> Max {plan.max_users} Users
                   </div>
                 </div>
@@ -316,8 +325,8 @@ export default function SubscriptionTab() {
                 </button>
 
                 {/* Features (Dynamically generated based on limits) */}
-                <div style={{ marginTop: 24, borderTop: '1px solid #f1f5f9', paddingTop: 20 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+                <div style={{ marginTop: 24, borderTop: `1px solid ${subtleBorder}`, paddingTop: 20 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
                     What's included
                   </div>
                   {[
@@ -330,7 +339,7 @@ export default function SubscriptionTab() {
                     <div key={i} style={{
                       display: 'flex', alignItems: 'center', gap: 10,
                       padding: '6px 0', fontSize: 13, fontWeight: 500,
-                      color: f.included ? '#334155' : '#cbd5e1',
+                      color: f.included ? (darkMode ? '#cbd5e1' : '#334155') : (darkMode ? '#475569' : '#cbd5e1'),
                     }}>
                       {f.included ? (
                         <div style={{
@@ -343,10 +352,10 @@ export default function SubscriptionTab() {
                       ) : (
                         <div style={{
                           width: 18, height: 18, borderRadius: 6,
-                          background: '#f1f5f9', display: 'flex',
+                          background: darkMode ? '#334155' : '#f1f5f9', display: 'flex',
                           alignItems: 'center', justifyContent: 'center',
                         }}>
-                          <X size={11} color="#cbd5e1" strokeWidth={3} />
+                          <X size={11} color={darkMode ? '#64748b' : '#cbd5e1'} strokeWidth={3} />
                         </div>
                       )}
                       {f.text}
@@ -361,18 +370,18 @@ export default function SubscriptionTab() {
 
       {/* Payment Methods */}
       <div style={{
-        background: '#fff', borderRadius: 20, border: '1px solid #e2e8f0',
+        background: cardBg, borderRadius: 20, border: `1px solid ${cardBorder}`,
         padding: '24px', marginBottom: 32,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           <CreditCard size={18} color="#3b82f6" />
-          <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>Accepted Payment Methods</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: textPrimary }}>Accepted Payment Methods</span>
         </div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           {['Khalti'].map((method, i) => (
             <div key={i} style={{
-              padding: '10px 18px', borderRadius: 10, background: '#f8fafc',
-              border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#475569'
+              padding: '10px 18px', borderRadius: 10, background: subtleBg,
+              border: `1px solid ${cardBorder}`, fontSize: 13, fontWeight: 600, color: darkMode ? '#cbd5e1' : '#475569'
             }}>
               {method}
             </div>
@@ -382,17 +391,17 @@ export default function SubscriptionTab() {
 
       {/* FAQ */}
       <div style={{
-        background: '#fff', borderRadius: 20, border: '1px solid #e2e8f0',
+        background: cardBg, borderRadius: 20, border: `1px solid ${cardBorder}`,
         padding: '28px 24px', marginBottom: 16,
       }}>
-        <div style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', marginBottom: 20 }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: textPrimary, marginBottom: 20 }}>
           Frequently Asked Questions
         </div>
         {FAQ.map((item, i) => (
           <div
             key={i}
             style={{
-              borderBottom: i < FAQ.length - 1 ? '1px solid #f1f5f9' : 'none',
+              borderBottom: i < FAQ.length - 1 ? `1px solid ${subtleBorder}` : 'none',
               padding: '14px 0',
             }}
           >
@@ -404,15 +413,15 @@ export default function SubscriptionTab() {
                 cursor: 'pointer', padding: 0, textAlign: 'left',
               }}
             >
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>{item.q}</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: darkMode ? '#e2e8f0' : '#1e293b' }}>{item.q}</span>
               {expandedFaq === i
-                ? <ChevronUp size={16} color="#94a3b8" />
-                : <ChevronDown size={16} color="#94a3b8" />
+                ? <ChevronUp size={16} color={textMuted} />
+                : <ChevronDown size={16} color={textMuted} />
               }
             </button>
             {expandedFaq === i && (
               <div style={{
-                marginTop: 10, fontSize: 13, color: '#64748b', lineHeight: 1.7,
+                marginTop: 10, fontSize: 13, color: textSecondary, lineHeight: 1.7,
                 paddingLeft: 2,
               }}>
                 {item.a}

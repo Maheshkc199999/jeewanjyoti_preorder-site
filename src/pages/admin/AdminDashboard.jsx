@@ -208,9 +208,9 @@ export default function AdminDashboard() {
   const tabContent = useMemo(() => {
     switch (activeTab) {
       case 'overview':
-        return <OverviewTab members={members} loading={loading} error={error} />;
+        return <OverviewTab members={members} loading={loading} error={error} darkMode={darkMode} />;
       case 'members':
-        return <AdminMembersTab users={allUsers} loading={usersLoading} error={usersError} refreshUsers={fetchAllUsers} onViewVitals={handleViewVitals} />;
+        return <AdminMembersTab users={allUsers} loading={usersLoading} error={usersError} refreshUsers={fetchAllUsers} onViewVitals={handleViewVitals} darkMode={darkMode} />;
       case 'vitals':
         return <VitalsTab selectedUserId={selectedUserId} selectedUserInfo={selectedUserInfo} darkMode={darkMode} globalDateFilter={globalDateRange.period} globalDateRange={globalDateRange} />;
       case 'analytics':
@@ -220,7 +220,7 @@ export default function AdminDashboard() {
       case 'alerts':
         return <AlertsTab darkMode={darkMode} alerts={alerts} setAlerts={setAlerts} thresholds={thresholds} setThresholds={setThresholds} members={members} />;
       default:
-        return <PlaceholderTab tab={activeTab} />;
+        return <PlaceholderTab tab={activeTab} darkMode={darkMode} />;
     }
   }, [activeTab, handleViewVitals, selectedUserId, selectedUserInfo, darkMode, globalDateRange, members, loading, error, fetchMembers, thresholds, alerts, allUsers, usersLoading, usersError, fetchAllUsers]);
 

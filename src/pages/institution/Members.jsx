@@ -40,7 +40,7 @@ function getMemberStatus(m) {
   return 'offline';
 }
 
-export default function Members({ members = [], loading = false, error = null, refreshMembers, onViewVitals }) {
+export default function Members({ members = [], loading = false, error = null, refreshMembers, onViewVitals, darkMode = false }) {
   const [search, setSearch] = useState('');
 
   // Add Member Modal State
@@ -48,6 +48,16 @@ export default function Members({ members = [], loading = false, error = null, r
   const [newEmail, setNewEmail] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState('');
+
+  // Color tokens
+  const cardBg = darkMode ? '#1e293b' : '#fff';
+  const cardBorder = darkMode ? '#334155' : '#f1f5f9';
+  const subtleBg = darkMode ? '#0f172a' : '#f8fafc';
+  const subtleBorder = darkMode ? '#334155' : '#e2e8f0';
+  const textPrimary = darkMode ? '#fff' : '#0f172a';
+  const textSecondary = darkMode ? '#94a3b8' : '#475569';
+  const textMuted = darkMode ? '#64748b' : '#9ca3af';
+  const rowHover = darkMode ? '#0f172a' : '#f8fafc';
 
   const handleAddMember = async (e) => {
     e.preventDefault();
@@ -87,22 +97,22 @@ export default function Members({ members = [], loading = false, error = null, r
     }
   };
 
-  const filtered = members.filter(m => 
-    m.full_name?.toLowerCase().includes(search.toLowerCase()) || 
+  const filtered = members.filter(m =>
+    m.full_name?.toLowerCase().includes(search.toLowerCase()) ||
     m.user_email?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #f1f5f9', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ background: cardBg, borderRadius: 20, border: `1px solid ${cardBorder}`, overflow: 'hidden', position: 'relative' }}>
       {/* Header */}
-      <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>Institution Members ({members.length})</div>
+      <div style={{ padding: '20px 24px', borderBottom: `1px solid ${cardBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: textPrimary }}>Institution Members ({members.length})</div>
         <div style={{ display: 'flex', gap: 8 }}>
           <div style={{ position: 'relative' }}>
-            <Search size={14} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+            <Search size={14} color={textMuted} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search members…" style={{
-              paddingLeft: 34, paddingRight: 14, height: 36, background: '#f8fafc', border: '1px solid #e2e8f0',
-              borderRadius: 10, fontSize: 13, outline: 'none', color: '#0f172a', width: 220
+              paddingLeft: 34, paddingRight: 14, height: 36, background: subtleBg, border: `1px solid ${subtleBorder}`,
+              borderRadius: 10, fontSize: 13, outline: 'none', color: textPrimary, width: 220
             }} />
           </div>
           <button onClick={() => setShowAddModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 14px', height: 36, background: '#3b82f6', border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
@@ -115,21 +125,21 @@ export default function Members({ members = [], loading = false, error = null, r
       {showAddModal && (
         <>
           <div onClick={() => { setShowAddModal(false); setAddError(''); setNewEmail(''); }} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: '#fff', padding: 24, borderRadius: 16, boxShadow: '0 20px 40px rgba(0,0,0,0.2)', zIndex: 1000, width: 340 }}>
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: cardBg, padding: 24, borderRadius: 16, boxShadow: '0 20px 40px rgba(0,0,0,0.2)', zIndex: 1000, width: 340 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>Add New Member</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: textPrimary }}>Add New Member</div>
               <button onClick={() => { setShowAddModal(false); setAddError(''); setNewEmail(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-                <X size={18} color="#64748b" />
+                <X size={18} color={darkMode ? '#94a3b8' : '#64748b'} />
               </button>
             </div>
           <form onSubmit={handleAddMember}>
-            <input 
-              type="email" 
+            <input
+              type="email"
               required
-              value={newEmail} 
-              onChange={e => setNewEmail(e.target.value)} 
-              placeholder="Enter user email..." 
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', fontSize: 13, marginBottom: 12 }} 
+              value={newEmail}
+              onChange={e => setNewEmail(e.target.value)}
+              placeholder="Enter user email..."
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${subtleBorder}`, outline: 'none', fontSize: 13, marginBottom: 12, background: subtleBg, color: textPrimary }}
             />
             {addError && <div style={{ fontSize: 11, color: '#ef4444', marginBottom: 12, lineHeight: 1.4 }}>{addError}</div>}
             <button disabled={isAdding} type="submit" style={{ width: '100%', padding: 10, borderRadius: 8, background: '#3b82f6', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: isAdding ? 'not-allowed' : 'pointer' }}>
@@ -147,35 +157,35 @@ export default function Members({ members = [], loading = false, error = null, r
       ) : error ? (
         <div style={{ padding: 60, textAlign: 'center', color: '#ef4444', fontSize: 14, fontWeight: 500 }}>{error}</div>
       ) : filtered.length === 0 ? (
-        <div style={{ padding: 60, textAlign: 'center', color: '#64748b', fontSize: 14 }}>
+        <div style={{ padding: 60, textAlign: 'center', color: textSecondary, fontSize: 14 }}>
           {search ? 'No members found matching your search.' : 'No members found. Click "Add Member" to invite someone.'}
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: '#f8fafc' }}>
+              <tr style={{ background: subtleBg }}>
                 {['Member', 'Email', 'Status', 'Heart Rate', 'SpO₂', 'BP', 'Sleep', 'HRV', 'Battery', 'Joined', 'Actions'].map(h => (
-                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
+                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: darkMode ? '#94a3b8' : '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${subtleBorder}`, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map((m, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                <tr key={i} style={{ borderBottom: `1px solid ${cardBorder}` }}
+                  onMouseEnter={e => e.currentTarget.style.background = rowHover}
                   onMouseLeave={e => e.currentTarget.style.background = ''}>
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 38, height: 38, borderRadius: 12, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#3b82f6' }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 12, background: darkMode ? '#1d4ed820' : '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#3b82f6' }}>
                         {(m.full_name || m.user_email).substring(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{m.full_name || 'Unknown User'}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{m.full_name || 'Unknown User'}</div>
                       </div>
                     </div>
                   </td>
-                  <td style={{ padding: '14px 16px', fontSize: 13, color: '#475569', fontWeight: 500 }}>
+                  <td style={{ padding: '14px 16px', fontSize: 13, color: textSecondary, fontWeight: 500 }}>
                     {m.user_email}
                   </td>
                   <td style={{ padding: '14px 16px' }}>
@@ -186,8 +196,8 @@ export default function Members({ members = [], loading = false, error = null, r
                           <StatusDot status={computedStatus} />
                           <span style={{
                             fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99,
-                            background: computedStatus === 'online' ? '#d1fae5' : computedStatus === 'away' ? '#fef3c7' : '#f1f5f9',
-                            color: computedStatus === 'online' ? '#065f46' : computedStatus === 'away' ? '#92400e' : '#6b7280',
+                            background: computedStatus === 'online' ? (darkMode ? '#064e3b' : '#d1fae5') : computedStatus === 'away' ? (darkMode ? '#78350f' : '#fef3c7') : (darkMode ? '#334155' : '#f1f5f9'),
+                            color: computedStatus === 'online' ? (darkMode ? '#6ee7b7' : '#065f46') : computedStatus === 'away' ? (darkMode ? '#fcd34d' : '#92400e') : (darkMode ? '#94a3b8' : '#6b7280'),
                             textTransform: 'capitalize'
                           }}>{computedStatus}</span>
                         </div>
@@ -199,55 +209,55 @@ export default function Members({ members = [], loading = false, error = null, r
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <Heart size={14} color={m.vitals.heartrate.once_heart_value > 100 ? '#ef4444' : '#10b981'} />
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{m.vitals.heartrate.once_heart_value} <span style={{ color: '#9ca3af', fontWeight: 400 }}>bpm</span></span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{m.vitals.heartrate.once_heart_value} <span style={{ color: textMuted, fontWeight: 400 }}>bpm</span></span>
                         </div>
-                        <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(m.vitals.heartrate.date)}</div>
+                        <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(m.vitals.heartrate.date)}</div>
                       </div>
-                    ) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                    ) : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                   </td>
                   <td style={{ padding: '14px 16px' }}>
                     {m.vitals?.spo2 ? (
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <Droplets size={14} color="#3b82f6" />
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{m.vitals.spo2.Blood_oxygen} <span style={{ color: '#9ca3af', fontWeight: 400 }}>%</span></span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{m.vitals.spo2.Blood_oxygen} <span style={{ color: textMuted, fontWeight: 400 }}>%</span></span>
                         </div>
-                        <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(m.vitals.spo2.date)}</div>
+                        <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(m.vitals.spo2.date)}</div>
                       </div>
-                    ) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                    ) : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                   </td>
                   <td style={{ padding: '14px 16px' }}>
                     {m.vitals?.bloodpressure ? (
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <Activity size={14} color="#8b5cf6" />
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{m.vitals.bloodpressure.sbp}/{m.vitals.bloodpressure.dbp}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{m.vitals.bloodpressure.sbp}/{m.vitals.bloodpressure.dbp}</span>
                         </div>
-                        <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(m.vitals.bloodpressure.date)}</div>
+                        <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(m.vitals.bloodpressure.date)}</div>
                       </div>
-                    ) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                    ) : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                   </td>
                   <td style={{ padding: '14px 16px' }}>
                     {m.vitals?.sleep ? (
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <Moon size={14} color="#6366f1" />
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{m.vitals.sleep.duration} <span style={{ color: '#9ca3af', fontWeight: 400 }}>hrs</span></span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{m.vitals.sleep.duration} <span style={{ color: textMuted, fontWeight: 400 }}>hrs</span></span>
                         </div>
-                        <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(m.vitals.sleep.date)}</div>
+                        <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(m.vitals.sleep.date)}</div>
                       </div>
-                    ) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                    ) : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                   </td>
                   <td style={{ padding: '14px 16px' }}>
                     {m.vitals?.hrv_iso ? (
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <Zap size={14} color="#f59e0b" />
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{m.vitals.hrv_iso.hrv} <span style={{ color: '#9ca3af', fontWeight: 400 }}>ms</span></span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{m.vitals.hrv_iso.hrv} <span style={{ color: textMuted, fontWeight: 400 }}>ms</span></span>
                         </div>
-                        <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(m.vitals.hrv_iso.date)}</div>
+                        <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(m.vitals.hrv_iso.date)}</div>
                       </div>
-                    ) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                    ) : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                   </td>
                   <td style={{ padding: '14px 16px' }}>
                     {m.vitals?.battery ? (() => {
@@ -258,14 +268,14 @@ export default function Members({ members = [], loading = false, error = null, r
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <BatteryIcon size={14} color={color} />
-                            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{pct} <span style={{ color: '#9ca3af', fontWeight: 400 }}>%</span></span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{pct} <span style={{ color: textMuted, fontWeight: 400 }}>%</span></span>
                           </div>
-                          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(m.vitals.battery.timestamp)}</div>
+                          <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(m.vitals.battery.timestamp)}</div>
                         </div>
                       );
-                    })() : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                    })() : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                   </td>
-                  <td style={{ padding: '14px 16px', fontSize: 13, color: '#64748b' }}>
+                  <td style={{ padding: '14px 16px', fontSize: 13, color: textSecondary }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Clock size={12} />
                       {new Date(m.created_at).toLocaleDateString()}
@@ -273,16 +283,16 @@ export default function Members({ members = [], loading = false, error = null, r
                   </td>
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button 
+                      <button
                         onClick={() => onViewVitals && onViewVitals(m.user_id, m.full_name, m.profile_image)}
                         title="View Vitals Dashboard"
-                        style={{ padding: 8, borderRadius: 8, background: '#eff6ff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        style={{ padding: 8, borderRadius: 8, background: darkMode ? '#1d4ed820' : '#eff6ff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                         <Eye size={14} color="#3b82f6" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDeleteMember(m.id)}
                         title="Remove Member"
-                        style={{ padding: 8, borderRadius: 8, background: '#fef2f2', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        style={{ padding: 8, borderRadius: 8, background: darkMode ? '#7f1d1d20' : '#fef2f2', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                         <Trash2 size={14} color="#ef4444" />
                       </button>
                     </div>

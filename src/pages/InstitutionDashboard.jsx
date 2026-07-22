@@ -254,9 +254,9 @@ export default function InstitutionDashboard() {
   const tabContent = useMemo(() => {
     switch (activeTab) {
       case 'overview':
-        return <OverviewTab members={members} loading={loading} error={error} />;
+        return <OverviewTab members={members} loading={loading} error={error} darkMode={darkMode} />;
       case 'members':
-        return <MembersTab members={members} loading={loading} error={error} refreshMembers={fetchMembers} onViewVitals={handleViewVitals} />;
+        return <MembersTab members={members} loading={loading} error={error} refreshMembers={fetchMembers} onViewVitals={handleViewVitals} darkMode={darkMode} />;
       case 'vitals':
         return (
           <VitalsTab
@@ -274,9 +274,9 @@ export default function InstitutionDashboard() {
       case 'alerts':
         return <AlertsTab darkMode={darkMode} alerts={alerts} setAlerts={setAlerts} thresholds={thresholds} setThresholds={setThresholds} members={members} />;
       case 'subscription':
-        return <SubscriptionTab />;
+        return <SubscriptionTab darkMode={darkMode} />;
       default:
-        return <PlaceholderTab tab={activeTab} />;
+        return <PlaceholderTab tab={activeTab} darkMode={darkMode} />;
     }
   }, [activeTab, handleViewVitals, selectedUserId, selectedUserInfo, darkMode, globalDateRange, members, loading, error, fetchMembers, thresholds, alerts]);
 

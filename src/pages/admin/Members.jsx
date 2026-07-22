@@ -17,12 +17,14 @@ const GENDER_OPTIONS = [
 
 const BLOOD_GROUP_OPTIONS = ['', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', fontSize: 13, background: '#fff' };
+function getInputStyle(darkMode) {
+  return { width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`, outline: 'none', fontSize: 13, background: darkMode ? '#0f172a' : '#fff', color: darkMode ? '#fff' : '#0f172a' };
+}
 
-function FormField({ label, children }) {
+function FormField({ label, children, darkMode }) {
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: darkMode ? '#94a3b8' : '#64748b', marginBottom: 4 }}>{label}</div>
       {children}
     </div>
   );
@@ -41,19 +43,19 @@ function editFormFromUser(u) {
 }
 
 const ROLE_STYLES = {
-  DOCTOR: { label: 'Doctor', bg: '#eff6ff', color: '#1d4ed8', icon: Stethoscope },
-  USER: { label: 'Patient', bg: '#ecfdf5', color: '#047857', icon: UserIcon },
+  DOCTOR: { label: 'Doctor', bg: '#eff6ff', darkBg: '#1d4ed820', color: '#1d4ed8', darkColor: '#60a5fa', icon: Stethoscope },
+  USER: { label: 'Patient', bg: '#ecfdf5', darkBg: '#05966920', color: '#047857', darkColor: '#34d399', icon: UserIcon },
 };
 
 const STATUS_COLORS = { online: '#10b981', away: '#f59e0b', offline: '#9ca3af' };
 
-function RoleBadge({ role }) {
-  const s = ROLE_STYLES[role] || { label: role || 'Unknown', bg: '#f1f5f9', color: '#475569', icon: UserIcon };
+function RoleBadge({ role, darkMode }) {
+  const s = ROLE_STYLES[role] || { label: role || 'Unknown', bg: '#f1f5f9', darkBg: '#33415580', color: '#475569', darkColor: '#94a3b8', icon: UserIcon };
   const Icon = s.icon;
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700,
-      padding: '3px 10px', borderRadius: 99, background: s.bg, color: s.color
+      padding: '3px 10px', borderRadius: 99, background: darkMode ? s.darkBg : s.bg, color: darkMode ? s.darkColor : s.color
     }}>
       <Icon size={11} /> {s.label}
     </span>
@@ -85,7 +87,7 @@ function resolveImageUrl(url) {
   return url;
 }
 
-export default function AdminMembers({ users = [], loading = false, error = null, refreshUsers, onViewVitals }) {
+export default function AdminMembers({ users = [], loading = false, error = null, refreshUsers, onViewVitals, darkMode = false }) {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
@@ -96,6 +98,17 @@ export default function AdminMembers({ users = [], loading = false, error = null
   const [editForm, setEditForm] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+
+  // Color tokens
+  const cardBg = darkMode ? '#1e293b' : '#fff';
+  const cardBorder = darkMode ? '#334155' : '#f1f5f9';
+  const subtleBg = darkMode ? '#0f172a' : '#f8fafc';
+  const subtleBorder = darkMode ? '#334155' : '#e2e8f0';
+  const textPrimary = darkMode ? '#fff' : '#0f172a';
+  const textSecondary = darkMode ? '#94a3b8' : '#64748b';
+  const textMuted = darkMode ? '#64748b' : '#9ca3af';
+  const rowHover = darkMode ? '#0f172a' : '#f8fafc';
+  const inputStyle = getInputStyle(darkMode);
 
   const openEdit = (u) => {
     setEditingUser(u);
@@ -169,12 +182,12 @@ export default function AdminMembers({ users = [], loading = false, error = null
   const patientCount = users.filter(u => u.role === 'USER').length;
 
   return (
-    <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #f1f5f9', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ background: cardBg, borderRadius: 20, border: `1px solid ${cardBorder}`, overflow: 'hidden', position: 'relative' }}>
       {/* Header */}
-      <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>All Users ({users.length})</div>
+      <div style={{ padding: '20px 24px', borderBottom: `1px solid ${cardBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: textPrimary }}>All Users ({users.length})</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 3 }}>
+          <div style={{ display: 'flex', background: subtleBg, border: `1px solid ${subtleBorder}`, borderRadius: 10, padding: 3 }}>
             {[
               { id: 'all', label: `All (${users.length})` },
               { id: 'DOCTOR', label: `Doctors (${doctorCount})` },
@@ -184,21 +197,21 @@ export default function AdminMembers({ users = [], loading = false, error = null
                 padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
                 fontSize: 12, fontWeight: 700,
                 background: roleFilter === t.id ? '#3b82f6' : 'transparent',
-                color: roleFilter === t.id ? '#fff' : '#64748b',
+                color: roleFilter === t.id ? '#fff' : textSecondary,
                 transition: 'background 0.15s'
               }}>{t.label}</button>
             ))}
           </div>
           <div style={{ position: 'relative' }}>
-            <Search size={14} color="#9ca3af" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+            <Search size={14} color={textMuted} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search users…" style={{
-              paddingLeft: 34, paddingRight: 14, height: 36, background: '#f8fafc', border: '1px solid #e2e8f0',
-              borderRadius: 10, fontSize: 13, outline: 'none', color: '#0f172a', width: 220
+              paddingLeft: 34, paddingRight: 14, height: 36, background: subtleBg, border: `1px solid ${subtleBorder}`,
+              borderRadius: 10, fontSize: 13, outline: 'none', color: textPrimary, width: 220
             }} />
           </div>
           {refreshUsers && (
-            <button onClick={refreshUsers} title="Refresh" style={{ width: 36, height: 36, borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-              <RefreshCw size={14} color="#6b7280" />
+            <button onClick={refreshUsers} title="Refresh" style={{ width: 36, height: 36, borderRadius: 10, background: subtleBg, border: `1px solid ${subtleBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <RefreshCw size={14} color={darkMode ? '#94a3b8' : '#6b7280'} />
             </button>
           )}
         </div>
@@ -208,46 +221,46 @@ export default function AdminMembers({ users = [], loading = false, error = null
       {selectedUser && (
         <>
           <div onClick={() => setSelectedUser(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: '#fff', borderRadius: 16, boxShadow: '0 20px 40px rgba(0,0,0,0.2)', zIndex: 1000, width: 380, maxHeight: '85vh', overflowY: 'auto' }}>
-            <div style={{ padding: 20, borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: cardBg, borderRadius: 16, boxShadow: '0 20px 40px rgba(0,0,0,0.2)', zIndex: 1000, width: 380, maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ padding: 20, borderBottom: `1px solid ${cardBorder}`, display: 'flex', alignItems: 'center', gap: 12 }}>
               {resolveImageUrl(selectedUser.profile_image) ? (
                 <img src={resolveImageUrl(selectedUser.profile_image)} alt="" style={{ width: 48, height: 48, borderRadius: 12, objectFit: 'cover' }} />
               ) : (
-                <div style={{ width: 48, height: 48, borderRadius: 12, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, color: '#3b82f6' }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: darkMode ? '#1d4ed820' : '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, color: '#3b82f6' }}>
                   {`${selectedUser.first_name?.[0] || ''}${selectedUser.last_name?.[0] || ''}`.toUpperCase() || 'U'}
                 </div>
               )}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{`${selectedUser.first_name || ''} ${selectedUser.last_name || ''}`.trim() || 'Unknown'}</div>
-                <RoleBadge role={selectedUser.role} />
+                <div style={{ fontSize: 15, fontWeight: 700, color: textPrimary }}>{`${selectedUser.first_name || ''} ${selectedUser.last_name || ''}`.trim() || 'Unknown'}</div>
+                <RoleBadge role={selectedUser.role} darkMode={darkMode} />
               </div>
               <button onClick={() => setSelectedUser(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-                <X size={18} color="#64748b" />
+                <X size={18} color={textSecondary} />
               </button>
             </div>
             <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <DetailRow icon={UserIcon} label="Email" value={selectedUser.email} />
-              <DetailRow icon={Phone} label="Phone" value={selectedUser.phone_number} />
-              <DetailRow icon={Calendar} label="Age / Gender" value={[getAge(selectedUser.birthdate) ? `${getAge(selectedUser.birthdate)} yrs` : null, selectedUser.gender === 'M' ? 'Male' : selectedUser.gender === 'F' ? 'Female' : selectedUser.gender].filter(Boolean).join(' • ')} />
+              <DetailRow icon={UserIcon} label="Email" value={selectedUser.email} darkMode={darkMode} />
+              <DetailRow icon={Phone} label="Phone" value={selectedUser.phone_number} darkMode={darkMode} />
+              <DetailRow icon={Calendar} label="Age / Gender" value={[getAge(selectedUser.birthdate) ? `${getAge(selectedUser.birthdate)} yrs` : null, selectedUser.gender === 'M' ? 'Male' : selectedUser.gender === 'F' ? 'Female' : selectedUser.gender].filter(Boolean).join(' • ')} darkMode={darkMode} />
 
               {selectedUser.role === 'DOCTOR' ? (
                 <>
-                  <DetailRow icon={Stethoscope} label="Specialization" value={selectedUser.specialization} />
-                  <DetailRow icon={Building2} label="Hospital" value={selectedUser.hospital_name} />
-                  <DetailRow icon={Award} label="License No." value={selectedUser.license_number} />
-                  <DetailRow icon={GraduationCap} label="Education" value={selectedUser.education} />
-                  <DetailRow icon={Calendar} label="Experience" value={selectedUser.experience != null ? `${selectedUser.experience} yrs` : null} />
+                  <DetailRow icon={Stethoscope} label="Specialization" value={selectedUser.specialization} darkMode={darkMode} />
+                  <DetailRow icon={Building2} label="Hospital" value={selectedUser.hospital_name} darkMode={darkMode} />
+                  <DetailRow icon={Award} label="License No." value={selectedUser.license_number} darkMode={darkMode} />
+                  <DetailRow icon={GraduationCap} label="Education" value={selectedUser.education} darkMode={darkMode} />
+                  <DetailRow icon={Calendar} label="Experience" value={selectedUser.experience != null ? `${selectedUser.experience} yrs` : null} darkMode={darkMode} />
                   {selectedUser.description && (
-                    <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.5, background: '#f8fafc', padding: 12, borderRadius: 10 }}>
+                    <div style={{ fontSize: 12, color: textSecondary, lineHeight: 1.5, background: subtleBg, padding: 12, borderRadius: 10 }}>
                       {selectedUser.description}
                     </div>
                   )}
                 </>
               ) : (
                 <>
-                  <DetailRow icon={Droplet} label="Blood Group" value={selectedUser.blood_group} />
-                  <DetailRow icon={Ruler} label="Height" value={selectedUser.height != null ? `${selectedUser.height} cm` : null} />
-                  <DetailRow icon={Weight} label="Weight" value={selectedUser.weight != null ? `${selectedUser.weight} kg` : null} />
+                  <DetailRow icon={Droplet} label="Blood Group" value={selectedUser.blood_group} darkMode={darkMode} />
+                  <DetailRow icon={Ruler} label="Height" value={selectedUser.height != null ? `${selectedUser.height} cm` : null} darkMode={darkMode} />
+                  <DetailRow icon={Weight} label="Weight" value={selectedUser.weight != null ? `${selectedUser.weight} kg` : null} darkMode={darkMode} />
                 </>
               )}
             </div>
@@ -259,39 +272,39 @@ export default function AdminMembers({ users = [], loading = false, error = null
       {editingUser && editForm && (
         <>
           <div onClick={closeEdit} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: '#fff', padding: 24, borderRadius: 16, boxShadow: '0 20px 40px rgba(0,0,0,0.2)', zIndex: 1000, width: 380, maxHeight: '85vh', overflowY: 'auto' }}>
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: cardBg, padding: 24, borderRadius: 16, boxShadow: '0 20px 40px rgba(0,0,0,0.2)', zIndex: 1000, width: 380, maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>Edit {`${editingUser.first_name || ''} ${editingUser.last_name || ''}`.trim() || 'User'}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: textPrimary }}>Edit {`${editingUser.first_name || ''} ${editingUser.last_name || ''}`.trim() || 'User'}</div>
               <button onClick={closeEdit} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-                <X size={18} color="#64748b" />
+                <X size={18} color={textSecondary} />
               </button>
             </div>
             <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', gap: 10 }}>
-                <FormField label="First Name">
+                <FormField label="First Name" darkMode={darkMode}>
                   <input type="text" value={editForm.first_name} onChange={e => setEditForm(f => ({ ...f, first_name: e.target.value }))} style={inputStyle} />
                 </FormField>
-                <FormField label="Last Name">
+                <FormField label="Last Name" darkMode={darkMode}>
                   <input type="text" value={editForm.last_name} onChange={e => setEditForm(f => ({ ...f, last_name: e.target.value }))} style={inputStyle} />
                 </FormField>
               </div>
-              <FormField label="Birthdate">
+              <FormField label="Birthdate" darkMode={darkMode}>
                 <input type="date" value={editForm.birthdate || ''} onChange={e => setEditForm(f => ({ ...f, birthdate: e.target.value }))} style={inputStyle} />
               </FormField>
-              <FormField label="Gender">
+              <FormField label="Gender" darkMode={darkMode}>
                 <select value={editForm.gender} onChange={e => setEditForm(f => ({ ...f, gender: e.target.value }))} style={inputStyle}>
                   {GENDER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </FormField>
               <div style={{ display: 'flex', gap: 10 }}>
-                <FormField label="Height (cm)">
+                <FormField label="Height (cm)" darkMode={darkMode}>
                   <input type="number" step="0.1" value={editForm.height} onChange={e => setEditForm(f => ({ ...f, height: e.target.value }))} style={inputStyle} />
                 </FormField>
-                <FormField label="Weight (kg)">
+                <FormField label="Weight (kg)" darkMode={darkMode}>
                   <input type="number" step="0.1" value={editForm.weight} onChange={e => setEditForm(f => ({ ...f, weight: e.target.value }))} style={inputStyle} />
                 </FormField>
               </div>
-              <FormField label="Blood Group">
+              <FormField label="Blood Group" darkMode={darkMode}>
                 <select value={editForm.blood_group} onChange={e => setEditForm(f => ({ ...f, blood_group: e.target.value }))} style={inputStyle}>
                   {BLOOD_GROUP_OPTIONS.map(o => <option key={o} value={o}>{o || 'Select…'}</option>)}
                 </select>
@@ -314,16 +327,16 @@ export default function AdminMembers({ users = [], loading = false, error = null
       ) : error ? (
         <div style={{ padding: 60, textAlign: 'center', color: '#ef4444', fontSize: 14, fontWeight: 500 }}>{error}</div>
       ) : filtered.length === 0 ? (
-        <div style={{ padding: 60, textAlign: 'center', color: '#64748b', fontSize: 14 }}>
+        <div style={{ padding: 60, textAlign: 'center', color: textSecondary, fontSize: 14 }}>
           {search ? 'No users found matching your search.' : 'No users found.'}
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: '#f8fafc' }}>
+              <tr style={{ background: subtleBg }}>
                 {['Member', 'Status', 'Heart Rate', 'SpO₂', 'BP', 'Sleep', 'HRV', 'Battery', 'Vitals', 'Actions'].map(h => (
-                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
+                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: darkMode ? '#94a3b8' : '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${subtleBorder}`, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -332,19 +345,19 @@ export default function AdminMembers({ users = [], loading = false, error = null
                 const name = `${u.first_name || ''} ${u.last_name || ''}`.trim() || 'Unknown User';
                 const image = resolveImageUrl(u.profile_image);
                 return (
-                  <tr key={u.id} style={{ borderBottom: '1px solid #f1f5f9' }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  <tr key={u.id} style={{ borderBottom: `1px solid ${cardBorder}` }}
+                    onMouseEnter={e => e.currentTarget.style.background = rowHover}
                     onMouseLeave={e => e.currentTarget.style.background = ''}>
                     <td style={{ padding: '14px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setSelectedUser(u)}>
                         {image ? (
                           <img src={image} alt={name} style={{ width: 38, height: 38, borderRadius: 12, objectFit: 'cover' }} />
                         ) : (
-                          <div style={{ width: 38, height: 38, borderRadius: 12, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#3b82f6' }}>
+                          <div style={{ width: 38, height: 38, borderRadius: 12, background: darkMode ? '#1d4ed820' : '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#3b82f6' }}>
                             {name.substring(0, 2).toUpperCase()}
                           </div>
                         )}
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{name}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{name}</div>
                       </div>
                     </td>
                     <td style={{ padding: '14px 16px' }}>
@@ -352,8 +365,8 @@ export default function AdminMembers({ users = [], loading = false, error = null
                         <StatusDot status={u.status} />
                         <span style={{
                           fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99,
-                          background: u.status === 'online' ? '#d1fae5' : u.status === 'away' ? '#fef3c7' : '#f1f5f9',
-                          color: u.status === 'online' ? '#065f46' : u.status === 'away' ? '#92400e' : '#6b7280',
+                          background: u.status === 'online' ? (darkMode ? '#064e3b' : '#d1fae5') : u.status === 'away' ? (darkMode ? '#78350f' : '#fef3c7') : (darkMode ? '#334155' : '#f1f5f9'),
+                          color: u.status === 'online' ? (darkMode ? '#6ee7b7' : '#065f46') : u.status === 'away' ? (darkMode ? '#fcd34d' : '#92400e') : (darkMode ? '#94a3b8' : '#6b7280'),
                           textTransform: 'capitalize'
                         }}>{u.status || 'offline'}</span>
                       </div>
@@ -363,55 +376,55 @@ export default function AdminMembers({ users = [], loading = false, error = null
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <Heart size={14} color={u.vitals.heartrate.once_heart_value > 100 ? '#ef4444' : '#10b981'} />
-                            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{u.vitals.heartrate.once_heart_value} <span style={{ color: '#9ca3af', fontWeight: 400 }}>bpm</span></span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{u.vitals.heartrate.once_heart_value} <span style={{ color: textMuted, fontWeight: 400 }}>bpm</span></span>
                           </div>
-                          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.heartrate.date)}</div>
+                          <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.heartrate.date)}</div>
                         </div>
-                      ) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                      ) : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       {u.vitals?.spo2 ? (
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <Droplets size={14} color="#3b82f6" />
-                            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{u.vitals.spo2.Blood_oxygen} <span style={{ color: '#9ca3af', fontWeight: 400 }}>%</span></span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{u.vitals.spo2.Blood_oxygen} <span style={{ color: textMuted, fontWeight: 400 }}>%</span></span>
                           </div>
-                          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.spo2.date)}</div>
+                          <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.spo2.date)}</div>
                         </div>
-                      ) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                      ) : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       {u.vitals?.bloodpressure ? (
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <Activity size={14} color="#8b5cf6" />
-                            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{u.vitals.bloodpressure.sbp}/{u.vitals.bloodpressure.dbp}</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{u.vitals.bloodpressure.sbp}/{u.vitals.bloodpressure.dbp}</span>
                           </div>
-                          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.bloodpressure.date)}</div>
+                          <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.bloodpressure.date)}</div>
                         </div>
-                      ) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                      ) : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       {u.vitals?.sleep ? (
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <Moon size={14} color="#6366f1" />
-                            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{u.vitals.sleep.duration} <span style={{ color: '#9ca3af', fontWeight: 400 }}>hrs</span></span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{u.vitals.sleep.duration} <span style={{ color: textMuted, fontWeight: 400 }}>hrs</span></span>
                           </div>
-                          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.sleep.date)}</div>
+                          <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.sleep.date)}</div>
                         </div>
-                      ) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                      ) : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       {u.vitals?.hrv_iso ? (
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <Zap size={14} color="#f59e0b" />
-                            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{u.vitals.hrv_iso.hrv} <span style={{ color: '#9ca3af', fontWeight: 400 }}>ms</span></span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{u.vitals.hrv_iso.hrv} <span style={{ color: textMuted, fontWeight: 400 }}>ms</span></span>
                           </div>
-                          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.hrv_iso.date)}</div>
+                          <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.hrv_iso.date)}</div>
                         </div>
-                      ) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                      ) : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       {u.vitals?.battery ? (() => {
@@ -422,19 +435,19 @@ export default function AdminMembers({ users = [], loading = false, error = null
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <BatteryIcon size={14} color={color} />
-                              <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{pct} <span style={{ color: '#9ca3af', fontWeight: 400 }}>%</span></span>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{pct} <span style={{ color: textMuted, fontWeight: 400 }}>%</span></span>
                             </div>
-                            <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.battery.timestamp)}</div>
+                            <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.battery.timestamp)}</div>
                           </div>
                         );
-                      })() : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                      })() : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       {onViewVitals && (
                         <button
                           onClick={() => onViewVitals(u.id, name, u.profile_image)}
                           title="View Vitals Dashboard"
-                          style={{ padding: 8, borderRadius: 8, background: '#f5f3ff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                          style={{ padding: 8, borderRadius: 8, background: darkMode ? '#4c1d9520' : '#f5f3ff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                           <Eye size={14} color="#8b5cf6" />
                         </button>
                       )}
@@ -444,14 +457,14 @@ export default function AdminMembers({ users = [], loading = false, error = null
                         <button
                           onClick={() => openEdit(u)}
                           title="Edit User"
-                          style={{ padding: 8, borderRadius: 8, background: '#eff6ff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                          style={{ padding: 8, borderRadius: 8, background: darkMode ? '#1d4ed820' : '#eff6ff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                           <Pencil size={14} color="#3b82f6" />
                         </button>
                         <button
                           onClick={() => handleDeleteUser(u)}
                           disabled={deletingId === u.id}
                           title="Delete User"
-                          style={{ padding: 8, borderRadius: 8, background: '#fef2f2', border: 'none', cursor: deletingId === u.id ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', opacity: deletingId === u.id ? 0.5 : 1 }}>
+                          style={{ padding: 8, borderRadius: 8, background: darkMode ? '#7f1d1d20' : '#fef2f2', border: 'none', cursor: deletingId === u.id ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', opacity: deletingId === u.id ? 0.5 : 1 }}>
                           {deletingId === u.id ? <Loader className="animate-spin" size={14} color="#ef4444" /> : <Trash2 size={14} color="#ef4444" />}
                         </button>
                       </div>
@@ -467,17 +480,17 @@ export default function AdminMembers({ users = [], loading = false, error = null
   );
 }
 
-function DetailRow({ icon, label, value }) {
+function DetailRow({ icon, label, value, darkMode }) {
   if (!value) return null;
   const Icon = icon;
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-      <div style={{ width: 28, height: 28, borderRadius: 8, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <Icon size={13} color="#64748b" />
+      <div style={{ width: 28, height: 28, borderRadius: 8, background: darkMode ? '#0f172a' : '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <Icon size={13} color={darkMode ? '#94a3b8' : '#64748b'} />
       </div>
       <div>
-        <div style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
-        <div style={{ fontSize: 13, color: '#0f172a', fontWeight: 600, marginTop: 1 }}>{value}</div>
+        <div style={{ fontSize: 10, color: darkMode ? '#64748b' : '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
+        <div style={{ fontSize: 13, color: darkMode ? '#fff' : '#0f172a', fontWeight: 600, marginTop: 1 }}>{value}</div>
       </div>
     </div>
   );

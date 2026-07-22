@@ -122,15 +122,15 @@ function useDeferredMount(delayMs = 80) {
   return ready;
 }
 
-const ActiveVsInactivePie = memo(function ActiveVsInactivePie() {
+const ActiveVsInactivePie = memo(function ActiveVsInactivePie({ darkMode }) {
   const legendItems = ACTIVE_VS_INACTIVE.map((d) => ({
     color: d.color,
     label: `${d.name} ${((d.value / 1284) * 100).toFixed(1)}%`,
   }));
   return (
-    <Card>
-      <CardHead title="Active vs inactive" />
-      <Legend items={legendItems} />
+    <Card darkMode={darkMode}>
+      <CardHead title="Active vs inactive" darkMode={darkMode} />
+      <Legend items={legendItems} darkMode={darkMode} />
       <ResponsiveContainer width="100%" height={160}>
         <PieChart>
           <Pie
@@ -143,18 +143,18 @@ const ActiveVsInactivePie = memo(function ActiveVsInactivePie() {
             dataKey="value"
             isAnimationActive={false}
           >
-            {ACTIVE_VS_INACTIVE.map((d, i) => (
+            {ACTIVE_VS_INACTIVE.map((d) => (
               <Cell key={d.name} fill={d.color} stroke="none" />
             ))}
           </Pie>
-          <Tooltip formatter={(v, n) => [v.toLocaleString(), n]} />
+          <Tooltip content={<CT darkMode={darkMode} />} formatter={(v, n) => [v.toLocaleString(), n]} />
         </PieChart>
       </ResponsiveContainer>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
         {ACTIVE_VS_INACTIVE.map((d) => (
-          <div key={d.name} style={{ background: '#f8fafc', borderRadius: 12, padding: '10px 12px', textAlign: 'center' }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{d.value.toLocaleString()}</div>
-            <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{d.name}</div>
+          <div key={d.name} style={{ background: darkMode ? '#0f172a' : '#f8fafc', borderRadius: 12, padding: '10px 12px', textAlign: 'center' }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: darkMode ? '#fff' : '#0f172a' }}>{d.value.toLocaleString()}</div>
+            <div style={{ fontSize: 11, color: darkMode ? '#94a3b8' : '#6b7280', marginTop: 2 }}>{d.name}</div>
           </div>
         ))}
       </div>
@@ -162,43 +162,43 @@ const ActiveVsInactivePie = memo(function ActiveVsInactivePie() {
   );
 });
 
-function BatteryBar({ level }) {
+function BatteryBar({ level, darkMode }) {
   const color = level > 60 ? '#10b981' : level > 30 ? '#f59e0b' : '#ef4444';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <div style={{ width: 36, height: 7, borderRadius: 4, background: '#e2e8f0', overflow: 'hidden' }}>
+      <div style={{ width: 36, height: 7, borderRadius: 4, background: darkMode ? '#334155' : '#e2e8f0', overflow: 'hidden' }}>
         <div style={{ width: `${level}%`, height: '100%', background: color, borderRadius: 4, transition: 'width .5s' }} />
       </div>
-      <span style={{ fontSize: 11, fontWeight: 600, color: '#6b7280' }}>{level}%</span>
+      <span style={{ fontSize: 11, fontWeight: 600, color: darkMode ? '#94a3b8' : '#6b7280' }}>{level}%</span>
     </div>
   );
 }
 
-const CT = memo(function CT({ active, payload, label }) {
+const CT = memo(function CT({ active, payload, label, darkMode }) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '8px 12px', fontSize: 12, boxShadow: '0 4px 16px rgba(0,0,0,.08)' }}>
-      <p style={{ fontWeight: 700, color: '#334155', marginBottom: 4 }}>{label}</p>
+    <div style={{ background: darkMode ? '#1e293b' : '#fff', border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`, borderRadius: 10, padding: '8px 12px', fontSize: 12, boxShadow: '0 4px 16px rgba(0,0,0,.08)' }}>
+      <p style={{ fontWeight: 700, color: darkMode ? '#e2e8f0' : '#334155', marginBottom: 4 }}>{label}</p>
       {payload.map((p, i) => (
-        <p key={i} style={{ color: p.color, fontWeight: 600 }}>{p.name}: <span style={{ color: '#0f172a' }}>{p.value}</span></p>
+        <p key={i} style={{ color: p.color, fontWeight: 600 }}>{p.name}: <span style={{ color: darkMode ? '#fff' : '#0f172a' }}>{p.value}</span></p>
       ))}
     </div>
   );
 });
 
 // Card shell — uses inline styles to play nicely inside the parent dashboard (no Tailwind clash)
-function Card({ children, style = {} }) {
+function Card({ children, style = {}, darkMode }) {
   return (
-    <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,.04)', padding: '20px 22px', ...style }}>
+    <div style={{ background: darkMode ? '#1e293b' : '#fff', borderRadius: 18, border: `1px solid ${darkMode ? '#334155' : '#f1f5f9'}`, boxShadow: '0 1px 4px rgba(0,0,0,.04)', padding: '20px 22px', ...style }}>
       {children}
     </div>
   );
 }
 
-function CardHead({ title, action }) {
+function CardHead({ title, action, darkMode }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-      <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{title}</span>
+      <span style={{ fontSize: 14, fontWeight: 700, color: darkMode ? '#fff' : '#0f172a' }}>{title}</span>
       {action && (
         <button style={{ fontSize: 12, fontWeight: 600, color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}>
           {action} <ChevronRight size={13} />
@@ -208,11 +208,11 @@ function CardHead({ title, action }) {
   );
 }
 
-function Legend({ items }) {
+function Legend({ items, darkMode }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
       {items.map(({ color, label }) => (
-        <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#64748b', fontWeight: 500 }}>
+        <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: darkMode ? '#94a3b8' : '#64748b', fontWeight: 500 }}>
           <span style={{ width: 10, height: 10, borderRadius: 3, background: color, flexShrink: 0 }} />
           {label}
         </span>
@@ -221,13 +221,19 @@ function Legend({ items }) {
   );
 }
 
-const tickStyle = { fontSize: 11, fill: '#94a3b8' };
-const gridStyle = { stroke: '#f1f5f9' };
+function getTickStyle(darkMode) {
+  return { fontSize: 11, fill: darkMode ? '#64748b' : '#94a3b8' };
+}
+function getGridStyle(darkMode) {
+  return { stroke: darkMode ? '#334155' : '#f1f5f9' };
+}
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-function Overview() {
+function Overview({ darkMode = false }) {
   const chartsDeferred = useDeferredMount(100);
+  const tickStyle = getTickStyle(darkMode);
+  const gridStyle = getGridStyle(darkMode);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -235,23 +241,23 @@ function Overview() {
       {/* ── Stat cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14 }}>
         {STAT_CARDS.map((s, i) => (
-          <div key={i} style={{ background: '#fff', borderRadius: 18, border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,.04)', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div key={i} style={{ background: darkMode ? '#1e293b' : '#fff', borderRadius: 18, border: `1px solid ${darkMode ? '#334155' : '#f1f5f9'}`, boxShadow: '0 1px 3px rgba(0,0,0,.04)', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ width: 38, height: 38, borderRadius: 12, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 38, height: 38, borderRadius: 12, background: darkMode ? `${s.accent}20` : s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <s.icon size={17} color={s.accent} />
               </div>
               <span style={{
                 fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 99,
-                background: s.up ? '#d1fae5' : '#fee2e2',
-                color: s.up ? '#065f46' : '#991b1b',
+                background: s.up ? (darkMode ? '#064e3b' : '#d1fae5') : (darkMode ? '#450a0a' : '#fee2e2'),
+                color: s.up ? (darkMode ? '#6ee7b7' : '#065f46') : (darkMode ? '#f87171' : '#991b1b'),
                 display: 'flex', alignItems: 'center', gap: 2,
               }}>
                 {s.up ? <TrendingUp size={10} /> : <TrendingDown size={10} />} {s.change}
               </span>
             </div>
             <div>
-              <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 500, marginBottom: 2 }}>{s.label}</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', letterSpacing: '-1px', fontVariantNumeric: 'tabular-nums' }}>
+              <div style={{ fontSize: 11, color: darkMode ? '#94a3b8' : '#6b7280', fontWeight: 500, marginBottom: 2 }}>{s.label}</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: darkMode ? '#fff' : '#0f172a', letterSpacing: '-1px', fontVariantNumeric: 'tabular-nums' }}>
                 {s.value.toLocaleString()}
               </div>
             </div>
@@ -261,8 +267,8 @@ function Overview() {
 
       {/* ── Row 1: Growth area + Active/Inactive donut (priority — paints first) ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
-        <Card>
-          <CardHead title="Cumulative member growth — 12 months" action="Full report" />
+        <Card darkMode={darkMode}>
+          <CardHead title="Cumulative member growth — 12 months" action="Full report" darkMode={darkMode} />
           <ResponsiveContainer width="100%" height={210}>
             <AreaChart data={GROWTH_DATA} margin={{ top: 4, right: 8, bottom: 0, left: -12 }}>
               <defs>
@@ -274,20 +280,20 @@ function Overview() {
               <CartesianGrid strokeDasharray="3 3" {...gridStyle} />
               <XAxis dataKey="month" tick={tickStyle} axisLine={false} tickLine={false} />
               <YAxis domain={[850, 1350]} tick={tickStyle} axisLine={false} tickLine={false} />
-              <Tooltip content={<CT />} />
+              <Tooltip content={<CT darkMode={darkMode} />} />
               <Area type="monotone" dataKey="total" name="Members" stroke="#3b82f6" strokeWidth={2.5} fill="url(#gGrad)" dot={false} activeDot={{ r: 5 }} {...CHART_ANIM} />
             </AreaChart>
           </ResponsiveContainer>
         </Card>
-        <ActiveVsInactivePie />
+        <ActiveVsInactivePie darkMode={darkMode} />
       </div>
 
       {!chartsDeferred ? (
-        <div style={{ minHeight: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}>
+        <div style={{ minHeight: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', color: darkMode ? '#64748b' : '#94a3b8', fontSize: 13 }}>
           Loading charts…
         </div>
       ) : (
-        <OverviewChartsDeferred />
+        <OverviewChartsDeferred darkMode={darkMode} />
       )}
     </div>
   );
@@ -295,32 +301,35 @@ function Overview() {
 
 export default memo(Overview);
 
-function OverviewChartsDeferred() {
+function OverviewChartsDeferred({ darkMode }) {
+  const tickStyle = getTickStyle(darkMode);
+  const gridStyle = getGridStyle(darkMode);
+
   return (
     <>
       {/* ── Row 2: Weekly + Monthly additions ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <Card>
-          <CardHead title="Members added — weekly (last 12 weeks)" />
+        <Card darkMode={darkMode}>
+          <CardHead title="Members added — weekly (last 12 weeks)" darkMode={darkMode} />
           <ResponsiveContainer width="100%" height={190}>
             <BarChart data={WEEKLY_ADDITIONS} margin={{ top: 4, right: 8, bottom: 0, left: -14 }} barSize={16}>
               <CartesianGrid strokeDasharray="3 3" {...gridStyle} vertical={false} />
               <XAxis dataKey="week" tick={{ ...tickStyle, fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={tickStyle} axisLine={false} tickLine={false} />
-              <Tooltip content={<CT />} />
+              <Tooltip content={<CT darkMode={darkMode} />} />
               <Bar dataKey="added" name="Added" fill="#85b7eb" radius={[4, 4, 0, 0]} {...CHART_ANIM} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
 
-        <Card>
-          <CardHead title="Members added — monthly (last 6 months)" />
+        <Card darkMode={darkMode}>
+          <CardHead title="Members added — monthly (last 6 months)" darkMode={darkMode} />
           <ResponsiveContainer width="100%" height={190}>
             <BarChart data={MONTHLY_ADDITIONS} margin={{ top: 4, right: 8, bottom: 0, left: -14 }} barSize={36}>
               <CartesianGrid strokeDasharray="3 3" {...gridStyle} vertical={false} />
               <XAxis dataKey="month" tick={tickStyle} axisLine={false} tickLine={false} />
               <YAxis tick={tickStyle} axisLine={false} tickLine={false} />
-              <Tooltip content={<CT />} />
+              <Tooltip content={<CT darkMode={darkMode} />} />
               <Bar dataKey="added" name="Added" fill="#5dcaa5" radius={[5, 5, 0, 0]} {...CHART_ANIM} />
             </BarChart>
           </ResponsiveContainer>
@@ -329,28 +338,28 @@ function OverviewChartsDeferred() {
 
       {/* ── Row 3: Age distribution + Active/inactive by age ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <Card>
-          <CardHead title="Age distribution — total members" />
+        <Card darkMode={darkMode}>
+          <CardHead title="Age distribution — total members" darkMode={darkMode} />
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={AGE_DISTRIBUTION} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 10 }} barSize={13}>
               <CartesianGrid strokeDasharray="3 3" {...gridStyle} horizontal={false} />
               <XAxis type="number" tick={tickStyle} axisLine={false} tickLine={false} />
               <YAxis type="category" dataKey="age" tick={{ ...tickStyle, fontSize: 11 }} axisLine={false} tickLine={false} width={42} />
-              <Tooltip content={<CT />} />
+              <Tooltip content={<CT darkMode={darkMode} />} />
               <Bar dataKey="total" name="Total" fill="#1d9e75" radius={[0, 5, 5, 0]} {...CHART_ANIM} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
 
-        <Card>
-          <CardHead title="Active vs inactive by age group" />
-          <Legend items={[{ color: '#378add', label: 'Active' }, { color: '#f09595', label: 'Inactive' }]} />
+        <Card darkMode={darkMode}>
+          <CardHead title="Active vs inactive by age group" darkMode={darkMode} />
+          <Legend items={[{ color: '#378add', label: 'Active' }, { color: '#f09595', label: 'Inactive' }]} darkMode={darkMode} />
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={AGE_DISTRIBUTION} margin={{ top: 0, right: 8, bottom: 0, left: -14 }} barSize={13}>
               <CartesianGrid strokeDasharray="3 3" {...gridStyle} vertical={false} />
               <XAxis dataKey="age" tick={{ ...tickStyle, fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={tickStyle} axisLine={false} tickLine={false} />
-              <Tooltip content={<CT />} />
+              <Tooltip content={<CT darkMode={darkMode} />} />
               <Bar dataKey="active"   name="Active"   stackId="a" fill="#378add" {...CHART_ANIM} />
               <Bar dataKey="inactive" name="Inactive" stackId="a" fill="#f09595" radius={[4, 4, 0, 0]} {...CHART_ANIM} />
             </BarChart>
@@ -360,58 +369,58 @@ function OverviewChartsDeferred() {
 
       {/* ── Row 4: Week compare + Inactivity rate + Radar ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-        <Card>
-          <CardHead title="This week vs last week" />
-          <Legend items={[{ color: '#378add', label: 'This week' }, { color: '#b5d4f4', label: 'Last week' }]} />
+        <Card darkMode={darkMode}>
+          <CardHead title="This week vs last week" darkMode={darkMode} />
+          <Legend items={[{ color: '#378add', label: 'This week' }, { color: '#b5d4f4', label: 'Last week' }]} darkMode={darkMode} />
           <ResponsiveContainer width="100%" height={185}>
             <BarChart data={WEEK_COMPARE} margin={{ top: 4, right: 8, bottom: 0, left: -14 }} barSize={11} barGap={3}>
               <CartesianGrid strokeDasharray="3 3" {...gridStyle} vertical={false} />
               <XAxis dataKey="day" tick={tickStyle} axisLine={false} tickLine={false} />
               <YAxis tick={tickStyle} axisLine={false} tickLine={false} />
-              <Tooltip content={<CT />} />
+              <Tooltip content={<CT darkMode={darkMode} />} />
               <Bar dataKey="thisWeek" name="This week" fill="#378add" radius={[3, 3, 0, 0]} {...CHART_ANIM} />
               <Bar dataKey="lastWeek" name="Last week" fill="#b5d4f4" radius={[3, 3, 0, 0]} {...CHART_ANIM} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
 
-        <Card>
-          <CardHead title="Inactivity rate by age (%)" />
+        <Card darkMode={darkMode}>
+          <CardHead title="Inactivity rate by age (%)" darkMode={darkMode} />
           <ResponsiveContainer width="100%" height={205}>
             <BarChart data={AGE_DISTRIBUTION} layout="vertical" margin={{ top: 0, right: 24, bottom: 0, left: 10 }} barSize={12}>
               <CartesianGrid strokeDasharray="3 3" {...gridStyle} horizontal={false} />
               <XAxis type="number" domain={[0, 80]} tick={tickStyle} axisLine={false} tickLine={false} unit="%" />
               <YAxis type="category" dataKey="age" tick={{ ...tickStyle, fontSize: 11 }} axisLine={false} tickLine={false} width={42} />
-              <Tooltip content={<CT />} formatter={v => [`${v}%`, 'Inactivity']} />
+              <Tooltip content={<CT darkMode={darkMode} />} formatter={v => [`${v}%`, 'Inactivity']} />
               <Bar dataKey="rate" name="Rate" fill="#ef4444" radius={[0, 5, 5, 0]} {...CHART_ANIM} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
 
-        <Card>
-          <CardHead title="Vitals coverage — radar" />
+        <Card darkMode={darkMode}>
+          <CardHead title="Vitals coverage — radar" darkMode={darkMode} />
           <ResponsiveContainer width="100%" height={205}>
             <RadarChart data={RADAR_DATA} cx="50%" cy="50%" outerRadius={72}>
-              <PolarGrid stroke="#e2e8f0" />
-              <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10, fill: '#94a3b8' }} />
-              <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9, fill: '#cbd5e1' }} />
+              <PolarGrid stroke={darkMode ? '#334155' : '#e2e8f0'} />
+              <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10, fill: darkMode ? '#64748b' : '#94a3b8' }} />
+              <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9, fill: darkMode ? '#475569' : '#cbd5e1' }} />
               <Radar name="Coverage" dataKey="A" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.2} strokeWidth={2} {...CHART_ANIM} />
-              <Tooltip content={<CT />} />
+              <Tooltip content={<CT darkMode={darkMode} />} />
             </RadarChart>
           </ResponsiveContainer>
         </Card>
       </div>
 
       {/* ── Row 5: Vitals grouped bar ── */}
-      <Card>
-        <CardHead title="Vitals data sent — by age group" action="View by member" />
-        <Legend items={[{ color: '#e24b4a', label: 'Heart rate' }, { color: '#378add', label: 'SpO₂' }, { color: '#1d9e75', label: 'Temperature' }]} />
+      <Card darkMode={darkMode}>
+        <CardHead title="Vitals data sent — by age group" action="View by member" darkMode={darkMode} />
+        <Legend items={[{ color: '#e24b4a', label: 'Heart rate' }, { color: '#378add', label: 'SpO₂' }, { color: '#1d9e75', label: 'Temperature' }]} darkMode={darkMode} />
         <ResponsiveContainer width="100%" height={195}>
           <BarChart data={VITALS_BY_AGE} margin={{ top: 4, right: 8, bottom: 0, left: -14 }} barSize={15} barGap={3}>
             <CartesianGrid strokeDasharray="3 3" {...gridStyle} vertical={false} />
             <XAxis dataKey="age" tick={tickStyle} axisLine={false} tickLine={false} />
             <YAxis tick={tickStyle} axisLine={false} tickLine={false} />
-            <Tooltip content={<CT />} />
+            <Tooltip content={<CT darkMode={darkMode} />} />
             <Bar dataKey="hr"   name="Heart rate"  fill="#e24b4a" radius={[4, 4, 0, 0]} {...CHART_ANIM} />
             <Bar dataKey="spo2" name="SpO₂"        fill="#378add" radius={[4, 4, 0, 0]} {...CHART_ANIM} />
             <Bar dataKey="temp" name="Temperature" fill="#1d9e75" radius={[4, 4, 0, 0]} {...CHART_ANIM} />
@@ -421,50 +430,50 @@ function OverviewChartsDeferred() {
 
       {/* ── Row 6: Alerts + Devices (preserved from original) ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <Card>
-          <CardHead title="Recent alerts" action="View all" />
+        <Card darkMode={darkMode}>
+          <CardHead title="Recent alerts" action="View all" darkMode={darkMode} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {ALERTS.map((a, i) => (
               <div key={i} style={{
                 display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
-                borderRadius: 12, background: a.severity === 'critical' ? '#fef2f2' : '#fffbeb',
-                border: `1px solid ${a.severity === 'critical' ? '#fecaca' : '#fde68a'}`
+                borderRadius: 12, background: a.severity === 'critical' ? (darkMode ? '#450a0a30' : '#fef2f2') : (darkMode ? '#78350f30' : '#fffbeb'),
+                border: `1px solid ${a.severity === 'critical' ? (darkMode ? '#7f1d1d' : '#fecaca') : (darkMode ? '#78350f' : '#fde68a')}`
               }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: a.severity === 'critical' ? '#fee2e2' : '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: a.severity === 'critical' ? (darkMode ? '#7f1d1d' : '#fee2e2') : (darkMode ? '#78350f' : '#fef3c7'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <AlertTriangle size={15} color={a.severity === 'critical' ? '#dc2626' : '#d97706'} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.member}</div>
-                  <div style={{ fontSize: 11, color: '#6b7280' }}>{a.type} · <strong style={{ color: a.severity === 'critical' ? '#dc2626' : '#d97706' }}>{a.value}</strong></div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: darkMode ? '#fff' : '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.member}</div>
+                  <div style={{ fontSize: 11, color: darkMode ? '#94a3b8' : '#6b7280' }}>{a.type} · <strong style={{ color: a.severity === 'critical' ? '#dc2626' : '#d97706' }}>{a.value}</strong></div>
                 </div>
-                <span style={{ fontSize: 10, color: '#9ca3af', whiteSpace: 'nowrap' }}>{a.time}</span>
+                <span style={{ fontSize: 10, color: darkMode ? '#64748b' : '#9ca3af', whiteSpace: 'nowrap' }}>{a.time}</span>
               </div>
             ))}
           </div>
         </Card>
 
-        <Card>
-          <CardHead title="Device status" action="Manage" />
+        <Card darkMode={darkMode}>
+          <CardHead title="Device status" action="Manage" darkMode={darkMode} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {DEVICES.map((d, i) => (
               <div key={i} style={{
                 display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
-                borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0'
+                borderRadius: 12, background: darkMode ? '#0f172a' : '#f8fafc', border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`
               }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: d.status === 'online' ? '#ecfdf5' : '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: d.status === 'online' ? (darkMode ? '#064e3b' : '#ecfdf5') : (darkMode ? '#450a0a' : '#fef2f2'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {d.status === 'online' ? <Wifi size={16} color="#10b981" /> : <WifiOff size={16} color="#ef4444" />}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</div>
-                  <div style={{ fontSize: 11, color: '#9ca3af' }}>{d.serial} · {d.last}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: darkMode ? '#fff' : '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</div>
+                  <div style={{ fontSize: 11, color: darkMode ? '#64748b' : '#9ca3af' }}>{d.serial} · {d.last}</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                   <span style={{
                     fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99,
-                    background: d.status === 'online' ? '#d1fae5' : '#fee2e2',
-                    color: d.status === 'online' ? '#065f46' : '#991b1b'
+                    background: d.status === 'online' ? (darkMode ? '#064e3b' : '#d1fae5') : (darkMode ? '#450a0a' : '#fee2e2'),
+                    color: d.status === 'online' ? (darkMode ? '#6ee7b7' : '#065f46') : (darkMode ? '#f87171' : '#991b1b')
                   }}>{d.status === 'online' ? 'Online' : 'Offline'}</span>
-                  {d.status === 'online' && <BatteryBar level={d.battery} />}
+                  {d.status === 'online' && <BatteryBar level={d.battery} darkMode={darkMode} />}
                 </div>
               </div>
             ))}
