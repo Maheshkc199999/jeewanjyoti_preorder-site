@@ -211,7 +211,19 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
   const [emojiAsFile, setEmojiAsFile] = useState(false); // Toggle for emoji as file
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
-  const messagesContainerRef = useRef(null);
+  // The mobile and desktop message lists are both mounted at once (hidden/shown
+  // purely via CSS breakpoints), so they need separate refs — otherwise whichever
+  // one renders last always wins the shared ref, and scrolling silently operates
+  // on the hidden layout's container instead of the one the user is looking at.
+  const mobileMessagesContainerRef = useRef(null);
+  const desktopMessagesContainerRef = useRef(null);
+  const getActiveMessagesContainer = () => {
+    const mobile = mobileMessagesContainerRef.current;
+    const desktop = desktopMessagesContainerRef.current;
+    if (mobile && mobile.offsetParent !== null) return mobile;
+    if (desktop && desktop.offsetParent !== null) return desktop;
+    return mobile || desktop || null;
+  };
 
   // Do not use any dummy messages on chat change
   useEffect(() => {
@@ -235,29 +247,29 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
     
     // Also wait for images to load and scroll again to ensure we're at the very bottom
     const timer = setTimeout(async () => {
-      await waitForImagesToLoad(messagesContainerRef.current, 2000);
+      await waitForImagesToLoad(getActiveMessagesContainer(), 2000);
       scrollToBottom(true);
     }, 500);
-    
+
     return () => clearTimeout(timer);
   }, [messages]);
 
   // Facebook Messenger-style scroll behavior
   useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
+    const containers = [mobileMessagesContainerRef.current, desktopMessagesContainerRef.current].filter(Boolean);
+    if (containers.length === 0) return;
 
-    const handleScroll = () => {
-      const { scrollTop } = container;
-      
+    const handleScroll = (e) => {
+      const { scrollTop } = e.currentTarget;
+
       // Load older messages when scrolled to top
       if (scrollTop < 100 && hasMoreMessages && !isLoadingOlderMessages) {
         loadOlderMessages();
       }
     };
 
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
+    containers.forEach(c => c.addEventListener('scroll', handleScroll));
+    return () => containers.forEach(c => c.removeEventListener('scroll', handleScroll));
   }, [hasMoreMessages, isLoadingOlderMessages]);
 
   // Load older messages function
@@ -340,16 +352,13 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
   }, [showEmojiPicker]);
 
   const scrollToBottom = (force = false) => {
-    if (messagesEndRef.current) {
-      // Use scrollTop for more reliable scrolling to absolute bottom
-      const container = messagesContainerRef.current;
-      if (container) {
-        // Scroll to absolute bottom
-        container.scrollTop = container.scrollHeight;
-      } else {
-        // Fallback to scrollIntoView
-        messagesEndRef.current.scrollIntoView({ behavior: force ? "auto" : "smooth" });
-      }
+    // Scroll whichever layout (mobile/desktop) is actually visible — the other
+    // one is mounted but display:none, and scrolling it has no visible effect.
+    const container = getActiveMessagesContainer();
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    } else if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: force ? "auto" : "smooth" });
     }
   };
 
@@ -582,7 +591,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
     try {
       await fetchHistory(selectedChat);
       // wait for images to render so scrollToBottom lands at the real bottom
-      await waitForImagesToLoad(messagesContainerRef.current, 2500);
+      await waitForImagesToLoad(getActiveMessagesContainer(), 2500);
       // Use multiple animation frames to ensure proper scrolling to absolute bottom
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -1166,7 +1175,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
       // Fetch history after WebSocket connects
       await fetchHistory(selectedChat);
       // Wait for images to load and scroll to bottom
-      await waitForImagesToLoad(messagesContainerRef.current, 2000);
+      await waitForImagesToLoad(getActiveMessagesContainer(), 2000);
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           scrollToBottom(true);
@@ -1675,7 +1684,7 @@ const getMessageTimeStyle = (messageType) => {
             </div>
 
             {/* Messages Container - Scrollable middle section */}
-            <div ref={messagesContainerRef} className="pt-20 pb-24 px-4 space-y-3 overflow-y-auto flex-1">
+            <div ref={mobileMessagesContainerRef} className="pt-20 pb-24 px-4 space-y-3 overflow-y-auto flex-1">
               {/* Loading indicator for older messages */}
               {isLoadingOlderMessages && (
                 <div className="flex justify-center py-4">
@@ -2082,7 +2091,7 @@ const getMessageTimeStyle = (messageType) => {
               </div>
 
               {/* Messages */}
-              <div ref={messagesContainerRef} className="flex-1 p-4 space-y-3 overflow-y-auto min-h-0 pb-4">
+              <div ref={desktopMessagesContainerRef} className="flex-1 p-4 space-y-3 overflow-y-auto min-h-0 pb-4">
                 {/* Loading indicator for older messages */}
                 {isLoadingOlderMessages && (
                   <div className="flex justify-center py-4">

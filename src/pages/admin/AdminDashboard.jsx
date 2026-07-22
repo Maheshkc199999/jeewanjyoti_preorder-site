@@ -4,7 +4,7 @@ import {
   Bell, Smartphone, Settings, LogOut, Menu, ChevronDown, RefreshCw, Moon, Sun
 } from 'lucide-react';
 import OverviewTab from '../institution/Overview';
-import MembersTab from '../institution/Members';
+import AdminMembersTab from './Members';
 import VitalsTab from '../institution/Vitals';
 import AnalyticsTab from '../institution/Analytics';
 import ReportsTab from '../institution/Reports';
@@ -77,6 +77,33 @@ export default function AdminDashboard() {
     inactivityHours: 12,
   });
   const [alerts, setAlerts] = useState([]);
+
+  // All registered users (doctors + patients) for the admin user directory —
+  // separate from `members`, which is institution-scoped vitals data used by
+  // Overview/Analytics/Reports/Alerts.
+  const [allUsers, setAllUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [usersError, setUsersError] = useState(null);
+
+  const fetchAllUsers = useCallback(async () => {
+    try {
+      setUsersLoading(true);
+      setUsersError(null);
+      const res = await authenticatedFetch('https://jeewanjyoti-backend.smart.org.np/api/users/');
+      if (!res.ok) throw new Error('Failed to fetch users');
+      const json = await res.json();
+      setAllUsers(Array.isArray(json) ? json : (json.data || json.results || []));
+    } catch (err) {
+      console.error(err);
+      setUsersError('Could not load users.');
+    } finally {
+      setUsersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAllUsers();
+  }, [fetchAllUsers]);
 
   const fetchMembers = useCallback(async () => {
     try {
@@ -169,7 +196,7 @@ export default function AdminDashboard() {
       case 'overview':
         return <OverviewTab members={members} loading={loading} error={error} />;
       case 'members':
-        return <MembersTab members={members} loading={loading} error={error} refreshMembers={fetchMembers} onViewVitals={handleViewVitals} />;
+        return <AdminMembersTab users={allUsers} loading={usersLoading} error={usersError} refreshUsers={fetchAllUsers} />;
       case 'vitals':
         return <VitalsTab selectedUserId={selectedUserId} selectedUserInfo={selectedUserInfo} darkMode={darkMode} globalDateFilter={globalDateRange.period} globalDateRange={globalDateRange} />;
       case 'analytics':
@@ -181,7 +208,7 @@ export default function AdminDashboard() {
       default:
         return <PlaceholderTab tab={activeTab} />;
     }
-  }, [activeTab, handleViewVitals, selectedUserId, selectedUserInfo, darkMode, globalDateRange, members, loading, error, fetchMembers, thresholds, alerts]);
+  }, [activeTab, handleViewVitals, selectedUserId, selectedUserInfo, darkMode, globalDateRange, members, loading, error, fetchMembers, thresholds, alerts, allUsers, usersLoading, usersError, fetchAllUsers]);
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: darkMode ? '#0f172a' : '#f8fafc', fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif" }}>
