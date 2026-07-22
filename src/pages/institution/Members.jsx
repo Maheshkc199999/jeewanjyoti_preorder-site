@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Filter, Download, Heart, Clock, Eye, Trash2, X, Loader, Droplets, Activity, Moon, Zap } from 'lucide-react';
+import { Search, Plus, Filter, Download, Heart, Clock, Eye, Trash2, X, Loader, Droplets, Activity, Moon, Zap, BatteryFull, BatteryLow, BatteryWarning } from 'lucide-react';
 import { authenticatedFetch } from '../../lib/tokenManager';
 
+const STATUS_COLORS = { online: '#10b981', away: '#f59e0b', offline: '#9ca3af' };
+
 function StatusDot({ status }) {
-  const c = status === 'Active' || status === 'online' || status === true ? '#10b981' : '#9ca3af';
+  const c = STATUS_COLORS[status] || '#9ca3af';
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       <span style={{ width: 8, height: 8, borderRadius: '50%', background: c, boxShadow: `0 0 0 2px ${c}33`, display: 'inline-block' }} />
@@ -15,6 +17,27 @@ function formatTimeShort(dateString) {
   if (!dateString) return '';
   const d = new Date(dateString);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+function getMemberStatus(m) {
+  if (m.status && m.status !== 'offline') return m.status; // Keep API status if already active
+
+  const dates = [
+    m.vitals?.heartrate?.date,
+    m.vitals?.spo2?.date,
+    m.vitals?.bloodpressure?.date,
+    m.vitals?.sleep?.date,
+    m.vitals?.hrv?.date,
+  ].filter(Boolean).map(d => new Date(d).getTime());
+
+  if (dates.length === 0) return 'offline';
+
+  const latestTime = Math.max(...dates);
+  const diffMinutes = (Date.now() - latestTime) / (1000 * 60);
+
+  if (diffMinutes <= 15) return 'online';
+  if (diffMinutes <= 720) return 'away'; // 12 hours
+  return 'offline';
 }
 
 export default function Members({ members = [], loading = false, error = null, refreshMembers, onViewVitals }) {
@@ -132,7 +155,7 @@ export default function Members({ members = [], loading = false, error = null, r
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f8fafc' }}>
-                {['Member', 'Email', 'Status', 'Heart Rate', 'SpO₂', 'BP', 'Sleep', 'HRV', 'Joined', 'Actions'].map(h => (
+                {['Member', 'Email', 'Status', 'Heart Rate', 'SpO₂', 'BP', 'Sleep', 'HRV', 'Battery', 'Joined', 'Actions'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -156,14 +179,20 @@ export default function Members({ members = [], loading = false, error = null, r
                     {m.user_email}
                   </td>
                   <td style={{ padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <StatusDot status={m.is_active} />
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99,
-                        background: m.is_active ? '#d1fae5' : '#f1f5f9',
-                        color: m.is_active ? '#065f46' : '#6b7280'
-                      }}>{m.is_active ? 'Active' : 'Inactive'}</span>
-                    </div>
+                    {(() => {
+                      const computedStatus = getMemberStatus(m);
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <StatusDot status={computedStatus} />
+                          <span style={{
+                            fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99,
+                            background: computedStatus === 'online' ? '#d1fae5' : computedStatus === 'away' ? '#fef3c7' : '#f1f5f9',
+                            color: computedStatus === 'online' ? '#065f46' : computedStatus === 'away' ? '#92400e' : '#6b7280',
+                            textTransform: 'capitalize'
+                          }}>{computedStatus}</span>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td style={{ padding: '14px 16px' }}>
                     {m.vitals?.heartrate ? (
@@ -219,6 +248,22 @@ export default function Members({ members = [], loading = false, error = null, r
                         <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(m.vitals.hrv_iso.date)}</div>
                       </div>
                     ) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                  </td>
+                  <td style={{ padding: '14px 16px' }}>
+                    {m.vitals?.battery ? (() => {
+                      const pct = m.vitals.battery.percentage;
+                      const color = pct <= 20 ? '#ef4444' : pct <= 40 ? '#f59e0b' : '#10b981';
+                      const BatteryIcon = pct <= 20 ? BatteryWarning : pct <= 40 ? BatteryLow : BatteryFull;
+                      return (
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <BatteryIcon size={14} color={color} />
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{pct} <span style={{ color: '#9ca3af', fontWeight: 400 }}>%</span></span>
+                          </div>
+                          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(m.vitals.battery.timestamp)}</div>
+                        </div>
+                      );
+                    })() : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
                   </td>
                   <td style={{ padding: '14px 16px', fontSize: 13, color: '#64748b' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

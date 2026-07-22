@@ -50,7 +50,11 @@ const INSTITUTION_GLOBAL_STYLES = `
 `;
 
 export default function InstitutionDashboard() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTabState] = useState(() => localStorage.getItem('institutionActiveTab') || 'overview');
+  const setActiveTab = useCallback((tab) => {
+    setActiveTabState(tab);
+    localStorage.setItem('institutionActiveTab', tab);
+  }, []);
   const [collapsed, setCollapsed] = useState(false);
   const [globalDateRange] = useState({ period: 'today', customRange: false });
 
@@ -112,6 +116,29 @@ export default function InstitutionDashboard() {
   useEffect(() => {
     fetchMembers();
   }, [fetchMembers]);
+
+  // Lightweight background refresh: only updates each member's online/offline status,
+  // without re-fetching vitals or toggling the full-page loading spinner.
+  const refreshStatuses = useCallback(async () => {
+    try {
+      const res = await authenticatedFetch('https://jeewanjyoti-backend.smart.org.np/api/instutionmember/');
+      if (!res.ok) return;
+      const json = await res.json();
+      const statusById = new Map((json.data || []).map(m => [m.id, m.status]));
+      setMembers(prev => prev.map(m => (
+        statusById.has(m.id) && statusById.get(m.id) !== m.status
+          ? { ...m, status: statusById.get(m.id) }
+          : m
+      )));
+    } catch (e) {
+      console.error('Status refresh error:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    const t = setInterval(refreshStatuses, 30000);
+    return () => clearInterval(t);
+  }, [refreshStatuses]);
 
   // Dynamic Alert Generation from active members vitals and active thresholds
   useEffect(() => {

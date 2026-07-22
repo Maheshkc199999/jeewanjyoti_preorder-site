@@ -46,7 +46,11 @@ const GLOBAL_STYLES = `
 `;
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTabState] = useState(() => localStorage.getItem('adminActiveTab') || 'overview');
+  const setActiveTab = useCallback((tab) => {
+    setActiveTabState(tab);
+    localStorage.setItem('adminActiveTab', tab);
+  }, []);
   const [collapsed, setCollapsed] = useState(false);
   const [globalDateRange] = useState({ period: 'today', customRange: false });
 

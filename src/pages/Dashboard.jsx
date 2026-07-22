@@ -13,6 +13,7 @@ import ProfileCompletionForm from '../components/ProfileCompletionForm';
 import { auth } from '../lib/firebase';
 import { isAuthenticated, getUserData, clearTokens } from '../lib/tokenManager';
 import { logoutUser, getUserEmailProfile } from '../lib/api';
+import useStatusSocket from '../hooks/useStatusSocket';
 
 const getFullImageUrl = (url) => {
   if (!url) return null;
@@ -86,6 +87,10 @@ const Dashboard = () => {
   const [selectionFeedback, setSelectionFeedback] = useState(null);
   const [imageErrors, setImageErrors] = useState({}); // Track image loading errors
   const [totalUnread, setTotalUnread] = useState(0); // Real unread count from ChatTab
+
+  // Presence/status WebSocket — connects as soon as the dashboard mounts (i.e. on login),
+  // not only when the user opens the chat tab.
+  const { userStatuses } = useStatusSocket();
 
   // Global filter states
   const [globalDateFilter, setGlobalDateFilter] = useState('today');
@@ -489,12 +494,12 @@ const Dashboard = () => {
           <ErrorBoundary>
             <AppointmentsTab
               darkMode={darkMode}
-              onSwitchToChat={() => setActiveTab('chat')}
+              onSwitchToChat={() => handleTabChange('chat')}
             />
           </ErrorBoundary>
         );
       case 'chat':
-        return <ChatTab darkMode={darkMode} onChatRoomStateChange={handleChatRoomStateChange} onUnreadCountChange={setTotalUnread} />;
+        return <ChatTab darkMode={darkMode} onChatRoomStateChange={handleChatRoomStateChange} onUnreadCountChange={setTotalUnread} userStatuses={userStatuses} />;
       case 'profile':
         return <ProfileTab darkMode={darkMode} selectedUserId={selectedUserId} selectedUserInfo={currentUser} globalDateFilter={globalDateFilter} globalDateRange={globalDateRange} />;
       case 'settings':
