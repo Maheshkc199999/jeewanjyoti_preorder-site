@@ -3,7 +3,7 @@ import {
   Search, Loader, X, Stethoscope, User as UserIcon, Phone, Droplet, Calendar,
   Ruler, Weight, Award, Building2, GraduationCap, RefreshCw,
   Heart, Droplets, Activity, Moon, Zap, BatteryFull, BatteryLow, BatteryWarning,
-  Pencil, Trash2,
+  Pencil, Trash2, Eye,
 } from 'lucide-react';
 import { authenticatedFetch } from '../../lib/tokenManager';
 import { updateProfile } from '../../lib/api';
@@ -85,7 +85,7 @@ function resolveImageUrl(url) {
   return url;
 }
 
-export default function AdminMembers({ users = [], loading = false, error = null, refreshUsers }) {
+export default function AdminMembers({ users = [], loading = false, error = null, refreshUsers, onViewVitals }) {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
@@ -322,7 +322,7 @@ export default function AdminMembers({ users = [], loading = false, error = null
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f8fafc' }}>
-                {['Member', 'Status', 'Heart Rate', 'SpO₂', 'BP', 'Sleep', 'HRV', 'Battery', 'Actions'].map(h => (
+                {['Member', 'Status', 'Heart Rate', 'SpO₂', 'BP', 'Sleep', 'HRV', 'Battery', 'Vitals', 'Actions'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -428,6 +428,16 @@ export default function AdminMembers({ users = [], loading = false, error = null
                           </div>
                         );
                       })() : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      {onViewVitals && (
+                        <button
+                          onClick={() => onViewVitals(u.id, name, u.profile_image)}
+                          title="View Vitals Dashboard"
+                          style={{ padding: 8, borderRadius: 8, background: '#f5f3ff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                          <Eye size={14} color="#8b5cf6" />
+                        </button>
+                      )}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       <div style={{ display: 'flex', gap: 8 }}>

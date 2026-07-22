@@ -17,6 +17,13 @@ export const apiRequest = async (endpoint, options = {}) => {
 }
 
 /**
+ * Admins view arbitrary users' vitals via the same endpoints the user's own
+ * dashboard uses (those already grant admin access), never the institution-scoped
+ * ones (which only allow institution-linked members).
+ */
+const isAdminUser = (userData) => !!(userData?.is_superuser || userData?.role === 'ADMIN')
+
+/**
  * Register a new user
  * @param {object} payload - Registration data
  * @returns {Promise<object>} Registration response
@@ -273,7 +280,7 @@ async function fetchAllPages(initialUrl) {
  */
 export async function getSleepData(userId = null, date = null, range = null) {
   const userData = getUserData();
-  const endpoint = userData?.institution_type ? 'institution_sleep_data' : 'sleep-data';
+  const endpoint = (userData?.institution_type && !isAdminUser(userData)) ? 'institution_sleep_data' : 'sleep-data';
   let url = userId ? `/api/${endpoint}/?user_id=${userId}` : `/api/${endpoint}/?`;
 
   if (date) {
@@ -304,7 +311,7 @@ export async function getSleepData(userId = null, date = null, range = null) {
  */
 export async function getSpO2Data(userId = null, date = null, range = null) {
   const userData = getUserData();
-  const endpoint = userData?.institution_type ? 'institution_Spo2_data' : 'Spo2-data';
+  const endpoint = (userData?.institution_type && !isAdminUser(userData)) ? 'institution_Spo2_data' : 'Spo2-data';
   let url = userId ? `/api/${endpoint}/?user_id=${userId}` : `/api/${endpoint}/?`;
 
   if (date) {
@@ -335,7 +342,7 @@ export async function getSpO2Data(userId = null, date = null, range = null) {
  */
 export async function getHeartRateData(userId = null, date = null, range = null) {
   const userData = getUserData();
-  const endpoint = userData?.institution_type ? 'institution_heartrate_data' : 'HeartRate_Data';
+  const endpoint = (userData?.institution_type && !isAdminUser(userData)) ? 'institution_heartrate_data' : 'HeartRate_Data';
   let url = userId ? `/api/${endpoint}/?user_id=${userId}` : `/api/${endpoint}/?`;
 
   if (date) {
@@ -367,7 +374,7 @@ export async function getHeartRateData(userId = null, date = null, range = null)
  */
 export async function getDailyHeartRateData(userId = null, range = '7d') {
   const userData = getUserData();
-  const endpoint = userData?.institution_type ? 'institution_heartrate_data' : 'HeartRate_Data';
+  const endpoint = (userData?.institution_type && !isAdminUser(userData)) ? 'institution_heartrate_data' : 'HeartRate_Data';
   const base = userId
     ? `/api/${endpoint}/?user_id=${userId}&range=${range}`
     : `/api/${endpoint}/?range=${range}`;
@@ -413,7 +420,7 @@ export async function getDailyHeartRateData(userId = null, range = '7d') {
  */
 export async function getBloodPressureData(userId = null, date = null, range = null) {
   const userData = getUserData();
-  const endpoint = userData?.institution_type ? 'institution_BP_data' : 'BloodPressure_Data';
+  const endpoint = (userData?.institution_type && !isAdminUser(userData)) ? 'institution_BP_data' : 'BloodPressure_Data';
   let url = userId ? `/api/${endpoint}/?user_id=${userId}` : `/api/${endpoint}/?`;
 
   if (date) {
@@ -444,7 +451,7 @@ export async function getBloodPressureData(userId = null, date = null, range = n
  */
 export async function getStressData(userId = null, date = null, range = null) {
   const userData = getUserData();
-  const endpoint = userData?.institution_type ? 'institution_Stress_data' : 'Stress_Data';
+  const endpoint = (userData?.institution_type && !isAdminUser(userData)) ? 'institution_Stress_data' : 'Stress_Data';
   let url = userId ? `/api/${endpoint}/?user_id=${userId}` : `/api/${endpoint}/?`;
 
   if (date) {
@@ -475,7 +482,7 @@ export async function getStressData(userId = null, date = null, range = null) {
  */
 export async function getHRVData(userId = null, date = null, range = null) {
   const userData = getUserData();
-  const endpoint = userData?.institution_type ? 'institution_HRV_data' : 'HRV_Iso_Data';
+  const endpoint = (userData?.institution_type && !isAdminUser(userData)) ? 'institution_HRV_data' : 'HRV_Iso_Data';
   let url = userId ? `/api/${endpoint}/?user_id=${userId}` : `/api/${endpoint}/?`;
 
   if (date) {
@@ -549,7 +556,7 @@ export async function getStepsData(userId = null, date = null, range = null) {
 export async function getDayTotalActivity(userId = null, range = null, date = null) {
   try {
     const userData = getUserData();
-    const endpoint = userData?.institution_type ? 'institution_activity_data' : 'Day_total_activity';
+    const endpoint = (userData?.institution_type && !isAdminUser(userData)) ? 'institution_activity_data' : 'Day_total_activity';
     let url = `/api/${endpoint}/`;
     const params = new URLSearchParams();
 
@@ -646,7 +653,7 @@ export async function logoutUser() {
  */
 export async function getBatteryStatus(userId = null) {
   const userData = getUserData();
-  const endpoint = userData?.institution_type ? 'institution_battry_status' : 'battery-status';
+  const endpoint = (userData?.institution_type && !isAdminUser(userData)) ? 'institution_battry_status' : 'battery-status';
   const url = userId ? `/api/${endpoint}/?user_id=${userId}` : `/api/${endpoint}/`;
   const response = await apiRequest(url);
   if (!response.ok) {

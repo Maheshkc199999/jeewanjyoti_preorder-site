@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import OverviewTab from '../institution/Overview';
 import AdminMembersTab from './Members';
-import VitalsTab from '../institution/Vitals';
+import VitalsTab from './Vitals';
 import AnalyticsTab from '../institution/Analytics';
 import ReportsTab from '../institution/Reports';
 import AlertsTab from '../institution/Alerts';
@@ -210,7 +210,7 @@ export default function AdminDashboard() {
       case 'overview':
         return <OverviewTab members={members} loading={loading} error={error} />;
       case 'members':
-        return <AdminMembersTab users={allUsers} loading={usersLoading} error={usersError} refreshUsers={fetchAllUsers} />;
+        return <AdminMembersTab users={allUsers} loading={usersLoading} error={usersError} refreshUsers={fetchAllUsers} onViewVitals={handleViewVitals} />;
       case 'vitals':
         return <VitalsTab selectedUserId={selectedUserId} selectedUserInfo={selectedUserInfo} darkMode={darkMode} globalDateFilter={globalDateRange.period} globalDateRange={globalDateRange} />;
       case 'analytics':
