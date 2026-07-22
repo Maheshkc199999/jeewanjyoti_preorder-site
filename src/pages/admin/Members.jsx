@@ -3,7 +3,42 @@ import {
   Search, Loader, X, Stethoscope, User as UserIcon, Phone, Droplet, Calendar,
   Ruler, Weight, Award, Building2, GraduationCap, RefreshCw,
   Heart, Droplets, Activity, Moon, Zap, BatteryFull, BatteryLow, BatteryWarning,
+  Pencil, Trash2,
 } from 'lucide-react';
+import { authenticatedFetch } from '../../lib/tokenManager';
+import { updateProfile } from '../../lib/api';
+
+const GENDER_OPTIONS = [
+  { value: '', label: 'Select…' },
+  { value: 'M', label: 'Male' },
+  { value: 'F', label: 'Female' },
+  { value: 'O', label: 'Other' },
+];
+
+const BLOOD_GROUP_OPTIONS = ['', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', fontSize: 13, background: '#fff' };
+
+function FormField({ label, children }) {
+  return (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function editFormFromUser(u) {
+  return {
+    first_name: u.first_name || '',
+    last_name: u.last_name || '',
+    birthdate: u.birthdate || '',
+    gender: u.gender || '',
+    height: u.height ?? '',
+    weight: u.weight ?? '',
+    blood_group: u.blood_group || '',
+  };
+}
 
 const ROLE_STYLES = {
   DOCTOR: { label: 'Doctor', bg: '#eff6ff', color: '#1d4ed8', icon: Stethoscope },
@@ -54,6 +89,72 @@ export default function AdminMembers({ users = [], loading = false, error = null
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+
+  // Edit modal state — pre-filled with the user's current values
+  const [editingUser, setEditingUser] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  const openEdit = (u) => {
+    setEditingUser(u);
+    setEditForm(editFormFromUser(u));
+    setSaveError('');
+  };
+
+  const closeEdit = () => {
+    setEditingUser(null);
+    setEditForm(null);
+    setSaveError('');
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    try {
+      setIsSaving(true);
+      setSaveError('');
+      await updateProfile({
+        id: editingUser.id,
+        first_name: editForm.first_name,
+        last_name: editForm.last_name,
+        birthdate: editForm.birthdate || null,
+        gender: editForm.gender || null,
+        height: editForm.height === '' ? null : Number(editForm.height),
+        weight: editForm.weight === '' ? null : Number(editForm.weight),
+        blood_group: editForm.blood_group || null,
+      });
+      closeEdit();
+      if (refreshUsers) refreshUsers();
+    } catch (err) {
+      setSaveError(err.message || 'Failed to update user.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteUser = async (u) => {
+    const name = `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email;
+    if (!window.confirm(`Are you sure you want to delete ${name}? This cannot be undone.`)) return;
+    try {
+      setDeletingId(u.id);
+      const res = await authenticatedFetch('https://jeewanjyoti-backend.smart.org.np/api/delete-account/', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: u.id }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || errData.message || 'Failed to delete user.');
+      }
+      if (refreshUsers) refreshUsers();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const filtered = users.filter(u => {
     const name = `${u.first_name || ''} ${u.last_name || ''}`.trim();
@@ -154,6 +255,58 @@ export default function AdminMembers({ users = [], loading = false, error = null
         </>
       )}
 
+      {/* Edit Modal — pre-filled with the user's current values */}
+      {editingUser && editForm && (
+        <>
+          <div onClick={closeEdit} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999 }} />
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: '#fff', padding: 24, borderRadius: 16, boxShadow: '0 20px 40px rgba(0,0,0,0.2)', zIndex: 1000, width: 380, maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>Edit {`${editingUser.first_name || ''} ${editingUser.last_name || ''}`.trim() || 'User'}</div>
+              <button onClick={closeEdit} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+                <X size={18} color="#64748b" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <FormField label="First Name">
+                  <input type="text" value={editForm.first_name} onChange={e => setEditForm(f => ({ ...f, first_name: e.target.value }))} style={inputStyle} />
+                </FormField>
+                <FormField label="Last Name">
+                  <input type="text" value={editForm.last_name} onChange={e => setEditForm(f => ({ ...f, last_name: e.target.value }))} style={inputStyle} />
+                </FormField>
+              </div>
+              <FormField label="Birthdate">
+                <input type="date" value={editForm.birthdate || ''} onChange={e => setEditForm(f => ({ ...f, birthdate: e.target.value }))} style={inputStyle} />
+              </FormField>
+              <FormField label="Gender">
+                <select value={editForm.gender} onChange={e => setEditForm(f => ({ ...f, gender: e.target.value }))} style={inputStyle}>
+                  {GENDER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </FormField>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <FormField label="Height (cm)">
+                  <input type="number" step="0.1" value={editForm.height} onChange={e => setEditForm(f => ({ ...f, height: e.target.value }))} style={inputStyle} />
+                </FormField>
+                <FormField label="Weight (kg)">
+                  <input type="number" step="0.1" value={editForm.weight} onChange={e => setEditForm(f => ({ ...f, weight: e.target.value }))} style={inputStyle} />
+                </FormField>
+              </div>
+              <FormField label="Blood Group">
+                <select value={editForm.blood_group} onChange={e => setEditForm(f => ({ ...f, blood_group: e.target.value }))} style={inputStyle}>
+                  {BLOOD_GROUP_OPTIONS.map(o => <option key={o} value={o}>{o || 'Select…'}</option>)}
+                </select>
+              </FormField>
+
+              {saveError && <div style={{ fontSize: 11, color: '#ef4444', lineHeight: 1.4 }}>{saveError}</div>}
+
+              <button disabled={isSaving} type="submit" style={{ width: '100%', padding: 10, borderRadius: 8, background: '#3b82f6', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: isSaving ? 'not-allowed' : 'pointer', marginTop: 4 }}>
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </form>
+          </div>
+        </>
+      )}
+
       {loading ? (
         <div style={{ padding: 60, display: 'flex', justifyContent: 'center' }}>
           <Loader className="animate-spin" size={30} color="#3b82f6" />
@@ -169,7 +322,7 @@ export default function AdminMembers({ users = [], loading = false, error = null
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f8fafc' }}>
-                {['Member', 'Status', 'Heart Rate', 'SpO₂', 'BP', 'Sleep', 'HRV', 'Battery'].map(h => (
+                {['Member', 'Status', 'Heart Rate', 'SpO₂', 'BP', 'Sleep', 'HRV', 'Battery', 'Actions'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -275,6 +428,23 @@ export default function AdminMembers({ users = [], loading = false, error = null
                           </div>
                         );
                       })() : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => openEdit(u)}
+                          title="Edit User"
+                          style={{ padding: 8, borderRadius: 8, background: '#eff6ff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                          <Pencil size={14} color="#3b82f6" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(u)}
+                          disabled={deletingId === u.id}
+                          title="Delete User"
+                          style={{ padding: 8, borderRadius: 8, background: '#fef2f2', border: 'none', cursor: deletingId === u.id ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', opacity: deletingId === u.id ? 0.5 : 1 }}>
+                          {deletingId === u.id ? <Loader className="animate-spin" size={14} color="#ef4444" /> : <Trash2 size={14} color="#ef4444" />}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
