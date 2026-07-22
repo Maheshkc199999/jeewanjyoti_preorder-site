@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
-import { Search, Loader, X, Stethoscope, User as UserIcon, Phone, Droplet, Calendar, Ruler, Weight, Award, Building2, GraduationCap, RefreshCw } from 'lucide-react';
+import {
+  Search, Loader, X, Stethoscope, User as UserIcon, Phone, Droplet, Calendar,
+  Ruler, Weight, Award, Building2, GraduationCap, RefreshCw,
+  Heart, Droplets, Activity, Moon, Zap, BatteryFull, BatteryLow, BatteryWarning,
+} from 'lucide-react';
 
 const ROLE_STYLES = {
   DOCTOR: { label: 'Doctor', bg: '#eff6ff', color: '#1d4ed8', icon: Stethoscope },
   USER: { label: 'Patient', bg: '#ecfdf5', color: '#047857', icon: UserIcon },
 };
+
+const STATUS_COLORS = { online: '#10b981', away: '#f59e0b', offline: '#9ca3af' };
 
 function RoleBadge({ role }) {
   const s = ROLE_STYLES[role] || { label: role || 'Unknown', bg: '#f1f5f9', color: '#475569', icon: UserIcon };
@@ -19,12 +25,23 @@ function RoleBadge({ role }) {
   );
 }
 
+function StatusDot({ status }) {
+  const c = STATUS_COLORS[status] || '#9ca3af';
+  return <span style={{ width: 8, height: 8, borderRadius: '50%', background: c, boxShadow: `0 0 0 2px ${c}33`, display: 'inline-block' }} />;
+}
+
 function getAge(birthdate) {
   if (!birthdate) return null;
   const d = new Date(birthdate);
   if (Number.isNaN(d.getTime())) return null;
   const diff = Date.now() - d.getTime();
   return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
+}
+
+function formatTimeShort(dateString) {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
 function resolveImageUrl(url) {
@@ -86,7 +103,7 @@ export default function AdminMembers({ users = [], loading = false, error = null
         </div>
       </div>
 
-      {/* Detail Modal */}
+      {/* Detail Modal — role, gender, phone and other profile fields live here, opened by clicking a member's name */}
       {selectedUser && (
         <>
           <div onClick={() => setSelectedUser(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999 }} />
@@ -152,7 +169,7 @@ export default function AdminMembers({ users = [], loading = false, error = null
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f8fafc' }}>
-                {['Member', 'Role', 'Email', 'Phone', 'Age / Gender', 'Details'].map(h => (
+                {['Member', 'Status', 'Heart Rate', 'SpO₂', 'BP', 'Sleep', 'HRV', 'Battery'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -160,18 +177,13 @@ export default function AdminMembers({ users = [], loading = false, error = null
             <tbody>
               {filtered.map((u) => {
                 const name = `${u.first_name || ''} ${u.last_name || ''}`.trim() || 'Unknown User';
-                const age = getAge(u.birthdate);
-                const genderLabel = u.gender === 'M' ? 'Male' : u.gender === 'F' ? 'Female' : u.gender;
                 const image = resolveImageUrl(u.profile_image);
-                const details = u.role === 'DOCTOR'
-                  ? [u.specialization, u.hospital_name].filter(Boolean).join(' • ')
-                  : [u.blood_group, u.height ? `${u.height}cm` : null, u.weight ? `${u.weight}kg` : null].filter(Boolean).join(' • ');
                 return (
-                  <tr key={u.id} onClick={() => setSelectedUser(u)} style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
+                  <tr key={u.id} style={{ borderBottom: '1px solid #f1f5f9' }}
                     onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
                     onMouseLeave={e => e.currentTarget.style.background = ''}>
                     <td style={{ padding: '14px 16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setSelectedUser(u)}>
                         {image ? (
                           <img src={image} alt={name} style={{ width: 38, height: 38, borderRadius: 12, objectFit: 'cover' }} />
                         ) : (
@@ -182,13 +194,88 @@ export default function AdminMembers({ users = [], loading = false, error = null
                         <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{name}</div>
                       </div>
                     </td>
-                    <td style={{ padding: '14px 16px' }}><RoleBadge role={u.role} /></td>
-                    <td style={{ padding: '14px 16px', fontSize: 13, color: '#475569', fontWeight: 500 }}>{u.email}</td>
-                    <td style={{ padding: '14px 16px', fontSize: 13, color: '#475569' }}>{u.phone_number || <span style={{ color: '#d1d5db' }}>—</span>}</td>
-                    <td style={{ padding: '14px 16px', fontSize: 13, color: '#475569' }}>
-                      {[age ? `${age} yrs` : null, genderLabel].filter(Boolean).join(' • ') || <span style={{ color: '#d1d5db' }}>—</span>}
+                    <td style={{ padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <StatusDot status={u.status} />
+                        <span style={{
+                          fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99,
+                          background: u.status === 'online' ? '#d1fae5' : u.status === 'away' ? '#fef3c7' : '#f1f5f9',
+                          color: u.status === 'online' ? '#065f46' : u.status === 'away' ? '#92400e' : '#6b7280',
+                          textTransform: 'capitalize'
+                        }}>{u.status || 'offline'}</span>
+                      </div>
                     </td>
-                    <td style={{ padding: '14px 16px', fontSize: 12, color: '#6b7280' }}>{details || <span style={{ color: '#d1d5db' }}>—</span>}</td>
+                    <td style={{ padding: '14px 16px' }}>
+                      {u.vitals?.heartrate ? (
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Heart size={14} color={u.vitals.heartrate.once_heart_value > 100 ? '#ef4444' : '#10b981'} />
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{u.vitals.heartrate.once_heart_value} <span style={{ color: '#9ca3af', fontWeight: 400 }}>bpm</span></span>
+                          </div>
+                          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.heartrate.date)}</div>
+                        </div>
+                      ) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      {u.vitals?.spo2 ? (
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Droplets size={14} color="#3b82f6" />
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{u.vitals.spo2.Blood_oxygen} <span style={{ color: '#9ca3af', fontWeight: 400 }}>%</span></span>
+                          </div>
+                          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.spo2.date)}</div>
+                        </div>
+                      ) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      {u.vitals?.bloodpressure ? (
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Activity size={14} color="#8b5cf6" />
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{u.vitals.bloodpressure.sbp}/{u.vitals.bloodpressure.dbp}</span>
+                          </div>
+                          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.bloodpressure.date)}</div>
+                        </div>
+                      ) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      {u.vitals?.sleep ? (
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Moon size={14} color="#6366f1" />
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{u.vitals.sleep.duration} <span style={{ color: '#9ca3af', fontWeight: 400 }}>hrs</span></span>
+                          </div>
+                          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.sleep.date)}</div>
+                        </div>
+                      ) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      {u.vitals?.hrv_iso ? (
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Zap size={14} color="#f59e0b" />
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{u.vitals.hrv_iso.hrv} <span style={{ color: '#9ca3af', fontWeight: 400 }}>ms</span></span>
+                          </div>
+                          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.hrv_iso.date)}</div>
+                        </div>
+                      ) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      {u.vitals?.battery ? (() => {
+                        const pct = u.vitals.battery.percentage;
+                        const color = pct <= 20 ? '#ef4444' : pct <= 40 ? '#f59e0b' : '#10b981';
+                        const BatteryIcon = pct <= 20 ? BatteryWarning : pct <= 40 ? BatteryLow : BatteryFull;
+                        return (
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <BatteryIcon size={14} color={color} />
+                              <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{pct} <span style={{ color: '#9ca3af', fontWeight: 400 }}>%</span></span>
+                            </div>
+                            <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.battery.timestamp)}</div>
+                          </div>
+                        );
+                      })() : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                    </td>
                   </tr>
                 );
               })}

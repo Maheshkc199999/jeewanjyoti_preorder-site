@@ -92,7 +92,21 @@ export default function AdminDashboard() {
       const res = await authenticatedFetch('https://jeewanjyoti-backend.smart.org.np/api/users/');
       if (!res.ok) throw new Error('Failed to fetch users');
       const json = await res.json();
-      setAllUsers(Array.isArray(json) ? json : (json.data || json.results || []));
+      const usersList = Array.isArray(json) ? json : (json.data || json.results || []);
+
+      const usersWithVitals = await Promise.all(usersList.map(async (u) => {
+        try {
+          const vitalsRes = await authenticatedFetch(`https://jeewanjyoti-backend.smart.org.np/api/latest_data_user/?user_id=${u.id}`);
+          if (vitalsRes.ok) {
+            u.vitals = await vitalsRes.json();
+          }
+        } catch (e) {
+          console.error('Vitals load error for user:', u.id, e);
+        }
+        return u;
+      }));
+
+      setAllUsers(usersWithVitals);
     } catch (err) {
       console.error(err);
       setUsersError('Could not load users.');
