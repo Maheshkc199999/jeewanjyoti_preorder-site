@@ -27,7 +27,7 @@ const InputField = memo(({ icon: Icon, label, error, children, required = false 
   </div>
 ))
 
-function Login() {
+function Login({ adminMode = false }) {
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -35,7 +35,7 @@ function Login() {
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState({})
-  const [loginType, setLoginType] = useState('individual')
+  const [loginType, setLoginType] = useState(adminMode ? 'admin' : 'individual')
   const navigate = useNavigate()
 
   // Handle profile verification after login
@@ -488,7 +488,9 @@ function Login() {
       const idToken = await user.getIdToken()
       
       // Send to your backend
-      const apiUrl = loginType === 'individual' 
+      const apiUrl = loginType === 'admin'
+        ? `${API_BASE_URL}/api/admin/firebase-login/`
+        : loginType === 'individual'
         ? `${API_BASE_URL}/api/firebase-login/`
         : `${API_BASE_URL}/api/ins/firebase-login/`
       
@@ -508,9 +510,18 @@ function Login() {
       
       const data = await response.json()
       console.log('Google login successful:', data)
-      const loggedInEntity = loginType === 'institutional' ? data.institution : data.user
+      const isSuperuser = data?.user?.is_superuser === true || data?.is_superuser === true
+      const loggedInEntity = loginType === 'institutional'
+        ? data.institution
+        : data.user || data
       console.log('Google login - entity data:', loggedInEntity)
-      
+
+      if (loginType === 'admin' && !isSuperuser) {
+        console.warn('Admin login denied: user is not a superuser')
+        alert('Access denied. Only authorized administrators can sign in to the admin dashboard.')
+        return
+      }
+
       // Store tokens and user data
       storeTokens(data.access, data.refresh, loggedInEntity)
       console.log('✅ Login successful, initiating notification flow...')
@@ -532,7 +543,7 @@ function Login() {
       }
       
       // Navigate first, then handle notifications in background
-      navigate(loginType === 'institutional' ? '/institution-dashboard' : '/dashboard')
+      navigate(loginType === 'admin' ? '/admin/dashboard' : loginType === 'institutional' ? '/institution-dashboard' : '/dashboard')
       
       // Call notification flow immediately (don't wait) - it will handle its own timing
       console.log('🚀 About to call handleNotificationsAfterLogin...')
@@ -564,7 +575,9 @@ function Login() {
 
     setIsLoading(true)
     try {
-      const apiUrl = loginType === 'individual' 
+      const apiUrl = loginType === 'admin'
+        ? `${API_BASE_URL}/api/login/`
+        : loginType === 'individual'
         ? `${API_BASE_URL}/api/login/`
         : `${API_BASE_URL}/api/ins/login/`
       
@@ -585,8 +598,17 @@ function Login() {
       
       const data = await response.json()
       console.log('Login successful:', data)
-      const loggedInEntity = loginType === 'institutional' ? data.institution : data.user
+      const isSuperuser = data?.user?.is_superuser === true || data?.is_superuser === true
+      const loggedInEntity = loginType === 'institutional'
+        ? data.institution
+        : data.user || data
       console.log('Login - entity data:', loggedInEntity)
+
+      if (loginType === 'admin' && !isSuperuser) {
+        console.warn('Admin login denied: user is not a superuser')
+        alert('Access denied. Only authorized administrators can sign in to the admin dashboard.')
+        return
+      }
       
       // Store tokens and user data
       storeTokens(data.access, data.refresh, loggedInEntity)
@@ -609,7 +631,7 @@ function Login() {
       }
       
       // Navigate first, then handle notifications in background
-      navigate(loginType === 'institutional' ? '/institution-dashboard' : '/dashboard')
+      navigate(loginType === 'admin' ? '/admin/dashboard' : loginType === 'institutional' ? '/institution-dashboard' : '/dashboard')
       
       // Call notification flow immediately (don't wait) - it will handle its own timing
       console.log('🚀 About to call handleNotificationsAfterLogin...')
@@ -648,38 +670,40 @@ function Login() {
               </h1>
             </div>
             <h2 className="text-2xl font-black text-violet-600 mb-2">
-              LOG IN
+              {adminMode ? 'ADMIN LOGIN' : 'LOG IN'}
             </h2>
             <p className="text-gray-600 text-base font-medium">
-              Sign in to access your healthcare dashboard
+              {adminMode ? 'Sign in to access your admin dashboard' : 'Sign in to access your healthcare dashboard'}
             </p>
           </div>
 
           {/* Login type selector */}
-          <div className="flex bg-white/80 backdrop-blur-sm rounded-xl p-1 mb-6 border border-white/30">
-            <button
-              onClick={() => setLoginType('individual')}
-              className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
-                loginType === 'individual'
-                  ? 'bg-violet-600 text-white shadow-md'
-                  : 'text-gray-600 hover:text-violet-700'
-              }`}
-            >
-              <User className="w-4 h-4" />
-              Individual
-            </button>
-            <button
-              onClick={() => setLoginType('institutional')}
-              className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
-                loginType === 'institutional'
-                  ? 'bg-violet-600 text-white shadow-md'
-                  : 'text-gray-600 hover:text-violet-700'
-              }`}
-            >
-              <Building className="w-4 h-4" />
-              Institution
-            </button>
-          </div>
+{!adminMode && (
+              <div className="flex bg-white/80 backdrop-blur-sm rounded-xl p-1 mb-6 border border-white/30">
+                <button
+                  onClick={() => setLoginType('individual')}
+                  className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
+                    loginType === 'individual'
+                      ? 'bg-violet-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-violet-700'
+                  }`}
+                >
+                  <User className="w-4 h-4" />
+                  Individual
+                </button>
+                <button
+                  onClick={() => setLoginType('institutional')}
+                  className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
+                    loginType === 'institutional'
+                      ? 'bg-violet-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-violet-700'
+                  }`}
+                >
+                  <Building className="w-4 h-4" />
+                  Institution
+                </button>
+              </div>
+            )}
 
           {/* Main form container */}
           <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/30 p-6 md:p-8">
@@ -738,33 +762,36 @@ function Login() {
                 )}
               </button>
 
-              {/* Forgot password link */}
-              <div className="flex justify-center mt-3">
-                <button 
-                  onClick={() => setShowForgotPassword(true)}
-                  className="text-sm text-violet-600 hover:text-violet-800 font-semibold transition-colors hover:underline"
-                >
-                  Forgot password?
-                </button>
-              </div>
+              {!adminMode && (
+                <div className="flex justify-center mt-3">
+                  <button 
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-sm text-violet-600 hover:text-violet-800 font-semibold transition-colors hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Divider */}
-            <div className="flex items-center my-6">
-              <div className="flex-1 border-t border-gray-200"></div>
-              <span className="px-4 text-gray-500 text-sm font-medium bg-white rounded-full">or continue with</span>
-              <div className="flex-1 border-t border-gray-200"></div>
-            </div>
+            {!adminMode && (
+              <>
+                {/* Divider */}
+                <div className="flex items-center my-6">
+                  <div className="flex-1 border-t border-gray-200"></div>
+                  <span className="px-4 text-gray-500 text-sm font-medium bg-white rounded-full">or continue with</span>
+                  <div className="flex-1 border-t border-gray-200"></div>
+                </div>
 
-            {/* Social login buttons - Google only */}
-            <div className="flex justify-center">
-              <button
-                onClick={handleGoogleSignIn}
-                disabled={googleLoading}
-                className={`flex items-center justify-center gap-3 w-full py-3 px-6 border-2 border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 font-semibold text-gray-700 ${
-                  googleLoading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-md'
-                }`}
-              >
+                {/* Social login buttons - Google only */}
+                <div className="flex justify-center">
+                  <button
+                    onClick={handleGoogleSignIn}
+                    disabled={googleLoading}
+                    className={`flex items-center justify-center gap-3 w-full py-3 px-6 border-2 border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 font-semibold text-gray-700 ${
+                      googleLoading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-md'
+                    }`}
+                  >
                 {googleLoading ? (
                   <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
                 ) : (
@@ -780,18 +807,22 @@ function Login() {
             </div>
 
             {/* Footer */}
-            <div className="text-center mt-6 pt-5 border-t border-gray-100">
-              <p className="text-gray-600 text-sm">
-                Don't have an account?{' '}
-                <a 
-                  href="/register" 
-                  className="text-violet-600 hover:text-violet-800 font-semibold transition-colors hover:underline"
-                >
-                  Sign up
-                </a>
-              </p>
-            </div>
-          </div>
+            {!adminMode && (
+              <div className="text-center mt-6 pt-5 border-t border-gray-100">
+                <p className="text-gray-600 text-sm">
+                  Don't have an account?{' '}
+                  <a 
+                    href="/register" 
+                    className="text-violet-600 hover:text-violet-800 font-semibold transition-colors hover:underline"
+                  >
+                    Sign up
+                  </a>
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
           {/* Security badge */}
           <div className="mt-6 text-center">

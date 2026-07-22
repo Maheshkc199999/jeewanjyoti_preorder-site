@@ -4,6 +4,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import InstitutionDashboard from './pages/InstitutionDashboard'
+import AdminDashboard from './pages/admin/AdminDashboard'
 import PaymentSuccess from './pages/PaymentSuccess'
 import MappingSuccess from './lib/MappingSuccess'
 import Blogs from './pages/Blogs'
@@ -14,6 +15,8 @@ function App() {
     <Routes>
       <Route path="/" element={<JeewanJyotiLanding />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/admin" element={<Login adminMode />} />
+      <Route path="/admin/dashboard" element={<AdminDashboard />} />
       <Route path="/register" element={<Register />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/institution-dashboard" element={<InstitutionDashboard />} />
