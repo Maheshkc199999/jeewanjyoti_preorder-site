@@ -387,7 +387,7 @@ export default function Alerts({ darkMode = false, alerts = [], setAlerts, thres
                       {isResolved && (
                         <div style={{
                           marginTop: 6, padding: '6px 10px', borderRadius: 8, background: darkMode ? '#0f172a40' : '#ffffff80',
-                          border: `1px solid ${styles.gridStyle.stroke}`, fontSize: 10, color: styles.text.color
+                          border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`, fontSize: 10, color: styles.text.color
                         }}>
                           <strong>Resolved by {a.resolver}:</strong> {a.note}
                         </div>

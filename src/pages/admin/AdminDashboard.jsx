@@ -151,26 +151,29 @@ export default function AdminDashboard() {
     fetchMembers();
   }, [fetchMembers]);
 
+  // Scan allUsers (all doctors + patients system-wide), not the institution-scoped
+  // `members` list — admin accounts aren't tied to an institution, so `members`
+  // is always empty and alerts would never generate from it.
   useEffect(() => {
-    if (!members.length) return;
+    if (!allUsers.length) return;
     const scannedAlerts = [];
-    members.forEach(m => {
-      if (!m.vitals) return;
-      const userName = m.full_name || m.user_email || 'Unknown Member';
-      if (m.vitals.spo2?.Blood_oxygen) {
-        const spo2 = m.vitals.spo2.Blood_oxygen;
+    allUsers.forEach(u => {
+      if (!u.vitals) return;
+      const userName = `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || 'Unknown User';
+      if (u.vitals.spo2?.Blood_oxygen) {
+        const spo2 = u.vitals.spo2.Blood_oxygen;
         if (spo2 < thresholds.spo2Critical) {
-          scannedAlerts.push({ id: `spo2-crit-${m.user_id}`, member: userName, type: 'SpO₂ Critical', value: `${spo2}%`, time: '2 mins ago', severity: 'critical', status: 'active', node: m.user_email || 'Member Node' });
+          scannedAlerts.push({ id: `spo2-crit-${u.id}`, member: userName, type: 'SpO₂ Critical', value: `${spo2}%`, time: '2 mins ago', severity: 'critical', status: 'active', node: u.email || 'User Node' });
         } else if (spo2 < thresholds.spo2Warning) {
-          scannedAlerts.push({ id: `spo2-warn-${m.user_id}`, member: userName, type: 'SpO₂ Warning', value: `${spo2}%`, time: '5 mins ago', severity: 'warning', status: 'active', node: m.user_email || 'Member Node' });
+          scannedAlerts.push({ id: `spo2-warn-${u.id}`, member: userName, type: 'SpO₂ Warning', value: `${spo2}%`, time: '5 mins ago', severity: 'warning', status: 'active', node: u.email || 'User Node' });
         }
       }
-      if (m.vitals.heartrate?.once_heart_value) {
-        const hr = m.vitals.heartrate.once_heart_value;
+      if (u.vitals.heartrate?.once_heart_value) {
+        const hr = u.vitals.heartrate.once_heart_value;
         if (hr > thresholds.hrMax) {
-          scannedAlerts.push({ id: `hr-high-${m.user_id}`, member: userName, type: 'Elevated Heart Rate', value: `${hr} bpm`, time: '3 mins ago', severity: 'critical', status: 'active', node: m.user_email || 'Member Node' });
+          scannedAlerts.push({ id: `hr-high-${u.id}`, member: userName, type: 'Elevated Heart Rate', value: `${hr} bpm`, time: '3 mins ago', severity: 'critical', status: 'active', node: u.email || 'User Node' });
         } else if (hr < thresholds.hrMin) {
-          scannedAlerts.push({ id: `hr-low-${m.user_id}`, member: userName, type: 'Low Heart Rate', value: `${hr} bpm`, time: '4 mins ago', severity: 'warning', status: 'active', node: m.user_email || 'Member Node' });
+          scannedAlerts.push({ id: `hr-low-${u.id}`, member: userName, type: 'Low Heart Rate', value: `${hr} bpm`, time: '4 mins ago', severity: 'warning', status: 'active', node: u.email || 'User Node' });
         }
       }
     });
@@ -185,7 +188,7 @@ export default function AdminDashboard() {
       });
       return merged;
     });
-  }, [members, thresholds]);
+  }, [allUsers, thresholds]);
 
   const handleLogout = () => {
     clearTokens();
@@ -218,7 +221,7 @@ export default function AdminDashboard() {
       case 'reports':
         return <ReportsTab darkMode={darkMode} members={members} loading={loading} error={error} />;
       case 'alerts':
-        return <AlertsTab darkMode={darkMode} alerts={alerts} setAlerts={setAlerts} thresholds={thresholds} setThresholds={setThresholds} members={members} />;
+        return <AlertsTab darkMode={darkMode} alerts={alerts} setAlerts={setAlerts} thresholds={thresholds} setThresholds={setThresholds} members={allUsers} />;
       default:
         return <PlaceholderTab tab={activeTab} darkMode={darkMode} />;
     }
