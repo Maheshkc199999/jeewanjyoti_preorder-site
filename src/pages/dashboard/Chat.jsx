@@ -1,8 +1,9 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { 
-  Bell, Send, Paperclip, Mic, Video, Phone, X, Smile, Image, 
-  File, Download, Search, MoreHorizontal, Circle, ArrowLeft, Plus
+import {
+  Bell, Send, Paperclip, Mic, Video, Phone, X, Smile, Image,
+  File, Download, Search, MoreHorizontal, Circle, ArrowLeft, Plus,
+  Check, CheckCheck, Clock
 } from 'lucide-react';
 import { API_BASE_URL } from '../../lib/api';
 import AppointmentsTab from './Appointments';
@@ -101,7 +102,18 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
   const [processingMessage, setProcessingMessage] = useState(false);
   const [processedMessageIds, setProcessedMessageIds] = useState(new Set());
   const processedMessageIdsRef = useRef(new Set());
-  
+
+  // Per-message delivery/read status keyed by real (server) message id.
+  // Kept separate from `messages` so a status event can arrive before or
+  // after the message it refers to without a race condition.
+  const [messageStatuses, setMessageStatuses] = useState({});
+  // Who is currently typing, keyed by user id. Populated from both the
+  // always-open conversations socket and the per-chat socket, so typing
+  // shows up in the chat list even without that chat open.
+  const [typingByUserId, setTypingByUserId] = useState({});
+  const isTypingRef = useRef(false);
+  const typingTimeoutRef = useRef(null);
+
   // Statuses seeded from the conversation list (used as a fallback until the
   // app-wide status WebSocket, connected on login in Dashboard.jsx, delivers
   // a live update for that user via the userStatuses prop).
@@ -113,6 +125,9 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
     () => ({ ...conversationStatuses, ...userStatuses }),
     [conversationStatuses, userStatuses]
   );
+
+  // Whether the participant of the currently-open chat is typing
+  const isPartnerTyping = !!typingByUserId[Number(selectedChat)];
 
   // Derived chat users list for UI from conversations
   const chatUsers = useMemo(() => {
@@ -139,9 +154,18 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
       // Priority: real-time status from userStatuses, fallback to conversation data
       const isOnline = realTimeStatus ? realTimeStatus.status === 'online' : user.status === 'online';
       const lastSeen = realTimeStatus ? realTimeStatus.last_seen : user.last_seen;
-      
+
+      // Delivery/read status of the last message, only relevant when we sent it
+      const myId = Number(myIdRef.current || userDataRef.current?.id || 0);
+      const lastMessageId = c.last_message?.id;
+      const lastMessageSenderId = Number(c.last_message?.sender_id ?? c.last_message?.sender);
+      const lastMessageIsMine = !!c.last_message && lastMessageSenderId === myId;
+      const lastMessageStatus = lastMessageIsMine
+        ? (messageStatuses[lastMessageId] || (c.last_message?.is_seen ? 'seen' : c.last_message?.status) || undefined)
+        : undefined;
+
       console.log(`👤 User ${user.id} (${name}): online=${isOnline}, lastSeen=${lastSeen}`);
-      
+
       return {
         id: String(uid),
         name,
@@ -153,10 +177,13 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
         unread: c.unread_count || 0,
         online: isOnline,
         lastSeen: lastSeen,
+        isTyping: !!typingByUserId[uid],
+        lastMessageIsMine,
+        lastMessageStatus,
         messages: [],
       };
     });
-  }, [conversations, mergedUserStatuses, statusUpdateTrigger]);
+  }, [conversations, mergedUserStatuses, statusUpdateTrigger, typingByUserId, messageStatuses]);
 
   // Emit real total unread count to Dashboard whenever chatUsers changes
   useEffect(() => {
@@ -191,6 +218,12 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
     setMessages([]);
     processedMessageIdsRef.current.clear();
     setProcessedMessageIds(new Set());
+    setMessageStatuses({});
+    isTypingRef.current = false;
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
   }, [selectedChat]);
 
   // Scroll to bottom when messages change
@@ -406,10 +439,11 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
       type: 'sent', // This ensures it appears on the right with blue color
       isOptimistic: true, // Flag to identify optimistic messages
       localTimestamp: Date.now(),
+      status: 'sending',
     };
-    
+
     setMessages((prev) => [...prev, optimisticMessage]);
-    
+
     // Send via WebSocket and include temp id so server can echo it back if supported
     try {
       if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
@@ -425,6 +459,44 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
     }
     setNewMessage('');
     setSelectedFile(null);
+
+    // Sending a message implies we've stopped typing
+    stopTypingSignal();
+  };
+
+  // Typing indicator: notify the other participant while the input has focus/changes,
+  // and automatically send stop_typing after a short pause or when the message is sent.
+  const sendTypingSignal = (isTyping) => {
+    try {
+      if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
+        chatWsRef.current.send(JSON.stringify({ type: isTyping ? 'typing' : 'stop_typing' }));
+      }
+    } catch (e) {
+      console.error('Failed to send typing signal', e);
+    }
+  };
+
+  const stopTypingSignal = () => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    if (isTypingRef.current) {
+      isTypingRef.current = false;
+      sendTypingSignal(false);
+    }
+  };
+
+  const handleTypingInput = () => {
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      sendTypingSignal(true);
+    }
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+      sendTypingSignal(false);
+    }, 3000);
   };
 
   const handleKeyPress = (e) => {
@@ -938,6 +1010,37 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
     }
   };
 
+  // Shared handling for realtime status events (typing/delivered/seen) that may
+  // arrive on either the always-open conversations socket or the currently-open
+  // per-chat socket, so these updates work even when a specific chat isn't open.
+  // Returns true if the event was a status event and has been fully handled.
+  const handleRealtimeStatusEvent = (data, currentUserId) => {
+    switch (data.type) {
+      case 'message_status':
+        setMessageStatuses(prev => ({ ...prev, [data.message_id]: data.status }));
+        return true;
+      case 'typing_status': {
+        const uid = Number(data.user_id);
+        if (uid !== currentUserId) {
+          setTypingByUserId(prev => (prev[uid] === !!data.is_typing ? prev : { ...prev, [uid]: !!data.is_typing }));
+        }
+        return true;
+      }
+      case 'message_seen':
+        setMessageStatuses(prev => ({ ...prev, [data.message_id]: 'seen' }));
+        return true;
+      case 'bulk_messages_seen':
+        setMessageStatuses(prev => {
+          const next = { ...prev };
+          (data.message_ids || []).forEach(id => { next[id] = 'seen'; });
+          return next;
+        });
+        return true;
+      default:
+        return false;
+    }
+  };
+
   // WebSocket: connect and listen - FIXED MESSAGE ALIGNMENT
   useEffect(() => {
     const token = getAccessToken();
@@ -963,7 +1066,10 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
       try {
         const data = JSON.parse(event.data);
         console.log('Conversation WS received:', data);
-        
+
+        const currentUserId = Number(myIdRef.current || userDataRef.current?.id || 0);
+        if (handleRealtimeStatusEvent(data, currentUserId)) return;
+
         if (data?.type === 'conversation_list' && Array.isArray(data.conversations)) {
           setConversations(data.conversations);
           
@@ -1088,17 +1194,25 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
         // fallback to token-stored userDataRef
         const currentUserId = Number(myIdRef.current || userDataRef.current?.id || 0);
 
+        if (handleRealtimeStatusEvent(data, currentUserId)) return;
+
         // Extract message data
         let messageData = null;
         if (data.type === 'message' && data.data) {
           messageData = data.data;
-        } else if (data.message || data.sender_id) {
+        } else if (data.type === undefined && (data.message || data.sender_id)) {
           messageData = data;
         }
-        
+
         if (!messageData) return;
-        
+
         const senderId = Number(messageData.sender_id || messageData.sender);
+
+        // The sender's typing indicator should clear once their message actually lands
+        if (senderId !== currentUserId) {
+          setTypingByUserId(prev => (prev[senderId] ? { ...prev, [senderId]: false } : prev));
+        }
+
         const text = messageData.message || '';
         const timestamp = messageData.timestamp || messageData.time || new Date().toISOString();
         const messageId = messageData.id || `msg_${Date.now()}`;
@@ -1116,7 +1230,16 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
         
         // Check if this is our own message (optimistic update replacement)
         const isSentByMe = senderId === currentUserId;
-        
+
+        // The chat window is open, so immediately mark newly received messages as seen
+        if (!isSentByMe && sock.readyState === WebSocket.OPEN) {
+          try {
+            sock.send(JSON.stringify({ type: 'mark_seen' }));
+          } catch (e) {
+            console.error('Failed to send mark_seen for incoming message:', e);
+          }
+        }
+
         setMessages((prev) => {
           // Check if message already exists to prevent duplicates (by ID)
           const exists = prev.some(m => m.id === messageId);
@@ -1198,6 +1321,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
                 message: text,
                 time: new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 type: 'sent',
+                status: messageData.status || 'sent',
                 hasMedia,
                 fileUrl,
                 imageUrl,
@@ -1220,6 +1344,7 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
             message: text,
             time: new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             type: isSentByMe ? 'sent' : 'received',
+            status: isSentByMe ? (messageData.status || 'sent') : undefined,
             hasMedia,
             fileUrl,
             imageUrl,
@@ -1246,6 +1371,11 @@ const ChatTab = ({ darkMode = false, onChatRoomStateChange, onUnreadCountChange,
       }
       // do not clear messages here; selectedChat effect handles that
       setChatWsConnected(false);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      isTypingRef.current = false;
     };
   }, [selectedChat, currentChat]);
 
@@ -1272,6 +1402,26 @@ const getMessageTimeStyle = (messageType) => {
     return 'text-green-100';
   }
 };
+
+  // Delivery/read indicator for messages we sent: clock (sending) -> single check (sent)
+  // -> double check (delivered) -> "Seen" label (seen)
+  const renderMessageStatusTicks = (message) => {
+    if (message.type !== 'sent') return null;
+    const status = messageStatuses[message.id] || message.status || (message.isOptimistic ? 'sending' : 'sent');
+    if (status === 'sending') return <Clock className="w-3 h-3 inline-block" />;
+    if (status === 'seen') return <span className="text-[10px] font-medium text-sky-300">Seen</span>;
+    if (status === 'delivered') return <CheckCheck className="w-3.5 h-3.5 inline-block" />;
+    return <Check className="w-3.5 h-3.5 inline-block" />;
+  };
+
+  // Compact version of the same status indicator, used in the chat list preview
+  const renderListStatusTicks = (status) => {
+    if (!status) return null;
+    if (status === 'sending') return <Clock className="w-3 h-3 inline-block mr-1 flex-shrink-0 text-gray-400" />;
+    if (status === 'seen') return <span className="text-[10px] font-medium text-blue-500 mr-1 flex-shrink-0">Seen</span>;
+    if (status === 'delivered') return <CheckCheck className="w-3.5 h-3.5 inline-block mr-1 flex-shrink-0 text-gray-400" />;
+    return <Check className="w-3.5 h-3.5 inline-block mr-1 flex-shrink-0 text-gray-400" />;
+  };
 
   return (
     <div className="h-full flex overflow-hidden">
@@ -1439,7 +1589,14 @@ const getMessageTimeStyle = (messageType) => {
                         {chat.time}
                         </span>
                       </div>
-                    <p className={`text-sm truncate ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{chat.lastMessage}</p>
+                    <p className={`text-sm truncate flex items-center ${chat.isTyping ? 'text-blue-500 italic' : (darkMode ? 'text-gray-400' : 'text-gray-600')}`}>
+                      {chat.isTyping ? 'typing…' : (
+                        <>
+                          {chat.lastMessageIsMine && renderListStatusTicks(chat.lastMessageStatus)}
+                          <span className="truncate">{chat.lastMessage}</span>
+                        </>
+                      )}
+                    </p>
                       <div className="flex items-center justify-between mt-1">
                       <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{chat.role}</span>
                         {chat.unread > 0 && (
@@ -1611,7 +1768,10 @@ const getMessageTimeStyle = (messageType) => {
                     
                     {/* Message time - only show for non-image messages */}
                     {!(message.files && message.files.some(file => file.type === 'image')) && (
-                      <div className={`text-[10px] px-4 pb-2 ${getMessageTimeStyle(message.type)}`}>{message.time}</div>
+                      <div className={`text-[10px] px-4 pb-2 flex items-center gap-1 ${message.type === 'sent' ? 'justify-end' : ''} ${getMessageTimeStyle(message.type)}`}>
+                        {message.time}
+                        {renderMessageStatusTicks(message)}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1643,6 +1803,12 @@ const getMessageTimeStyle = (messageType) => {
               )}
 
               <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                {/* Typing indicator */}
+                {isPartnerTyping && (
+                  <div className="mb-1 px-1 text-xs text-blue-500 italic">
+                    {currentChat?.name || 'User'} is typing…
+                  </div>
+                )}
                 {/* Screenshot processing indicator */}
                 {isProcessingScreenshot && (
                   <div className={`mb-2 p-2 rounded-lg ${darkMode ? 'bg-blue-900/50' : 'bg-blue-50'} flex items-center gap-2`}>
@@ -1650,7 +1816,7 @@ const getMessageTimeStyle = (messageType) => {
                     <span className="text-sm text-blue-600 dark:text-blue-400">Processing screenshot...</span>
                   </div>
                 )}
-                
+
                 <div className="flex items-center gap-2">
                   <div className="relative">
                     <button
@@ -1662,7 +1828,7 @@ const getMessageTimeStyle = (messageType) => {
                     >
                       <Smile className="w-5 h-5 text-gray-500" />
                     </button>
-                    
+
                     {showEmojiPicker && (
                       <div className="absolute bottom-full left-0 mb-2 z-20 emoji-picker-container">
                         <EmojiPicker
@@ -1677,7 +1843,7 @@ const getMessageTimeStyle = (messageType) => {
                       </div>
                     )}
                   </div>
-                  
+
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}
@@ -1695,7 +1861,7 @@ const getMessageTimeStyle = (messageType) => {
                   <input
                     type="text"
                     value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
+                    onChange={(e) => { setNewMessage(e.target.value); handleTypingInput(); }}
                     placeholder="Type a message..."
                     className={`flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       darkMode 
@@ -1842,7 +2008,14 @@ const getMessageTimeStyle = (messageType) => {
                       <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{chat.time}</span>
                     </div>
                     <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'} truncate`}>{chat.role}</p>
-                    <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'} truncate mt-1`}>{chat.lastMessage}</p>
+                    <p className={`text-xs truncate mt-1 flex items-center ${chat.isTyping ? 'text-blue-500 italic' : (darkMode ? 'text-gray-500' : 'text-gray-500')}`}>
+                      {chat.isTyping ? 'typing…' : (
+                        <>
+                          {chat.lastMessageIsMine && renderListStatusTicks(chat.lastMessageStatus)}
+                          <span className="truncate">{chat.lastMessage}</span>
+                        </>
+                      )}
+                    </p>
                   </div>
                   
                   {chat.unread > 0 && (
@@ -2002,7 +2175,10 @@ const getMessageTimeStyle = (messageType) => {
                       
                       {/* Message time - only show for non-image messages */}
                       {!(message.files && message.files.some(file => file.type === 'image')) && (
-                        <div className={`text-[10px] px-4 pb-2 ${getMessageTimeStyle(message.type)}`}>{message.time}</div>
+                        <div className={`text-[10px] px-4 pb-2 flex items-center gap-1 ${message.type === 'sent' ? 'justify-end' : ''} ${getMessageTimeStyle(message.type)}`}>
+                        {message.time}
+                        {renderMessageStatusTicks(message)}
+                      </div>
                       )}
                     </div>
                   </div>
@@ -2033,6 +2209,12 @@ const getMessageTimeStyle = (messageType) => {
 
               {/* Message Input */}
               <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex-shrink-0`}>
+                {/* Typing indicator */}
+                {isPartnerTyping && (
+                  <div className="mb-1 px-1 text-xs text-blue-500 italic">
+                    {currentChat?.name || 'User'} is typing…
+                  </div>
+                )}
                 {/* Screenshot processing indicator */}
                 {isProcessingScreenshot && (
                   <div className={`mb-2 p-2 rounded-lg ${darkMode ? 'bg-blue-900/50' : 'bg-blue-50'} flex items-center gap-2`}>
@@ -2085,7 +2267,7 @@ const getMessageTimeStyle = (messageType) => {
                   <input
                     type="text"
                     value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
+                    onChange={(e) => { setNewMessage(e.target.value); handleTypingInput(); }}
                     placeholder="Type your message..."
                     className={`flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       darkMode 
