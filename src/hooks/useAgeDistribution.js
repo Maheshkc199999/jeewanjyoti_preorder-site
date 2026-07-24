@@ -1,0 +1,32 @@
+import { useState, useEffect } from 'react'
+import { apiRequest } from '../lib/api'
+
+export default function useAgeDistribution() {
+  const [totalUsers, setTotalUsers] = useState(0)
+  const [distribution, setDistribution] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let mounted = true
+    setLoading(true)
+    setError(null)
+
+    apiRequest('/api/age-distribution/')
+      .then((res) => {
+        if (!res.ok) throw new Error(res.statusText || 'Failed to fetch')
+        return res.json()
+      })
+      .then((json) => {
+        if (!mounted) return
+        setTotalUsers(json.total_users || 0)
+        setDistribution(Array.isArray(json.distribution) ? json.distribution : [])
+      })
+      .catch((err) => { if (mounted) setError(err) })
+      .finally(() => { if (mounted) setLoading(false) })
+
+    return () => { mounted = false }
+  }, [])
+
+  return { totalUsers, distribution, loading, error }
+}

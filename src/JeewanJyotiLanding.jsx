@@ -495,7 +495,7 @@ function PreorderPopup({ isOpen, onClose }) {
                       <span className="text-emerald-400 text-sm font-semibold uppercase tracking-widest">Limited Preorder</span>
                     </div>
                     <h2 className="text-3xl font-black text-white">Reserve Your Access</h2>
-                    <p className="text-slate-400 mt-1">Join Nepal's healthcare revolution — be among the first.</p>
+                    <p className="text-slate-400 mt-1">Be one of the first to try it when we launch in Nepal.</p>
                   </div>
                   <button onClick={handleClose} disabled={isLoading}
                     className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors disabled:opacity-50">
@@ -628,7 +628,7 @@ function HealthJourneyTimeline() {
       title: "Consult a Doctor",
       desc: "When your vitals need attention, book a certified doctor in minutes — no waiting room.",
       color: "#f59e0b",
-      stat: "200+ certified doctors"
+      stat: "Verified doctors only"
     },
   ];
 
@@ -683,7 +683,7 @@ export default function JeewanJyotiLanding() {
     { icon: Users, title: "Family Health Hub", desc: "Keep track of your loved ones' well-being with shared health dashboards and alerts.", color: "#8b5cf6" },
     { icon: Stethoscope, title: "Doctor Appointments", desc: "Book consultations with certified doctors in just a few taps — no waiting rooms.", color: "#10b981" },
     { icon: Video, title: "Video Consultation", desc: "Face-to-face consultations with healthcare professionals through encrypted video calls.", color: "#3b82f6" },
-    { icon: ShieldCheck, title: "Privacy First", desc: "Military-grade encryption protects your health data. Your records, your control.", color: "#f59e0b" },
+    { icon: ShieldCheck, title: "Privacy First", desc: "Your health data stays encrypted and private — you decide who else can see it.", color: "#f59e0b" },
     { icon: BarChart3, title: "Health Analytics", desc: "Smart trends and personalized insights that help you understand your health journey.", color: "#06b6d4" },
   ];
 
@@ -745,7 +745,7 @@ export default function JeewanJyotiLanding() {
             {/* Mini stats */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.3 }}
               className="mt-10 flex items-center gap-8 text-sm text-slate-500">
-              {[["1000+", "Early adopters"], ["24/7", "Available"], ["100%", "Secure"]].map(([val, lbl]) => (
+              {[["6", "Core features"], ["Nepal", "Built for"], ["Now", "In preorder"]].map(([val, lbl]) => (
                 <div key={lbl} className="text-center">
                   <div className="text-emerald-400 font-bold text-lg">{val}</div>
                   <div>{lbl}</div>
@@ -784,7 +784,7 @@ export default function JeewanJyotiLanding() {
                 Your Digital Health <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">Journey</span>
               </h2>
               <p className="text-slate-400 text-lg leading-relaxed mb-10">
-                From wearable to doctor — a seamless, intelligent system that cares for you around the clock.
+                From your wearable to a doctor's appointment — everything connects, so you're not repeating yourself at every step.
               </p>
               <HealthJourneyTimeline />
             </motion.div>
@@ -797,10 +797,10 @@ export default function JeewanJyotiLanding() {
               {/* Wearable stats */}
               <div className="grid grid-cols-2 gap-3 w-full max-w-xs">
                 {[
-                  { label: "Data Points/Day", val: "2,840+", color: "#10b981" },
-                  { label: "Battery Life", val: "7 days", color: "#3b82f6" },
-                  { label: "Sync Interval", val: "5 sec", color: "#8b5cf6" },
-                  { label: "Accuracy", val: "99.2%", color: "#f59e0b" },
+                  { label: "Tracking", val: "Always On", color: "#10b981" },
+                  { label: "Battery Life", val: "Multi-Day", color: "#3b82f6" },
+                  { label: "Sync", val: "Real-Time", color: "#8b5cf6" },
+                  { label: "Sensors", val: "Clinical-Grade", color: "#f59e0b" },
                 ].map((s, i) => (
                   <motion.div
                     key={s.label}
@@ -833,7 +833,7 @@ export default function JeewanJyotiLanding() {
               Build Better Habits,<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-300">Every Single Day</span>
             </h2>
-            <p className="text-slate-500 max-w-xl mx-auto text-lg">Track, improve, and celebrate every aspect of your health journey.</p>
+            <p className="text-slate-500 max-w-xl mx-auto text-lg">Small daily habits, tracked automatically so you don't have to think about it.</p>
           </motion.div>
 
           <div className="grid lg:grid-cols-2 gap-12 items-start">
@@ -895,17 +895,17 @@ export default function JeewanJyotiLanding() {
                 Redefining Healthcare <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">for Nepal</span>
               </h2>
               <p className="text-slate-400 text-lg leading-relaxed mb-6">
-                At <strong className="text-emerald-400">Digital Care</strong>, we bridge the gap between patients and healthcare providers through smart, reliable, and accessible digital solutions built for Nepal.
+                <strong className="text-emerald-400">Digital Care</strong> started with a simple frustration: booking a doctor's visit and keeping track of your own vitals in Nepal usually means separate apps, phone calls, and paper reports that never talk to each other.
               </p>
               <p className="text-slate-500 leading-relaxed mb-10">
-                With a patient-centered approach and a commitment to affordability, we're making a lasting impact on the health and well-being of communities across the country.
+                We're building one place for that instead — your wearable data, your family's health records, and a doctor when you need one, without the runaround.
               </p>
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { icon: "🚀", title: "Innovation", desc: "Cutting-edge health technology" },
-                  { icon: "🌍", title: "Accessibility", desc: "Healthcare for everyone" },
-                  { icon: "⭐", title: "Quality", desc: "Premium care standards" },
-                  { icon: "💚", title: "Affordability", desc: "Cost-effective solutions" }
+                  { icon: "🚀", title: "Wearable Sync", desc: "Connect your smartwatch or band and see vitals update live" },
+                  { icon: "🌍", title: "Family Hub", desc: "Track appointments and vitals for your whole family" },
+                  { icon: "⭐", title: "Verified Doctors", desc: "Every doctor is licensed and checked before they can take bookings" },
+                  { icon: "💚", title: "Fair Pricing", desc: "No hidden fees — preorder pricing stays locked in" }
                 ].map((v, i) => (
                   <motion.div key={v.title} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }} transition={{ delay: 0.2 + i * 0.1 }}
@@ -957,7 +957,7 @@ export default function JeewanJyotiLanding() {
               Everything Your Health Needs,<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">In One App</span>
             </h2>
-            <p className="text-slate-500 max-w-xl mx-auto text-lg">Built with care, designed for simplicity, powered by technology that works.</p>
+            <p className="text-slate-500 max-w-xl mx-auto text-lg">Six things you actually need from a health app — nothing you don't.</p>
           </motion.div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -974,7 +974,7 @@ export default function JeewanJyotiLanding() {
               <Smartphone className="h-14 w-14 text-emerald-400 mx-auto mb-5" />
             </motion.div>
             <h3 className="text-3xl font-extrabold text-white mb-3">One App. Complete Care.</h3>
-            <p className="text-slate-400 max-w-lg mx-auto text-lg">Every feature seamlessly integrated into a single, intuitive experience designed for you and your family.</p>
+            <p className="text-slate-400 max-w-lg mx-auto text-lg">No juggling between apps — your vitals, appointments, and your family's health all live in one place.</p>
             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
               onClick={() => setIsPreorderOpen(true)}
               className="mt-8 inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold px-7 py-3.5 rounded-xl transition-all duration-200">
@@ -987,10 +987,19 @@ export default function JeewanJyotiLanding() {
       {/* ══ STATS BAND ══ */}
       <div className="py-20 px-6 border-y border-emerald-500/10 bg-emerald-950/20">
         <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-12">
-          <StatCounter value="1000" suffix="+" label="Early Adopters" />
-          <StatCounter value="24" suffix="/7" label="Always Available" />
           <StatCounter value="6" suffix="+" label="Core Features" />
-          <StatCounter value="100" suffix="%" label="Data Secure" />
+          <div className="text-center group">
+            <div className="text-4xl lg:text-5xl font-black text-emerald-400 group-hover:scale-110 transition-transform duration-300">Open</div>
+            <div className="mt-2 text-sm text-emerald-200/60 uppercase tracking-widest font-medium">Preorders</div>
+          </div>
+          <div className="text-center group">
+            <div className="text-4xl lg:text-5xl font-black text-emerald-400 group-hover:scale-110 transition-transform duration-300">Nepal</div>
+            <div className="mt-2 text-sm text-emerald-200/60 uppercase tracking-widest font-medium">Built For</div>
+          </div>
+          <div className="text-center group">
+            <div className="text-4xl lg:text-5xl font-black text-emerald-400 group-hover:scale-110 transition-transform duration-300">2026</div>
+            <div className="mt-2 text-sm text-emerald-200/60 uppercase tracking-widest font-medium">Launching</div>
+          </div>
         </div>
       </div>
 
@@ -1007,7 +1016,7 @@ export default function JeewanJyotiLanding() {
             <h2 className="text-5xl md:text-6xl font-black text-white mb-4">
               Preorder <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">Today</span>
             </h2>
-            <p className="text-slate-400 text-xl mb-4">Join Nepal's healthcare revolution at exclusive launch pricing.</p>
+            <p className="text-slate-400 text-xl mb-4">Reserve your spot now and lock in exclusive launch pricing.</p>
             <div className="inline-flex items-center gap-3 bg-slate-800/60 border border-yellow-500/20 rounded-2xl px-8 py-4 mb-10">
               <span className="text-yellow-400 text-3xl font-black">🔥 Price Revealed at Launch</span>
             </div>
@@ -1027,7 +1036,7 @@ export default function JeewanJyotiLanding() {
                 </div>
               ))}
             </div>
-            <p className="mt-6 text-slate-600 text-sm">✨ 1,000+ early adopters already signed up</p>
+            <p className="mt-6 text-slate-600 text-sm">✨ Takes under a minute — no payment needed today</p>
           </motion.div>
         </div>
       </section>
@@ -1041,7 +1050,7 @@ export default function JeewanJyotiLanding() {
                 <HeartPulse className="h-7 w-7 text-emerald-400" />
                 <span className="text-lg font-black text-white">Digital Care</span>
               </div>
-              <p className="text-slate-500 text-sm leading-relaxed">Revolutionizing healthcare accessibility in Nepal, one family at a time.</p>
+              <p className="text-slate-500 text-sm leading-relaxed">Built in Nepal, for Nepali families managing their health day to day.</p>
             </div>
             <div>
               <div className="text-xs font-semibold text-slate-600 uppercase tracking-widest mb-4">Platform</div>
@@ -1061,7 +1070,7 @@ export default function JeewanJyotiLanding() {
             </div>
           </div>
           <div className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-600">
-            <span>© 2024 Digital Care. All rights reserved.</span>
+            <span>© {new Date().getFullYear()} Digital Care. All rights reserved.</span>
             <div className="flex gap-6">
               <a href="#" className="hover:text-emerald-400 transition-colors">Privacy Policy</a>
               <a href="#" className="hover:text-emerald-400 transition-colors">Terms of Service</a>

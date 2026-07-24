@@ -49,6 +49,40 @@ const ROLE_STYLES = {
 
 const STATUS_COLORS = { online: '#10b981', away: '#f59e0b', offline: '#9ca3af' };
 
+// Normal physiological ranges used to flag out-of-range vitals in red
+const VITAL_RANGES = {
+  heartRate: { min: 60, max: 100 },   // bpm
+  spo2: { min: 95, max: 100 },        // %
+  bpSystolic: { min: 90, max: 140 },  // mmHg
+  bpDiastolic: { min: 60, max: 90 },  // mmHg
+  sleep: { min: 6, max: 9 },          // hrs
+  hrv: { min: 20, max: 200 },         // ms
+};
+
+function isOutOfRange(value, range) {
+  return value != null && !Number.isNaN(Number(value)) && (value < range.min || value > range.max);
+}
+
+function userHasFlaggedVital(u) {
+  const v = u.vitals;
+  if (!v) return false;
+  if (v.heartrate && isOutOfRange(v.heartrate.once_heart_value, VITAL_RANGES.heartRate)) return true;
+  if (v.spo2 && isOutOfRange(v.spo2.Blood_oxygen, VITAL_RANGES.spo2)) return true;
+  if (v.bloodpressure && (isOutOfRange(v.bloodpressure.sbp, VITAL_RANGES.bpSystolic) || isOutOfRange(v.bloodpressure.dbp, VITAL_RANGES.bpDiastolic))) return true;
+  if (v.sleep && isOutOfRange(v.sleep.duration, VITAL_RANGES.sleep)) return true;
+  if (v.hrv_iso && isOutOfRange(v.hrv_iso.hrv, VITAL_RANGES.hrv)) return true;
+  return false;
+}
+
+function latestVitalTimestamp(u) {
+  const v = u.vitals;
+  if (!v) return 0;
+  const dates = [v.heartrate?.date, v.spo2?.date, v.bloodpressure?.date, v.sleep?.date, v.hrv_iso?.date, v.battery?.timestamp]
+    .map(d => (d ? new Date(d).getTime() : NaN))
+    .filter(t => !Number.isNaN(t));
+  return dates.length ? Math.max(...dates) : 0;
+}
+
 function RoleBadge({ role, darkMode }) {
   const s = ROLE_STYLES[role] || { label: role || 'Unknown', bg: '#f1f5f9', darkBg: '#33415580', color: '#475569', darkColor: '#94a3b8', icon: UserIcon };
   const Icon = s.icon;
@@ -176,6 +210,11 @@ export default function AdminMembers({ users = [], loading = false, error = null
       u.email?.toLowerCase().includes(search.toLowerCase());
     const matchesRole = roleFilter === 'all' || u.role === roleFilter;
     return matchesSearch && matchesRole;
+  }).sort((a, b) => {
+    const aFlag = userHasFlaggedVital(a);
+    const bFlag = userHasFlaggedVital(b);
+    if (aFlag !== bFlag) return aFlag ? -1 : 1;
+    return latestVitalTimestamp(b) - latestVitalTimestamp(a);
   });
 
   const doctorCount = users.filter(u => u.role === 'DOCTOR').length;
@@ -372,59 +411,79 @@ export default function AdminMembers({ users = [], loading = false, error = null
                       </div>
                     </td>
                     <td style={{ padding: '14px 16px' }}>
-                      {u.vitals?.heartrate ? (
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Heart size={14} color={u.vitals.heartrate.once_heart_value > 100 ? '#ef4444' : '#10b981'} />
-                            <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{u.vitals.heartrate.once_heart_value} <span style={{ color: textMuted, fontWeight: 400 }}>bpm</span></span>
+                      {u.vitals?.heartrate ? (() => {
+                        const hr = u.vitals.heartrate.once_heart_value;
+                        const abnormal = isOutOfRange(hr, VITAL_RANGES.heartRate);
+                        return (
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Heart size={14} color={abnormal ? '#ef4444' : '#10b981'} />
+                              <span style={{ fontSize: 13, fontWeight: 700, color: abnormal ? '#ef4444' : textPrimary }}>{hr} <span style={{ color: textMuted, fontWeight: 400 }}>bpm</span></span>
+                            </div>
+                            <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.heartrate.date)}</div>
                           </div>
-                          <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.heartrate.date)}</div>
-                        </div>
-                      ) : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
+                        );
+                      })() : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
-                      {u.vitals?.spo2 ? (
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Droplets size={14} color="#3b82f6" />
-                            <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{u.vitals.spo2.Blood_oxygen} <span style={{ color: textMuted, fontWeight: 400 }}>%</span></span>
+                      {u.vitals?.spo2 ? (() => {
+                        const spo2 = u.vitals.spo2.Blood_oxygen;
+                        const abnormal = isOutOfRange(spo2, VITAL_RANGES.spo2);
+                        return (
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Droplets size={14} color={abnormal ? '#ef4444' : '#3b82f6'} />
+                              <span style={{ fontSize: 13, fontWeight: 700, color: abnormal ? '#ef4444' : textPrimary }}>{spo2} <span style={{ color: textMuted, fontWeight: 400 }}>%</span></span>
+                            </div>
+                            <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.spo2.date)}</div>
                           </div>
-                          <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.spo2.date)}</div>
-                        </div>
-                      ) : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
+                        );
+                      })() : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
-                      {u.vitals?.bloodpressure ? (
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Activity size={14} color="#8b5cf6" />
-                            <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{u.vitals.bloodpressure.sbp}/{u.vitals.bloodpressure.dbp}</span>
+                      {u.vitals?.bloodpressure ? (() => {
+                        const { sbp, dbp } = u.vitals.bloodpressure;
+                        const abnormal = isOutOfRange(sbp, VITAL_RANGES.bpSystolic) || isOutOfRange(dbp, VITAL_RANGES.bpDiastolic);
+                        return (
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Activity size={14} color={abnormal ? '#ef4444' : '#8b5cf6'} />
+                              <span style={{ fontSize: 13, fontWeight: 700, color: abnormal ? '#ef4444' : textPrimary }}>{sbp}/{dbp}</span>
+                            </div>
+                            <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.bloodpressure.date)}</div>
                           </div>
-                          <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.bloodpressure.date)}</div>
-                        </div>
-                      ) : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
+                        );
+                      })() : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
-                      {u.vitals?.sleep ? (
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Moon size={14} color="#6366f1" />
-                            <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{u.vitals.sleep.duration} <span style={{ color: textMuted, fontWeight: 400 }}>hrs</span></span>
+                      {u.vitals?.sleep ? (() => {
+                        const dur = u.vitals.sleep.duration;
+                        const abnormal = isOutOfRange(dur, VITAL_RANGES.sleep);
+                        return (
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Moon size={14} color={abnormal ? '#ef4444' : '#6366f1'} />
+                              <span style={{ fontSize: 13, fontWeight: 700, color: abnormal ? '#ef4444' : textPrimary }}>{dur} <span style={{ color: textMuted, fontWeight: 400 }}>hrs</span></span>
+                            </div>
+                            <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.sleep.date)}</div>
                           </div>
-                          <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.sleep.date)}</div>
-                        </div>
-                      ) : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
+                        );
+                      })() : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
-                      {u.vitals?.hrv_iso ? (
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Zap size={14} color="#f59e0b" />
-                            <span style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{u.vitals.hrv_iso.hrv} <span style={{ color: textMuted, fontWeight: 400 }}>ms</span></span>
+                      {u.vitals?.hrv_iso ? (() => {
+                        const hrv = u.vitals.hrv_iso.hrv;
+                        const abnormal = isOutOfRange(hrv, VITAL_RANGES.hrv);
+                        return (
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Zap size={14} color={abnormal ? '#ef4444' : '#f59e0b'} />
+                              <span style={{ fontSize: 13, fontWeight: 700, color: abnormal ? '#ef4444' : textPrimary }}>{hrv} <span style={{ color: textMuted, fontWeight: 400 }}>ms</span></span>
+                            </div>
+                            <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.hrv_iso.date)}</div>
                           </div>
-                          <div style={{ fontSize: 10, color: textMuted, marginTop: 4, marginLeft: 20 }}>{formatTimeShort(u.vitals.hrv_iso.date)}</div>
-                        </div>
-                      ) : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
+                        );
+                      })() : <span style={{ color: darkMode ? '#475569' : '#d1d5db', fontSize: 13 }}>—</span>}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       {u.vitals?.battery ? (() => {

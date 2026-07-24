@@ -13,32 +13,13 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
+import useRegisteredMonthly from '../../hooks/useRegisteredMonthly';
+import useMemberGrowth from '../../hooks/useMemberGrowth';
+import useActiveInactiveUsers from '../../hooks/useActiveInactiveUsers';
+import useAgeDistribution from '../../hooks/useAgeDistribution';
+import useActiveInactiveByAge from '../../hooks/useActiveInactiveByAge';
 
 // ─── Static demo data (replace with real API calls as needed) ────────────────
-
-const WEEKLY_ADDITIONS = [
-  { week: 'Wk 1', added: 24 }, { week: 'Wk 2', added: 19 },
-  { week: 'Wk 3', added: 31 }, { week: 'Wk 4', added: 28 },
-  { week: 'Wk 5', added: 22 }, { week: 'Wk 6', added: 35 },
-  { week: 'Wk 7', added: 29 }, { week: 'Wk 8', added: 41 },
-  { week: 'Wk 9', added: 37 }, { week: 'Wk 10', added: 33 },
-  { week: 'Wk 11', added: 29 }, { week: 'Wk 12', added: 38 },
-];
-
-const MONTHLY_ADDITIONS = [
-  { month: 'Dec', added: 82 }, { month: 'Jan', added: 104 },
-  { month: 'Feb', added: 97 }, { month: 'Mar', added: 118 },
-  { month: 'Apr', added: 142 }, { month: 'May', added: 186 },
-];
-
-const GROWTH_DATA = [
-  { month: 'Jun', total: 908 }, { month: 'Jul', total: 942 },
-  { month: 'Aug', total: 975 }, { month: 'Sep', total: 1004 },
-  { month: 'Oct', total: 1038 }, { month: 'Nov', total: 1071 },
-  { month: 'Dec', total: 1098 }, { month: 'Jan', total: 1128 },
-  { month: 'Feb', total: 1167 }, { month: 'Mar', total: 1204 },
-  { month: 'Apr', total: 1241 }, { month: 'May', total: 1284 },
-];
 
 const AGE_DISTRIBUTION = [
   { age: '<18',   total: 28,  active: 18, inactive: 10, rate: 36 },
@@ -50,11 +31,6 @@ const AGE_DISTRIBUTION = [
   { age: '65–74', total: 183, active: 112,inactive: 71, rate: 39 },
   { age: '75–84', total: 97,  active: 50, inactive: 47, rate: 48 },
   { age: '85+',   total: 30,  active: 10, inactive: 20, rate: 67 },
-];
-
-const ACTIVE_VS_INACTIVE = [
-  { name: 'Active',   value: 842, color: '#378add' },
-  { name: 'Inactive', value: 442, color: '#b4b2a9' },
 ];
 
 const VITALS_BY_AGE = [
@@ -99,13 +75,13 @@ const DEVICES = [
   { name: 'Sensor Node D5',   serial: 'SN-0091', status: 'online',  battery: 44, last: '4m ago' },
 ];
 
-const STAT_CARDS = [
-  { label: 'Total Members',         value: 1284, change: '+12%',  up: true,  icon: Users,         accent: '#3b82f6', bg: '#eff6ff' },
-  { label: 'Actively Sending Data', value: 842,  change: '+5.2%', up: true,  icon: Activity,      accent: '#10b981', bg: '#ecfdf5' },
-  { label: 'Inactive Members',      value: 442,  change: '+2',    up: false, icon: FileText,      accent: '#f59e0b', bg: '#fffbeb' },
-  { label: 'Added This Week',       value: 38,   change: '+9',    up: true,  icon: TrendingUp,    accent: '#8b5cf6', bg: '#f5f3ff' },
-  { label: 'Added This Month',      value: 186,  change: '+44',   up: true,  icon: Zap,           accent: '#06b6d4', bg: '#ecfeff' },
-  { label: 'Critical Alerts',       value: 4,    change: '+1',    up: false, icon: AlertTriangle, accent: '#ef4444', bg: '#fef2f2' },
+const STAT_META = [
+  { key: 'total',    label: 'Total Members',         icon: Users,         accent: '#3b82f6', bg: '#eff6ff' },
+  { key: 'active',   label: 'Actively Sending Data', icon: Activity,      accent: '#10b981', bg: '#ecfdf5' },
+  { key: 'inactive', label: 'Inactive Members',      icon: FileText,      accent: '#f59e0b', bg: '#fffbeb' },
+  { key: 'week',     label: 'Added This Week',       icon: TrendingUp,    accent: '#8b5cf6', bg: '#f5f3ff' },
+  { key: 'month',    label: 'Added This Month',      icon: Zap,           accent: '#06b6d4', bg: '#ecfeff' },
+  { key: 'alerts',   label: 'Critical Alerts',       icon: AlertTriangle, accent: '#ef4444', bg: '#fef2f2' },
 ];
 
 // ─── Small reusable pieces ────────────────────────────────────────────────────
@@ -122,11 +98,34 @@ function useDeferredMount(delayMs = 80) {
   return ready;
 }
 
-const ActiveVsInactivePie = memo(function ActiveVsInactivePie({ darkMode }) {
-  const legendItems = ACTIVE_VS_INACTIVE.map((d) => ({
+const ActiveVsInactivePie = memo(function ActiveVsInactivePie({ darkMode, data, loading, error }) {
+  if (loading) {
+    return (
+      <Card darkMode={darkMode}>
+        <CardHead title="Active vs inactive" darkMode={darkMode} />
+        <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', color: darkMode ? '#64748b' : '#94a3b8', fontSize: 13 }}>Loading…</div>
+      </Card>
+    );
+  }
+  if (error) {
+    return (
+      <Card darkMode={darkMode}>
+        <CardHead title="Active vs inactive" darkMode={darkMode} />
+        <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', fontSize: 13 }}>{error.message || 'Failed to load'}</div>
+      </Card>
+    );
+  }
+
+  const total = data.total_users || (data.active_count + data.inactive_count) || 1;
+  const activeVsInactive = [
+    { name: 'Active',   value: data.active_count,   color: '#378add' },
+    { name: 'Inactive', value: data.inactive_count, color: '#b4b2a9' },
+  ];
+  const legendItems = activeVsInactive.map((d) => ({
     color: d.color,
-    label: `${d.name} ${((d.value / 1284) * 100).toFixed(1)}%`,
+    label: `${d.name} ${((d.value / total) * 100).toFixed(1)}%`,
   }));
+
   return (
     <Card darkMode={darkMode}>
       <CardHead title="Active vs inactive" darkMode={darkMode} />
@@ -134,7 +133,7 @@ const ActiveVsInactivePie = memo(function ActiveVsInactivePie({ darkMode }) {
       <ResponsiveContainer width="100%" height={160}>
         <PieChart>
           <Pie
-            data={ACTIVE_VS_INACTIVE}
+            data={activeVsInactive}
             cx="50%"
             cy="50%"
             innerRadius={50}
@@ -143,7 +142,7 @@ const ActiveVsInactivePie = memo(function ActiveVsInactivePie({ darkMode }) {
             dataKey="value"
             isAnimationActive={false}
           >
-            {ACTIVE_VS_INACTIVE.map((d) => (
+            {activeVsInactive.map((d) => (
               <Cell key={d.name} fill={d.color} stroke="none" />
             ))}
           </Pie>
@@ -151,7 +150,7 @@ const ActiveVsInactivePie = memo(function ActiveVsInactivePie({ darkMode }) {
         </PieChart>
       </ResponsiveContainer>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
-        {ACTIVE_VS_INACTIVE.map((d) => (
+        {activeVsInactive.map((d) => (
           <div key={d.name} style={{ background: darkMode ? '#0f172a' : '#f8fafc', borderRadius: 12, padding: '10px 12px', textAlign: 'center' }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: darkMode ? '#fff' : '#0f172a' }}>{d.value.toLocaleString()}</div>
             <div style={{ fontSize: 11, color: darkMode ? '#94a3b8' : '#6b7280', marginTop: 2 }}>{d.name}</div>
@@ -234,31 +233,69 @@ function Overview({ darkMode = false }) {
   const chartsDeferred = useDeferredMount(100);
   const tickStyle = getTickStyle(darkMode);
   const gridStyle = getGridStyle(darkMode);
+  const { data: growthData, loading: growthLoading, error: growthError } = useRegisteredMonthly();
+  const { weekly, monthly, loading: memberGrowthLoading, error: memberGrowthError } = useMemberGrowth();
+  const { data: activeInactiveData, loading: activeInactiveLoading, error: activeInactiveError } = useActiveInactiveUsers();
+
+  // Month-over-month / week-over-week deltas, computed from the same series that feed the charts below
+  const latestTotal = growthData.length ? growthData[growthData.length - 1].total : null;
+  const prevTotal = growthData.length > 1 ? growthData[growthData.length - 2].total : null;
+  const totalChange = (latestTotal != null && prevTotal) ? (() => {
+    const delta = latestTotal - prevTotal;
+    return { change: `${delta >= 0 ? '+' : ''}${((delta / prevTotal) * 100).toFixed(1)}%`, up: delta >= 0 };
+  })() : null;
+
+  const latestWeek = weekly.length ? weekly[weekly.length - 1] : null;
+  const prevWeek = weekly.length > 1 ? weekly[weekly.length - 2] : null;
+  const weekChange = (latestWeek && prevWeek) ? (() => {
+    const delta = (latestWeek.new_members ?? 0) - (prevWeek.new_members ?? 0);
+    return { change: `${delta >= 0 ? '+' : ''}${delta}`, up: delta >= 0 };
+  })() : null;
+
+  const latestMonth = monthly.length ? monthly[monthly.length - 1] : null;
+  const prevMonth = monthly.length > 1 ? monthly[monthly.length - 2] : null;
+  const monthChange = (latestMonth && prevMonth) ? (() => {
+    const delta = (latestMonth.new_members ?? 0) - (prevMonth.new_members ?? 0);
+    return { change: `${delta >= 0 ? '+' : ''}${delta}`, up: delta >= 0 };
+  })() : null;
+
+  // Actively Sending Data / Inactive Members / Critical Alerts have no historical series to diff against,
+  // so they're rendered without a change badge (see STAT_META order: total, active, inactive, week, month, alerts)
+  const statCards = [
+    { ...STAT_META[0], value: latestTotal, ...(totalChange || {}) },
+    { ...STAT_META[1], value: activeInactiveData?.active_count ?? null },
+    { ...STAT_META[2], value: activeInactiveData?.inactive_count ?? null },
+    { ...STAT_META[3], value: latestWeek?.new_members ?? null, ...(weekChange || {}) },
+    { ...STAT_META[4], value: latestMonth?.new_members ?? null, ...(monthChange || {}) },
+    { ...STAT_META[5], value: 4 },
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* ── Stat cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14 }}>
-        {STAT_CARDS.map((s, i) => (
+        {statCards.map((s, i) => (
           <div key={i} style={{ background: darkMode ? '#1e293b' : '#fff', borderRadius: 18, border: `1px solid ${darkMode ? '#334155' : '#f1f5f9'}`, boxShadow: '0 1px 3px rgba(0,0,0,.04)', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ width: 38, height: 38, borderRadius: 12, background: darkMode ? `${s.accent}20` : s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <s.icon size={17} color={s.accent} />
               </div>
-              <span style={{
-                fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 99,
-                background: s.up ? (darkMode ? '#064e3b' : '#d1fae5') : (darkMode ? '#450a0a' : '#fee2e2'),
-                color: s.up ? (darkMode ? '#6ee7b7' : '#065f46') : (darkMode ? '#f87171' : '#991b1b'),
-                display: 'flex', alignItems: 'center', gap: 2,
-              }}>
-                {s.up ? <TrendingUp size={10} /> : <TrendingDown size={10} />} {s.change}
-              </span>
+              {s.change && (
+                <span style={{
+                  fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 99,
+                  background: s.up ? (darkMode ? '#064e3b' : '#d1fae5') : (darkMode ? '#450a0a' : '#fee2e2'),
+                  color: s.up ? (darkMode ? '#6ee7b7' : '#065f46') : (darkMode ? '#f87171' : '#991b1b'),
+                  display: 'flex', alignItems: 'center', gap: 2,
+                }}>
+                  {s.up ? <TrendingUp size={10} /> : <TrendingDown size={10} />} {s.change}
+                </span>
+              )}
             </div>
             <div>
               <div style={{ fontSize: 11, color: darkMode ? '#94a3b8' : '#6b7280', fontWeight: 500, marginBottom: 2 }}>{s.label}</div>
               <div style={{ fontSize: 26, fontWeight: 800, color: darkMode ? '#fff' : '#0f172a', letterSpacing: '-1px', fontVariantNumeric: 'tabular-nums' }}>
-                {s.value.toLocaleString()}
+                {s.value != null ? s.value.toLocaleString() : '—'}
               </div>
             </div>
           </div>
@@ -269,23 +306,29 @@ function Overview({ darkMode = false }) {
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
         <Card darkMode={darkMode}>
           <CardHead title="Cumulative member growth — 12 months" action="Full report" darkMode={darkMode} />
-          <ResponsiveContainer width="100%" height={210}>
-            <AreaChart data={GROWTH_DATA} margin={{ top: 4, right: 8, bottom: 0, left: -12 }}>
-              <defs>
-                <linearGradient id="gGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" {...gridStyle} />
-              <XAxis dataKey="month" tick={tickStyle} axisLine={false} tickLine={false} />
-              <YAxis domain={[850, 1350]} tick={tickStyle} axisLine={false} tickLine={false} />
-              <Tooltip content={<CT darkMode={darkMode} />} />
-              <Area type="monotone" dataKey="total" name="Members" stroke="#3b82f6" strokeWidth={2.5} fill="url(#gGrad)" dot={false} activeDot={{ r: 5 }} {...CHART_ANIM} />
-            </AreaChart>
-          </ResponsiveContainer>
+          {growthLoading ? (
+            <div style={{ height: 210, display: 'flex', alignItems: 'center', justifyContent: 'center', color: darkMode ? '#64748b' : '#94a3b8', fontSize: 13 }}>Loading…</div>
+          ) : growthError ? (
+            <div style={{ height: 210, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', fontSize: 13 }}>{growthError.message || 'Failed to load'}</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={210}>
+              <AreaChart data={growthData} margin={{ top: 4, right: 8, bottom: 0, left: -12 }}>
+                <defs>
+                  <linearGradient id="gGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" {...gridStyle} />
+                <XAxis dataKey="month" tick={tickStyle} axisLine={false} tickLine={false} />
+                <YAxis domain={['auto', 'auto']} tick={tickStyle} axisLine={false} tickLine={false} />
+                <Tooltip content={<CT darkMode={darkMode} />} />
+                <Area type="monotone" dataKey="total" name="Members" stroke="#3b82f6" strokeWidth={2.5} fill="url(#gGrad)" dot={false} activeDot={{ r: 5 }} {...CHART_ANIM} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </Card>
-        <ActiveVsInactivePie darkMode={darkMode} />
+        <ActiveVsInactivePie darkMode={darkMode} data={activeInactiveData} loading={activeInactiveLoading} error={activeInactiveError} />
       </div>
 
       {!chartsDeferred ? (
@@ -293,7 +336,7 @@ function Overview({ darkMode = false }) {
           Loading charts…
         </div>
       ) : (
-        <OverviewChartsDeferred darkMode={darkMode} />
+        <OverviewChartsDeferred darkMode={darkMode} weekly={weekly} monthly={monthly} growthLoading={memberGrowthLoading} growthError={memberGrowthError} />
       )}
     </div>
   );
@@ -301,9 +344,50 @@ function Overview({ darkMode = false }) {
 
 export default memo(Overview);
 
-function OverviewChartsDeferred({ darkMode }) {
+function OverviewChartsDeferred({ darkMode, weekly, monthly, growthLoading, growthError }) {
   const tickStyle = getTickStyle(darkMode);
   const gridStyle = getGridStyle(darkMode);
+  const { distribution: ageDistribution, loading: ageLoading, error: ageError } = useAgeDistribution();
+  const { groups: activeInactiveByAge, loading: aibaLoading, error: aibaError } = useActiveInactiveByAge();
+
+  const weeklyAdditions = weekly.map(w => ({ week: (w.week || '').split(' ')[0] || w.week, added: w.new_members ?? 0 }));
+  const monthlyAdditions = monthly.map(m => ({ month: m.month || (m.week || '').split(' ')[0] || '', added: m.new_members ?? 0 }));
+  const PLUS_85_GROUPS = ['81 - 90', '91 - 100', '101 - 110'];
+  const ageTotals = (() => {
+    const merged = [];
+    let plus85 = 0;
+    ageDistribution.forEach(d => {
+      if (PLUS_85_GROUPS.includes(d.age_group)) {
+        plus85 += d.count;
+      } else {
+        merged.push({ age: d.age_group, total: d.count });
+      }
+    });
+    const unknownIdx = merged.findIndex(m => m.age === 'Unknown');
+    const bucket = { age: '85+', total: plus85 };
+    if (unknownIdx === -1) merged.push(bucket);
+    else merged.splice(unknownIdx, 0, bucket);
+    return merged;
+  })();
+  const ageChartHeight = Math.max(240, ageTotals.length * 24);
+  const activeInactiveAgeData = (() => {
+    const merged = [];
+    let plus85Active = 0;
+    let plus85Inactive = 0;
+    activeInactiveByAge.forEach(g => {
+      if (PLUS_85_GROUPS.includes(g.age_group)) {
+        plus85Active += g.active;
+        plus85Inactive += g.inactive;
+      } else {
+        merged.push({ age: g.age_group, active: g.active, inactive: g.inactive });
+      }
+    });
+    const unknownIdx = merged.findIndex(m => m.age === 'Unknown');
+    const bucket = { age: '85+', active: plus85Active, inactive: plus85Inactive };
+    if (unknownIdx === -1) merged.push(bucket);
+    else merged.splice(unknownIdx, 0, bucket);
+    return merged;
+  })();
 
   return (
     <>
@@ -311,28 +395,40 @@ function OverviewChartsDeferred({ darkMode }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <Card darkMode={darkMode}>
           <CardHead title="Members added — weekly (last 12 weeks)" darkMode={darkMode} />
-          <ResponsiveContainer width="100%" height={190}>
-            <BarChart data={WEEKLY_ADDITIONS} margin={{ top: 4, right: 8, bottom: 0, left: -14 }} barSize={16}>
-              <CartesianGrid strokeDasharray="3 3" {...gridStyle} vertical={false} />
-              <XAxis dataKey="week" tick={{ ...tickStyle, fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={tickStyle} axisLine={false} tickLine={false} />
-              <Tooltip content={<CT darkMode={darkMode} />} />
-              <Bar dataKey="added" name="Added" fill="#85b7eb" radius={[4, 4, 0, 0]} {...CHART_ANIM} />
-            </BarChart>
-          </ResponsiveContainer>
+          {growthLoading ? (
+            <div style={{ height: 190, display: 'flex', alignItems: 'center', justifyContent: 'center', color: darkMode ? '#64748b' : '#94a3b8', fontSize: 13 }}>Loading…</div>
+          ) : growthError ? (
+            <div style={{ height: 190, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', fontSize: 13 }}>{growthError.message || 'Failed to load'}</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={190}>
+              <BarChart data={weeklyAdditions} margin={{ top: 4, right: 8, bottom: 0, left: -14 }} barSize={16}>
+                <CartesianGrid strokeDasharray="3 3" {...gridStyle} vertical={false} />
+                <XAxis dataKey="week" tick={{ ...tickStyle, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={tickStyle} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip content={<CT darkMode={darkMode} />} />
+                <Bar dataKey="added" name="Added" fill="#85b7eb" radius={[4, 4, 0, 0]} {...CHART_ANIM} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Card>
 
         <Card darkMode={darkMode}>
           <CardHead title="Members added — monthly (last 6 months)" darkMode={darkMode} />
-          <ResponsiveContainer width="100%" height={190}>
-            <BarChart data={MONTHLY_ADDITIONS} margin={{ top: 4, right: 8, bottom: 0, left: -14 }} barSize={36}>
-              <CartesianGrid strokeDasharray="3 3" {...gridStyle} vertical={false} />
-              <XAxis dataKey="month" tick={tickStyle} axisLine={false} tickLine={false} />
-              <YAxis tick={tickStyle} axisLine={false} tickLine={false} />
-              <Tooltip content={<CT darkMode={darkMode} />} />
-              <Bar dataKey="added" name="Added" fill="#5dcaa5" radius={[5, 5, 0, 0]} {...CHART_ANIM} />
-            </BarChart>
-          </ResponsiveContainer>
+          {growthLoading ? (
+            <div style={{ height: 190, display: 'flex', alignItems: 'center', justifyContent: 'center', color: darkMode ? '#64748b' : '#94a3b8', fontSize: 13 }}>Loading…</div>
+          ) : growthError ? (
+            <div style={{ height: 190, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', fontSize: 13 }}>{growthError.message || 'Failed to load'}</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={190}>
+              <BarChart data={monthlyAdditions} margin={{ top: 4, right: 8, bottom: 0, left: -14 }} barSize={36}>
+                <CartesianGrid strokeDasharray="3 3" {...gridStyle} vertical={false} />
+                <XAxis dataKey="month" tick={tickStyle} axisLine={false} tickLine={false} />
+                <YAxis tick={tickStyle} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip content={<CT darkMode={darkMode} />} />
+                <Bar dataKey="added" name="Added" fill="#5dcaa5" radius={[5, 5, 0, 0]} {...CHART_ANIM} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Card>
       </div>
 
@@ -340,30 +436,42 @@ function OverviewChartsDeferred({ darkMode }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <Card darkMode={darkMode}>
           <CardHead title="Age distribution — total members" darkMode={darkMode} />
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={AGE_DISTRIBUTION} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 10 }} barSize={13}>
-              <CartesianGrid strokeDasharray="3 3" {...gridStyle} horizontal={false} />
-              <XAxis type="number" tick={tickStyle} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="age" tick={{ ...tickStyle, fontSize: 11 }} axisLine={false} tickLine={false} width={42} />
-              <Tooltip content={<CT darkMode={darkMode} />} />
-              <Bar dataKey="total" name="Total" fill="#1d9e75" radius={[0, 5, 5, 0]} {...CHART_ANIM} />
-            </BarChart>
-          </ResponsiveContainer>
+          {ageLoading ? (
+            <div style={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', color: darkMode ? '#64748b' : '#94a3b8', fontSize: 13 }}>Loading…</div>
+          ) : ageError ? (
+            <div style={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', fontSize: 13 }}>{ageError.message || 'Failed to load'}</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={ageChartHeight}>
+              <BarChart data={ageTotals} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 10 }} barSize={13}>
+                <CartesianGrid strokeDasharray="3 3" {...gridStyle} horizontal={false} />
+                <XAxis type="number" tick={tickStyle} axisLine={false} tickLine={false} allowDecimals={false} />
+                <YAxis type="category" dataKey="age" tick={{ ...tickStyle, fontSize: 11 }} axisLine={false} tickLine={false} width={64} />
+                <Tooltip content={<CT darkMode={darkMode} />} />
+                <Bar dataKey="total" name="Total" fill="#1d9e75" radius={[0, 5, 5, 0]} {...CHART_ANIM} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Card>
 
         <Card darkMode={darkMode}>
           <CardHead title="Active vs inactive by age group" darkMode={darkMode} />
           <Legend items={[{ color: '#378add', label: 'Active' }, { color: '#f09595', label: 'Inactive' }]} darkMode={darkMode} />
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={AGE_DISTRIBUTION} margin={{ top: 0, right: 8, bottom: 0, left: -14 }} barSize={13}>
-              <CartesianGrid strokeDasharray="3 3" {...gridStyle} vertical={false} />
-              <XAxis dataKey="age" tick={{ ...tickStyle, fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={tickStyle} axisLine={false} tickLine={false} />
-              <Tooltip content={<CT darkMode={darkMode} />} />
-              <Bar dataKey="active"   name="Active"   stackId="a" fill="#378add" {...CHART_ANIM} />
-              <Bar dataKey="inactive" name="Inactive" stackId="a" fill="#f09595" radius={[4, 4, 0, 0]} {...CHART_ANIM} />
-            </BarChart>
-          </ResponsiveContainer>
+          {aibaLoading ? (
+            <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: darkMode ? '#64748b' : '#94a3b8', fontSize: 13 }}>Loading…</div>
+          ) : aibaError ? (
+            <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', fontSize: 13 }}>{aibaError.message || 'Failed to load'}</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={activeInactiveAgeData} margin={{ top: 0, right: 8, bottom: 24, left: -14 }} barSize={13}>
+                <CartesianGrid strokeDasharray="3 3" {...gridStyle} vertical={false} />
+                <XAxis dataKey="age" tick={{ ...tickStyle, fontSize: 9 }} axisLine={false} tickLine={false} interval={0} angle={-35} textAnchor="end" height={50} />
+                <YAxis tick={tickStyle} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip content={<CT darkMode={darkMode} />} />
+                <Bar dataKey="active"   name="Active"   stackId="a" fill="#378add" {...CHART_ANIM} />
+                <Bar dataKey="inactive" name="Inactive" stackId="a" fill="#f09595" radius={[4, 4, 0, 0]} {...CHART_ANIM} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Card>
       </div>
 
