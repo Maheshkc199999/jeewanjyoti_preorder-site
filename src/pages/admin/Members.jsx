@@ -3,7 +3,7 @@ import {
   Search, Loader, X, Stethoscope, User as UserIcon, Phone, Droplet, Calendar,
   Ruler, Weight, Award, Building2, GraduationCap, RefreshCw,
   Heart, Droplets, Activity, Moon, Zap, BatteryFull, BatteryLow, BatteryWarning,
-  Pencil, Trash2, Eye,
+  Pencil, Trash2, Eye, AlertTriangle,
 } from 'lucide-react';
 import { authenticatedFetch } from '../../lib/tokenManager';
 import { updateProfile } from '../../lib/api';
@@ -92,6 +92,18 @@ function RoleBadge({ role, darkMode }) {
       padding: '3px 10px', borderRadius: 99, background: darkMode ? s.darkBg : s.bg, color: darkMode ? s.darkColor : s.color
     }}>
       <Icon size={11} /> {s.label}
+    </span>
+  );
+}
+
+function FlaggedBadge({ darkMode }) {
+  return (
+    <span title="Has out-of-range vitals" style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700,
+      padding: '2px 8px', borderRadius: 99, background: darkMode ? '#7f1d1d30' : '#fef2f2', color: darkMode ? '#f87171' : '#dc2626',
+      marginLeft: 8, whiteSpace: 'nowrap'
+    }}>
+      <AlertTriangle size={10} /> Flagged
     </span>
   );
 }
@@ -210,12 +222,7 @@ export default function AdminMembers({ users = [], loading = false, error = null
       u.email?.toLowerCase().includes(search.toLowerCase());
     const matchesRole = roleFilter === 'all' || u.role === roleFilter;
     return matchesSearch && matchesRole;
-  }).sort((a, b) => {
-    const aFlag = userHasFlaggedVital(a);
-    const bFlag = userHasFlaggedVital(b);
-    if (aFlag !== bFlag) return aFlag ? -1 : 1;
-    return latestVitalTimestamp(b) - latestVitalTimestamp(a);
-  });
+  }).sort((a, b) => latestVitalTimestamp(b) - latestVitalTimestamp(a));
 
   const doctorCount = users.filter(u => u.role === 'DOCTOR').length;
   const patientCount = users.filter(u => u.role === 'USER').length;
@@ -396,7 +403,10 @@ export default function AdminMembers({ users = [], loading = false, error = null
                             {name.substring(0, 2).toUpperCase()}
                           </div>
                         )}
-                        <div style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{name}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: textPrimary, display: 'flex', alignItems: 'center' }}>
+                          {name}
+                          {userHasFlaggedVital(u) && <FlaggedBadge darkMode={darkMode} />}
+                        </div>
                       </div>
                     </td>
                     <td style={{ padding: '14px 16px' }}>

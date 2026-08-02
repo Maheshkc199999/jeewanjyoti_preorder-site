@@ -18,20 +18,10 @@ import useMemberGrowth from '../../hooks/useMemberGrowth';
 import useActiveInactiveUsers from '../../hooks/useActiveInactiveUsers';
 import useAgeDistribution from '../../hooks/useAgeDistribution';
 import useActiveInactiveByAge from '../../hooks/useActiveInactiveByAge';
+import useWeekComparison from '../../hooks/useWeekComparison';
 
 // ─── Static demo data (replace with real API calls as needed) ────────────────
 
-const AGE_DISTRIBUTION = [
-  { age: '<18',   total: 28,  active: 18, inactive: 10, rate: 36 },
-  { age: '18–24', total: 72,  active: 58, inactive: 14, rate: 19 },
-  { age: '25–34', total: 145, active: 118,inactive: 27, rate: 19 },
-  { age: '35–44', total: 238, active: 158,inactive: 80, rate: 34 },
-  { age: '45–54', total: 264, active: 170,inactive: 94, rate: 36 },
-  { age: '55–64', total: 227, active: 148,inactive: 79, rate: 35 },
-  { age: '65–74', total: 183, active: 112,inactive: 71, rate: 39 },
-  { age: '75–84', total: 97,  active: 50, inactive: 47, rate: 48 },
-  { age: '85+',   total: 30,  active: 10, inactive: 20, rate: 67 },
-];
 
 const VITALS_BY_AGE = [
   { age: '<18',   hr: 21,  spo2: 14,  temp: 19  },
@@ -42,16 +32,6 @@ const VITALS_BY_AGE = [
   { age: '65+',   hr: 162, spo2: 139, temp: 103 },
 ];
 
-const WEEK_COMPARE = [
-  { day: 'Mon', thisWeek: 7, lastWeek: 5 },
-  { day: 'Tue', thisWeek: 9, lastWeek: 6 },
-  { day: 'Wed', thisWeek: 6, lastWeek: 8 },
-  { day: 'Thu', thisWeek: 8, lastWeek: 4 },
-  { day: 'Fri', thisWeek: 5, lastWeek: 6 },
-  { day: 'Sat', thisWeek: 2, lastWeek: 1 },
-  { day: 'Sun', thisWeek: 1, lastWeek: 3 },
-];
-
 const RADAR_DATA = [
   { metric: 'Heart Rate', A: 88 },
   { metric: 'SpO₂',       A: 75 },
@@ -59,13 +39,6 @@ const RADAR_DATA = [
   { metric: 'Glucose',    A: 48 },
   { metric: 'BP',         A: 55 },
   { metric: 'ECG',        A: 30 },
-];
-
-const ALERTS = [
-  { member: 'Carlos Reyes',     type: 'SpO₂ Critical',       value: '91%',    time: '1 min ago', severity: 'critical' },
-  { member: 'Priya Sharma',     type: 'Elevated Heart Rate', value: '88 bpm', time: '4 min ago', severity: 'warning'  },
-  { member: 'Gateway – Ward C', type: 'Device Offline',      value: '—',      time: '3 hrs ago', severity: 'warning'  },
-  { member: 'Carlos Reyes',     type: 'High Temperature',  value: '38.4°C', time: '6 min ago', severity: 'critical' },
 ];
 
 const DEVICES = [
@@ -229,13 +202,30 @@ function getGridStyle(darkMode) {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-function Overview({ darkMode = false }) {
+function DashboardLoadingScreen({ darkMode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 480, gap: 16 }}>
+      <div className="animate-spin" style={{ width: 40, height: 40, borderRadius: '50%', border: `3px solid ${darkMode ? '#334155' : '#e2e8f0'}`, borderTopColor: '#3b82f6' }} />
+      <div style={{ fontSize: 13, fontWeight: 600, color: darkMode ? '#94a3b8' : '#64748b' }}>Loading dashboard…</div>
+    </div>
+  );
+}
+
+function Overview({ darkMode = false, alerts = [] }) {
   const chartsDeferred = useDeferredMount(100);
   const tickStyle = getTickStyle(darkMode);
   const gridStyle = getGridStyle(darkMode);
   const { data: growthData, loading: growthLoading, error: growthError } = useRegisteredMonthly();
   const { weekly, monthly, loading: memberGrowthLoading, error: memberGrowthError } = useMemberGrowth();
   const { data: activeInactiveData, loading: activeInactiveLoading, error: activeInactiveError } = useActiveInactiveUsers();
+  const { distribution: ageDistribution, loading: ageLoading, error: ageError } = useAgeDistribution();
+  const { groups: activeInactiveByAge, loading: aibaLoading, error: aibaError } = useActiveInactiveByAge();
+  const { days: weekComparisonDays, loading: weekComparisonLoading, error: weekComparisonError } = useWeekComparison();
+
+  const initialLoading = growthLoading || memberGrowthLoading || activeInactiveLoading || ageLoading || aibaLoading || weekComparisonLoading;
+  if (initialLoading) {
+    return <DashboardLoadingScreen darkMode={darkMode} />;
+  }
 
   // Month-over-month / week-over-week deltas, computed from the same series that feed the charts below
   const latestTotal = growthData.length ? growthData[growthData.length - 1].total : null;
@@ -336,7 +326,20 @@ function Overview({ darkMode = false }) {
           Loading charts…
         </div>
       ) : (
-        <OverviewChartsDeferred darkMode={darkMode} weekly={weekly} monthly={monthly} growthLoading={memberGrowthLoading} growthError={memberGrowthError} />
+        <OverviewChartsDeferred
+          darkMode={darkMode}
+          weekly={weekly}
+          monthly={monthly}
+          growthLoading={memberGrowthLoading}
+          growthError={memberGrowthError}
+          ageDistribution={ageDistribution}
+          ageError={ageError}
+          activeInactiveByAge={activeInactiveByAge}
+          aibaError={aibaError}
+          weekComparisonDays={weekComparisonDays}
+          weekComparisonError={weekComparisonError}
+          alerts={alerts}
+        />
       )}
     </div>
   );
@@ -344,11 +347,9 @@ function Overview({ darkMode = false }) {
 
 export default memo(Overview);
 
-function OverviewChartsDeferred({ darkMode, weekly, monthly, growthLoading, growthError }) {
+function OverviewChartsDeferred({ darkMode, weekly, monthly, growthLoading, growthError, ageDistribution, ageError, activeInactiveByAge, aibaError, weekComparisonDays, weekComparisonError, alerts }) {
   const tickStyle = getTickStyle(darkMode);
   const gridStyle = getGridStyle(darkMode);
-  const { distribution: ageDistribution, loading: ageLoading, error: ageError } = useAgeDistribution();
-  const { groups: activeInactiveByAge, loading: aibaLoading, error: aibaError } = useActiveInactiveByAge();
 
   const weeklyAdditions = weekly.map(w => ({ week: (w.week || '').split(' ')[0] || w.week, added: w.new_members ?? 0 }));
   const monthlyAdditions = monthly.map(m => ({ month: m.month || (m.week || '').split(' ')[0] || '', added: m.new_members ?? 0 }));
@@ -388,6 +389,12 @@ function OverviewChartsDeferred({ darkMode, weekly, monthly, growthLoading, grow
     else merged.splice(unknownIdx, 0, bucket);
     return merged;
   })();
+  const weekCompareData = weekComparisonDays.map(d => ({ day: (d.day || '').slice(0, 3), thisWeek: d.this_week ?? 0, lastWeek: d.last_week ?? 0 }));
+  const inactivityRateData = activeInactiveAgeData.map(g => {
+    const total = g.active + g.inactive;
+    return { age: g.age, rate: total ? Math.round((g.inactive / total) * 1000) / 10 : 0 };
+  });
+  const recentAlerts = alerts.filter(a => a.status === 'active').slice(0, 4);
 
   return (
     <>
@@ -436,9 +443,7 @@ function OverviewChartsDeferred({ darkMode, weekly, monthly, growthLoading, grow
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <Card darkMode={darkMode}>
           <CardHead title="Age distribution — total members" darkMode={darkMode} />
-          {ageLoading ? (
-            <div style={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', color: darkMode ? '#64748b' : '#94a3b8', fontSize: 13 }}>Loading…</div>
-          ) : ageError ? (
+          {ageError ? (
             <div style={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', fontSize: 13 }}>{ageError.message || 'Failed to load'}</div>
           ) : (
             <ResponsiveContainer width="100%" height={ageChartHeight}>
@@ -456,9 +461,7 @@ function OverviewChartsDeferred({ darkMode, weekly, monthly, growthLoading, grow
         <Card darkMode={darkMode}>
           <CardHead title="Active vs inactive by age group" darkMode={darkMode} />
           <Legend items={[{ color: '#378add', label: 'Active' }, { color: '#f09595', label: 'Inactive' }]} darkMode={darkMode} />
-          {aibaLoading ? (
-            <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: darkMode ? '#64748b' : '#94a3b8', fontSize: 13 }}>Loading…</div>
-          ) : aibaError ? (
+          {aibaError ? (
             <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', fontSize: 13 }}>{aibaError.message || 'Failed to load'}</div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
@@ -480,24 +483,28 @@ function OverviewChartsDeferred({ darkMode, weekly, monthly, growthLoading, grow
         <Card darkMode={darkMode}>
           <CardHead title="This week vs last week" darkMode={darkMode} />
           <Legend items={[{ color: '#378add', label: 'This week' }, { color: '#b5d4f4', label: 'Last week' }]} darkMode={darkMode} />
-          <ResponsiveContainer width="100%" height={185}>
-            <BarChart data={WEEK_COMPARE} margin={{ top: 4, right: 8, bottom: 0, left: -14 }} barSize={11} barGap={3}>
-              <CartesianGrid strokeDasharray="3 3" {...gridStyle} vertical={false} />
-              <XAxis dataKey="day" tick={tickStyle} axisLine={false} tickLine={false} />
-              <YAxis tick={tickStyle} axisLine={false} tickLine={false} />
-              <Tooltip content={<CT darkMode={darkMode} />} />
-              <Bar dataKey="thisWeek" name="This week" fill="#378add" radius={[3, 3, 0, 0]} {...CHART_ANIM} />
-              <Bar dataKey="lastWeek" name="Last week" fill="#b5d4f4" radius={[3, 3, 0, 0]} {...CHART_ANIM} />
-            </BarChart>
-          </ResponsiveContainer>
+          {weekComparisonError ? (
+            <div style={{ height: 185, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', fontSize: 13 }}>{weekComparisonError.message || 'Failed to load'}</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={185}>
+              <BarChart data={weekCompareData} margin={{ top: 4, right: 8, bottom: 0, left: -14 }} barSize={11} barGap={3}>
+                <CartesianGrid strokeDasharray="3 3" {...gridStyle} vertical={false} />
+                <XAxis dataKey="day" tick={tickStyle} axisLine={false} tickLine={false} />
+                <YAxis tick={tickStyle} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip content={<CT darkMode={darkMode} />} />
+                <Bar dataKey="thisWeek" name="This week" fill="#378add" radius={[3, 3, 0, 0]} {...CHART_ANIM} />
+                <Bar dataKey="lastWeek" name="Last week" fill="#b5d4f4" radius={[3, 3, 0, 0]} {...CHART_ANIM} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Card>
 
         <Card darkMode={darkMode}>
           <CardHead title="Inactivity rate by age (%)" darkMode={darkMode} />
           <ResponsiveContainer width="100%" height={205}>
-            <BarChart data={AGE_DISTRIBUTION} layout="vertical" margin={{ top: 0, right: 24, bottom: 0, left: 10 }} barSize={12}>
+            <BarChart data={inactivityRateData} layout="vertical" margin={{ top: 0, right: 24, bottom: 0, left: 10 }} barSize={12}>
               <CartesianGrid strokeDasharray="3 3" {...gridStyle} horizontal={false} />
-              <XAxis type="number" domain={[0, 80]} tick={tickStyle} axisLine={false} tickLine={false} unit="%" />
+              <XAxis type="number" domain={[0, 100]} tick={tickStyle} axisLine={false} tickLine={false} unit="%" />
               <YAxis type="category" dataKey="age" tick={{ ...tickStyle, fontSize: 11 }} axisLine={false} tickLine={false} width={42} />
               <Tooltip content={<CT darkMode={darkMode} />} formatter={v => [`${v}%`, 'Inactivity']} />
               <Bar dataKey="rate" name="Rate" fill="#ef4444" radius={[0, 5, 5, 0]} {...CHART_ANIM} />
@@ -541,8 +548,10 @@ function OverviewChartsDeferred({ darkMode, weekly, monthly, growthLoading, grow
         <Card darkMode={darkMode}>
           <CardHead title="Recent alerts" action="View all" darkMode={darkMode} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {ALERTS.map((a, i) => (
-              <div key={i} style={{
+            {recentAlerts.length === 0 ? (
+              <div style={{ padding: '20px 0', textAlign: 'center', color: darkMode ? '#64748b' : '#94a3b8', fontSize: 13 }}>No active alerts</div>
+            ) : recentAlerts.map((a, i) => (
+              <div key={a.id || i} style={{
                 display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
                 borderRadius: 12, background: a.severity === 'critical' ? (darkMode ? '#450a0a30' : '#fef2f2') : (darkMode ? '#78350f30' : '#fffbeb'),
                 border: `1px solid ${a.severity === 'critical' ? (darkMode ? '#7f1d1d' : '#fecaca') : (darkMode ? '#78350f' : '#fde68a')}`

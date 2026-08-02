@@ -211,7 +211,7 @@ export default function AdminDashboard() {
   const tabContent = useMemo(() => {
     switch (activeTab) {
       case 'overview':
-        return <OverviewTab members={members} loading={loading} error={error} darkMode={darkMode} />;
+        return <OverviewTab members={members} loading={loading} error={error} darkMode={darkMode} alerts={alerts} />;
       case 'members':
         return <AdminMembersTab users={allUsers} loading={usersLoading} error={usersError} refreshUsers={fetchAllUsers} onViewVitals={handleViewVitals} darkMode={darkMode} />;
       case 'vitals':
