@@ -1,36 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import jjlogo from '../assets/jjlogo.png';
+import { useAuth } from '../contexts/AuthContext';
+import { getUserData, getAccessToken } from '../lib/tokenManager';
 
-const initialLeaders = [
-  { name: 'John', steps: 18300, miles: 13.8, badge: '🥇', photo: 'https://i.pravatar.cc/150?img=12' },
-  { name: 'Sarah', steps: 17500, miles: 12.4, badge: '🥈', photo: 'https://i.pravatar.cc/150?img=47' },
-  { name: 'David', steps: 16800, miles: 11.7, badge: '🥉', photo: 'https://i.pravatar.cc/150?img=15' },
-];
-
-const initialPosts = [
-  {
-    name: 'Sarah Johnson',
-    time: '2 hours ago',
-    calories: 812,
-    steps: 17640,
-    distance: 12.6,
-    likes: 214,
-    comments: 34,
-    challenge: '10K Steps Challenge',
-    summary: 'Completed a sunrise walk and drank 2.5L of water today.',
-  },
-  {
-    name: 'Amir Khan',
-    time: '5 hours ago',
-    calories: 690,
-    steps: 15420,
-    distance: 10.1,
-    likes: 128,
-    comments: 21,
-    challenge: 'Marathon Month',
-    summary: 'Finished a 45-minute yoga session and logged a healthy meal plan.',
-  },
-];
+const API_BASE_URL = 'https://jeewanjyoti-backend.smart.org.np';
 
 function Navbar() {
   return (
@@ -49,40 +22,99 @@ function Navbar() {
   );
 }
 
-function Sidebar({ leaders }) {
+function LeaderAvatar({ name, imageUrl }) {
+  const [imgError, setImgError] = useState(false);
+  const initial = (name || '?').trim().charAt(0).toUpperCase();
+
+  if (imageUrl && !imgError) {
+    return (
+      <img
+        src={imageUrl}
+        alt={name}
+        className="h-8 w-8 rounded-full object-cover"
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-sm font-semibold text-white">
+      {initial}
+    </div>
+  );
+}
+
+function Sidebar({ leaders, loading = false }) {
+  // Helper to construct full image URL
+  const getFullImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http')) return imagePath;
+    return `${API_BASE_URL}${imagePath}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-5">
+        <div className="rounded-xl bg-white p-5 shadow">
+          <h2 className="mb-4 text-lg font-bold">Weekly Leaderboard</h2>
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       <div className="rounded-xl bg-white p-5 shadow">
         <h2 className="mb-4 text-lg font-bold">Weekly Leaderboard</h2>
-        {leaders.map((user, index) => (
-          <div key={index} className="flex items-center justify-between border-b py-3 text-sm">
-            <div className="flex items-center gap-2 font-medium text-gray-700">
-              <img src={user.photo} alt={user.name} className="h-8 w-8 rounded-full object-cover" />
-              <div>
-                <div className="flex items-center gap-1">
-                  <span>{user.badge}</span>
-                  <span>{user.name}</span>
+        {leaders && leaders.length > 0 ? (
+          leaders.map((user, index) => (
+            <div key={user.user_id || index} className="flex items-center justify-between border-b py-3 text-sm">
+              <div className="flex items-center gap-2 font-medium text-gray-700">
+                <LeaderAvatar name={user.name} imageUrl={getFullImageUrl(user.profile_image)} />
+                <div>
+                  <div className="flex items-center gap-1">
+                    <span>{user.badge}</span>
+                    <span>{user.name}</span>
+                  </div>
                 </div>
               </div>
+              <div className="text-right">
+                <div className="font-semibold text-gray-900">{user.steps.toLocaleString()} steps</div>
+                <div className="text-xs text-gray-500">{user.distance.toFixed(1)} km</div>
+              </div>
             </div>
-            <div className="text-right">
-              <div className="font-semibold text-gray-900">{user.steps.toLocaleString()} steps</div>
-              <div className="text-xs text-gray-500">{user.miles.toFixed(1)} mi</div>
-            </div>
-          </div>
-        ))}
+          ))
+        ) : (
+          <p className="text-gray-500 text-center py-4">No leaders yet</p>
+        )}
       </div>
     </div>
   );
 }
 
 function Feed({ posts }) {
+  const getFullImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http')) return imagePath;
+    return `${API_BASE_URL}${imagePath}`;
+  };
+
   return (
     <div className="space-y-6">
       {posts.map((post, i) => (
         <div key={i} className="rounded-xl bg-white p-6 shadow">
           <div className="flex items-center gap-3">
-            <img src={post.photo || 'https://i.pravatar.cc/100'} className="h-12 w-12 rounded-full object-cover" alt="profile" />
+            <img 
+              src={post.photo || getFullImageUrl(post.profile_image) || 'https://i.pravatar.cc/100'} 
+              className="h-12 w-12 rounded-full object-cover" 
+              alt="profile"
+              onError={(e) => {
+                e.target.src = 'https://i.pravatar.cc/100';
+              }}
+            />
             <div>
               <h2 className="font-bold">{post.name}</h2>
               <p className="text-sm text-gray-500">{post.time}</p>
@@ -100,7 +132,7 @@ function Feed({ posts }) {
             <div className="mt-5 grid grid-cols-3 gap-4">
               <div className="rounded-lg bg-red-50 p-4">
                 <p className="text-gray-500">Calories</p>
-                <h2 className="text-2xl font-bold">{post.calories}</h2>
+                <h2 className="text-2xl font-bold">{Math.round(post.calories)}</h2>
               </div>
               <div className="rounded-lg bg-blue-50 p-4">
                 <p className="text-gray-500">Distance</p>
@@ -108,14 +140,14 @@ function Feed({ posts }) {
               </div>
               <div className="rounded-lg bg-green-50 p-4">
                 <p className="text-gray-500">Steps</p>
-                <h2 className="text-2xl font-bold">{post.steps}</h2>
+                <h2 className="text-2xl font-bold">{post.steps.toLocaleString()}</h2>
               </div>
             </div>
           </div>
 
           <div className="mt-6 flex justify-between border-t pt-4 text-gray-500">
-            <button>❤️ {post.likes}</button>
-            <button>💬 {post.comments}</button>
+            <button>❤️ {post.likes || 0}</button>
+            <button>💬 {post.comments || 0}</button>
             <button>↗ Share</button>
           </div>
         </div>
@@ -124,15 +156,33 @@ function Feed({ posts }) {
   );
 }
 
-function RightSidebar() {
+const CHALLENGE_STYLES = ['bg-green-50', 'bg-red-50', 'bg-blue-50', 'bg-yellow-50', 'bg-purple-50'];
+
+function RightSidebar({ challenges = [], onAddClick }) {
   return (
     <div className="space-y-5">
       <div className="rounded-xl bg-white p-5 shadow">
-        <h2 className="mb-4 text-lg font-bold">Trending Challenges</h2>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold">Trending Challenges</h2>
+          <button
+            onClick={onAddClick}
+            aria-label="Add to leaderboard"
+            title="Add to leaderboard"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-green-600 text-lg font-semibold text-white shadow"
+          >
+            +
+          </button>
+        </div>
         <div className="space-y-3">
-          <div className="rounded-lg bg-green-50 p-3">🚶 10K Steps Challenge</div>
-          <div className="rounded-lg bg-red-50 p-3">🔥 Burn 500 Calories</div>
-          <div className="rounded-lg bg-blue-50 p-3">🏃 Marathon Month</div>
+          {challenges.length > 0 ? (
+            challenges.map((challenge, index) => (
+              <div key={challenge} className={`rounded-lg p-3 ${CHALLENGE_STYLES[index % CHALLENGE_STYLES.length]}`}>
+                🏆 {challenge}
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-gray-500">No challenges yet</p>
+          )}
         </div>
       </div>
 
@@ -164,10 +214,103 @@ function RightSidebar() {
 }
 
 export default function LeaderboardPage() {
-  const [leaders, setLeaders] = useState(initialLeaders);
-  const [posts, setPosts] = useState(initialPosts);
+  const [leaders, setLeaders] = useState([]);
+  const [posts, setPosts] = useState([]);
   const [formData, setFormData] = useState({ name: '', photo: '', miles: '', challenge: '' });
   const [showComposer, setShowComposer] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { user } = useAuth();
+
+  // Fetch leaderboard data from API
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        console.log('Fetching leaderboard from:', `${API_BASE_URL}/api/leaderboard/`);
+
+        const accessToken = getAccessToken();
+        const response = await fetch(`${API_BASE_URL}/api/leaderboard/`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+        });
+
+        console.log('Response status:', response.status);
+        const data = await response.json();
+        console.log('Full API Response:', data);
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch leaderboard: ${response.status}`);
+        }
+
+        if (data.leaderboard && Array.isArray(data.leaderboard)) {
+          console.log('Setting leaders:', data.leaderboard);
+          setLeaders(data.leaderboard);
+          
+          // Also create posts from leaderboard data
+          const leaderboardPosts = data.leaderboard.map(leader => ({
+            name: leader.name,
+            time: 'Top performer',
+            calories: leader.calories,
+            steps: leader.steps,
+            distance: leader.distance,
+            likes: Math.floor(Math.random() * 300),
+            comments: Math.floor(Math.random() * 50),
+            challenge: 'Weekly Challenge',
+            summary: `${leader.name} achieved ${leader.steps.toLocaleString()} steps this week! 🎉`,
+            profile_image: leader.profile_image,
+            badge: leader.badge,
+          }));
+          setPosts(leaderboardPosts);
+        } else {
+          console.warn('No leaderboard data in response');
+          setError('No leaderboard data available');
+        }
+      } catch (err) {
+        console.error('Error fetching leaderboard:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeaderboard();
+  }, []);
+
+  // Get user data from localStorage (from login)
+  useEffect(() => {
+    const userData = getUserData();
+    if (userData && !formData.name) {
+      // Get user's full name
+      const userName = userData.full_name || 
+                       (userData.first_name && userData.last_name ? `${userData.first_name} ${userData.last_name}` : '') ||
+                       userData.name || 
+                       '';
+      
+      // Get user's profile photo
+      let userPhoto = '';
+      if (userData.profile_image) {
+        userPhoto = userData.profile_image.startsWith('http') 
+          ? userData.profile_image 
+          : `${API_BASE_URL}${userData.profile_image.startsWith('/') ? '' : '/'}${userData.profile_image}`;
+      } else if (userData.avatar) {
+        userPhoto = userData.avatar.startsWith('http') 
+          ? userData.avatar 
+          : `${API_BASE_URL}${userData.avatar.startsWith('/') ? '' : '/'}${userData.avatar}`;
+      }
+      
+      // Pre-populate form with user data
+      setFormData((prev) => ({
+        ...prev,
+        name: userName || prev.name,
+        photo: userPhoto || prev.photo,
+      }));
+    }
+  }, [user]);
 
   const handlePhotoChange = (event) => {
     const file = event.target.files?.[0];
@@ -186,26 +329,34 @@ export default function LeaderboardPage() {
       return;
     }
 
+    const milesValue = Number(formData.miles);
+    const stepsValue = Math.round(milesValue * 1400);
+    const distanceKm = milesValue * 1.60934; // Convert miles to km
+
     const newEntry = {
+      rank: leaders.length + 1,
+      user_id: Math.random(), // Temporary ID
       name: formData.name.trim(),
-      steps: Math.round(Number(formData.miles) * 1400),
-      miles: Number(formData.miles),
+      profile_image: formData.photo,
+      steps: stepsValue,
+      distance: distanceKm,
+      calories: stepsValue * 0.05, // Rough calculation
       badge: '🏅',
-      photo: formData.photo,
+      activity_score: stepsValue,
     };
 
-    setLeaders((prev) => [newEntry, ...prev].slice(0, 6));
+    setLeaders((prev) => [newEntry, ...prev].slice(0, 10));
     setPosts((prev) => [
       {
         name: formData.name.trim(),
         time: 'Just now',
-        calories: 740,
-        steps: Math.round(Number(formData.miles) * 1400),
-        distance: Number(formData.miles),
+        calories: stepsValue * 0.05,
+        steps: stepsValue,
+        distance: distanceKm,
         likes: 42,
         comments: 8,
         challenge: formData.challenge.trim(),
-        summary: `Shared a fresh milestone of ${formData.miles} miles and a new healthy challenge.`,
+        summary: `Shared a fresh milestone of ${milesValue} miles and a new healthy challenge.`,
         photo: formData.photo,
       },
       ...prev,
@@ -218,68 +369,102 @@ export default function LeaderboardPage() {
     <div className="min-h-screen bg-gray-100">
       <Navbar />
 
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded m-4">
+          <p className="font-bold">Error Loading Leaderboard</p>
+          <p className="text-sm">{error}</p>
+          <p className="text-xs mt-2">Check browser console for more details</p>
+        </div>
+      )}
+
       <div className="mx-auto mt-5 flex max-w-7xl gap-6 px-4">
         <div className="hidden w-72 lg:block">
-          <Sidebar leaders={leaders} />
+          <Sidebar leaders={leaders} loading={loading} />
+          {leaders.length === 0 && !loading && (
+            <div className="rounded-xl bg-yellow-50 p-4 text-yellow-700 text-sm">
+              <p className="font-semibold">No leaders loaded</p>
+              <p className="text-xs mt-1">Leaders count: {leaders.length}</p>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 space-y-6">
-          {!showComposer ? (
-            <button
-              onClick={() => setShowComposer(true)}
-              className="w-full rounded-xl bg-green-600 px-4 py-3 text-left font-semibold text-white shadow"
-            >
-              Add to leaderboard
-            </button>
-          ) : (
-            <form onSubmit={handleSubmit} className="rounded-xl bg-white p-5 shadow">
-              <h2 className="mb-4 text-lg font-bold">Share your progress</h2>
-              <div className="grid gap-3 md:grid-cols-2">
-                <input
-                  value={formData.name}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                  className="rounded-lg border border-gray-200 px-3 py-2"
-                  placeholder="Your name"
+          <Feed posts={posts} />
+        </div>
+
+        <div className="hidden w-80 xl:block">
+          <RightSidebar
+            challenges={Array.from(new Set(posts.map((post) => post.challenge).filter(Boolean)))}
+            onAddClick={() => setShowComposer(true)}
+          />
+        </div>
+      </div>
+
+      {showComposer && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowComposer(false)}
+        >
+          <form
+            onSubmit={handleSubmit}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl"
+          >
+            <h2 className="mb-4 text-lg font-bold">Share your progress</h2>
+
+            {/* User Info Display */}
+            <div className="mb-4 flex items-center gap-4 border-b pb-4">
+              {formData.photo && (
+                <img
+                  src={formData.photo}
+                  alt={formData.name}
+                  className="h-16 w-16 rounded-full object-cover"
+                  onError={(e) => {
+                    e.target.src = 'https://i.pravatar.cc/150';
+                  }}
                 />
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoChange}
-                  className="rounded-lg border border-gray-200 px-3 py-2"
-                />
+              )}
+              <div>
+                <p className="text-sm text-gray-600">Posting as</p>
+                <h3 className="text-lg font-semibold text-gray-900">{formData.name || 'User'}</h3>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Distance (miles)</label>
                 <input
                   type="number"
                   step="0.1"
                   value={formData.miles}
                   onChange={(e) => setFormData((prev) => ({ ...prev, miles: e.target.value }))}
-                  className="rounded-lg border border-gray-200 px-3 py-2"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
                   placeholder="Miles"
+                  required
                 />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Challenge</label>
                 <input
                   value={formData.challenge}
                   onChange={(e) => setFormData((prev) => ({ ...prev, challenge: e.target.value }))}
-                  className="rounded-lg border border-gray-200 px-3 py-2"
-                  placeholder="Challenge"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  placeholder="Challenge name"
+                  required
                 />
               </div>
-              <div className="mt-4 flex gap-3">
-                <button type="submit" className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white">
-                  Submit
-                </button>
-                <button type="button" onClick={() => setShowComposer(false)} className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700">
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-
-          <Feed posts={posts} />
+            </div>
+            <div className="mt-4 flex gap-3">
+              <button type="submit" className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white">
+                Submit
+              </button>
+              <button type="button" onClick={() => setShowComposer(false)} className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700">
+                Cancel
+              </button>
+            </div>
+          </form>
         </div>
-
-        <div className="hidden w-80 xl:block">
-          <RightSidebar />
-        </div>
-      </div>
+      )}
     </div>
   );
 }

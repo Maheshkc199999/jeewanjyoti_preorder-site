@@ -429,13 +429,28 @@ const HomeTab = ({
             </div>
           </div>
 
-          {/* Center: Loading Indicator */}
-          {isLoading && (
+          {/* Center: Loading Indicator or Calendar */}
+          {isLoading ? (
             <div className="flex items-center gap-2 px-3 py-1.5 flex-shrink-0">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
               <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Loading data...
               </span>
+            </div>
+          ) : (
+            <div className="hidden md:flex items-center gap-3 px-4 py-2 flex-shrink-0">
+              <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-blue-50'}`}>
+                <Calendar className={`w-5 h-5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+              </div>
+              <div className="text-right">
+                <p className={`text-xs font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>TODAY</p>
+                <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {new Date().toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric'
+                  })}
+                </p>
+              </div>
             </div>
           )}
 

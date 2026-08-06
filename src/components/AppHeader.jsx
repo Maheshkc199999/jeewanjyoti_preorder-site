@@ -19,7 +19,7 @@ export default function AppHeader() {
 
   const navItems = [
     { name: 'Lifestyle', href: '/#lifestyle' },
-    { name: 'Leaderboard', href: '/leaderboard' },
+    { name: 'Leaderboard', href: '/dashboard#leaderboard' },
     { name: 'About', href: '/#about' },
     { name: 'Features', href: '/#features' },
     { name: 'Blogs', href: '/blogs' },
@@ -86,18 +86,18 @@ export default function AppHeader() {
       ? 'bg-white/95 backdrop-blur-xl shadow-lg border-b border-gray-200'
       : 'bg-white shadow-sm border-b border-gray-100'
     : isScrolled
-      ? 'bg-slate-900/95 backdrop-blur-xl shadow-2xl border-b border-emerald-500/10'
-      : 'bg-transparent';
+      ? 'bg-white/95 backdrop-blur-xl shadow-lg border-b border-[#D7E3EE]'
+      : 'bg-white/80 backdrop-blur-sm border-b border-[#D7E3EE]/60';
 
   // Nav link classes
   const navLinkBase = isBlogs
     ? 'text-gray-600 hover:text-emerald-600'
-    : 'text-slate-300 hover:text-emerald-400';
+    : 'text-[#2F3A45] hover:text-[#1D4ED8]';
 
   // Mobile menu button classes
   const mobileButtonClass = isBlogs
     ? 'lg:hidden p-2 text-gray-600 hover:text-gray-900 rounded-xl transition-colors'
-    : 'lg:hidden p-2 text-slate-300 hover:text-white rounded-xl transition-colors';
+    : 'lg:hidden p-2 text-[#2F3A45] hover:text-[#1D4ED8] rounded-xl transition-colors';
 
   return (
     <motion.header

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { Home, Calendar, MessageCircle, User, Moon, Sun, Bell, Settings, Menu, X, LogOut, Filter, SlidersHorizontal, ChevronDown, Loader2 } from 'lucide-react';
+import { Home, Calendar, MessageCircle, User, Users, Moon, Sun, Bell, Settings, Menu, X, LogOut, Filter, SlidersHorizontal, ChevronDown, Loader2 } from 'lucide-react';
 import jjlogo from '../assets/jjlogo.png';
 import HomeTab from './dashboard/Home';
 import AppointmentsTab from './dashboard/Appointments';
@@ -9,6 +9,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import ChatTab from './dashboard/Chat';
 import ProfileTab from './dashboard/Profile';
 import SettingsTab from './dashboard/Settings';
+import LeaderboardTab from './dashboard/Leaderboard';
 import ProfileCompletionForm from '../components/ProfileCompletionForm';
 import { auth } from '../lib/firebase';
 import { isAuthenticated, getUserData, clearTokens } from '../lib/tokenManager';
@@ -498,6 +499,8 @@ const Dashboard = () => {
             />
           </ErrorBoundary>
         );
+      case 'leaderboard':
+        return <LeaderboardTab />;
       case 'chat':
         return <ChatTab darkMode={darkMode} onChatRoomStateChange={handleChatRoomStateChange} onUnreadCountChange={setTotalUnread} userStatuses={userStatuses} />;
       case 'profile':
@@ -575,6 +578,20 @@ const Dashboard = () => {
                 >
                   <Calendar className="w-5 h-5" />
                   <span className="font-medium">Appointments</span>
+                </button>
+                <button
+                  onClick={() => handleTabChange('leaderboard')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${activeTab === 'leaderboard'
+                    ? darkMode
+                      ? 'bg-gray-700 shadow-md text-blue-400'
+                      : 'bg-white shadow-md text-blue-600'
+                    : darkMode
+                      ? 'text-gray-400 hover:text-gray-200'
+                      : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                >
+                  <Users className="w-5 h-5" />
+                  <span className="font-medium">Leaderboard</span>
                 </button>
                 <button
                   onClick={() => handleTabChange('chat')}
@@ -782,21 +799,6 @@ const Dashboard = () => {
                     )}
                   </div>
                 )}
-              </div>
-
-              {/* Date Display */}
-              <div className={`hidden md:flex items-center gap-2 px-2 py-1.5 rounded-lg whitespace-nowrap transition-all duration-200 transform hover:scale-105 ${darkMode
-                ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}>
-                <Calendar className="w-4 h-4 text-gray-500" />
-                <span className="text-sm font-medium">
-                  {new Date().toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric'
-                  })}
-                </span>
               </div>
 
               {/* Global Period Filter */}
