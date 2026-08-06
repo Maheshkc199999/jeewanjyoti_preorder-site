@@ -1,4 +1,4 @@
-import { authenticatedFetch, getAuthHeaders, refreshAccessToken, clearTokens, getUserData } from './tokenManager'
+import { authenticatedFetch, getAuthHeaders, refreshAccessToken, clearTokens, getUserData, getAccessToken } from './tokenManager'
 
 export const API_BASE_URL = 'https://jeewanjyoti-backend.smart.org.np'
 
@@ -684,6 +684,73 @@ export async function getAIData(userId = null, date = null) {
     throw new Error('Failed to fetch AI data');
   }
   return await response.json();
+}
+
+/**
+ * Get the weekly leaderboard rankings
+ * @returns {Promise<object>} { leaderboard: Array, period: string }
+ */
+export async function getLeaderboard() {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/leaderboard/`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch leaderboard: ${response.status}`)
+  }
+
+  return await response.json()
+}
+
+/**
+ * Get the leaderboard posts feed
+ * @returns {Promise<Array>} List of posts
+ */
+export async function getLeaderboardPosts() {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/leaderboard/posts/`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch leaderboard posts: ${response.status}`)
+  }
+
+  const data = await response.json()
+  return Array.isArray(data.posts) ? data.posts : []
+}
+
+/**
+ * Create a leaderboard post (challenge photo / completion update)
+ * @param {FormData} formData - multipart body: summary, steps, distance, calories, is_completed, image
+ * @returns {Promise<object>} Created post
+ */
+export async function createLeaderboardPost(formData) {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/leaderboard/posts/`, {
+    method: 'POST',
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: formData,
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const error = new Error(data.detail || 'Failed to create post')
+    error.details = data
+    throw error
+  }
+  return data
 }
 
 export const initializePayment = async (token, invoiceNo, amount) => {

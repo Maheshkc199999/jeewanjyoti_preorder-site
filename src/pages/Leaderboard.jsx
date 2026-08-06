@@ -1,9 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import jjlogo from '../assets/jjlogo.png';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserData, getAccessToken } from '../lib/tokenManager';
+import { getUserData } from '../lib/tokenManager';
+import { getLeaderboard, getLeaderboardPosts, createLeaderboardPost } from '../lib/api';
 
 const API_BASE_URL = 'https://jeewanjyoti-backend.smart.org.np';
+
+const getFullImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith('http')) return imagePath;
+  return `${API_BASE_URL}${imagePath}`;
+};
+
+const formatTimeAgo = (dateString) => {
+  if (!dateString) return '';
+  const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
+  if (seconds < 60) return 'Just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+};
 
 function Navbar() {
   return (
@@ -45,13 +64,6 @@ function LeaderAvatar({ name, imageUrl }) {
 }
 
 function Sidebar({ leaders, loading = false }) {
-  // Helper to construct full image URL
-  const getFullImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    if (imagePath.startsWith('http')) return imagePath;
-    return `${API_BASE_URL}${imagePath}`;
-  };
-
   if (loading) {
     return (
       <div className="space-y-5">
@@ -95,63 +107,66 @@ function Sidebar({ leaders, loading = false }) {
   );
 }
 
-function Feed({ posts }) {
-  const getFullImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    if (imagePath.startsWith('http')) return imagePath;
-    return `${API_BASE_URL}${imagePath}`;
-  };
+function Feed({ posts, loading = false }) {
+  if (loading) {
+    return (
+      <div className="flex justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (!posts || posts.length === 0) {
+    return (
+      <div className="rounded-xl bg-white p-6 text-center text-sm text-gray-500 shadow">
+        No posts yet
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {posts.map((post, i) => (
-        <div key={i} className="rounded-xl bg-white p-6 shadow">
-          <div className="flex items-center gap-3">
-            <img 
-              src={post.photo || getFullImageUrl(post.profile_image) || 'https://i.pravatar.cc/100'} 
-              className="h-12 w-12 rounded-full object-cover" 
-              alt="profile"
-              onError={(e) => {
-                e.target.src = 'https://i.pravatar.cc/100';
-              }}
-            />
-            <div>
-              <h2 className="font-bold">{post.name}</h2>
-              <p className="text-sm text-gray-500">{post.time}</p>
+      {posts.map((post) => {
+        const metrics = post.metrics || {};
+        return (
+          <div key={post.id} className="rounded-xl bg-white p-6 shadow">
+            <div className="flex items-center gap-3">
+              <LeaderAvatar name={post.user_name} imageUrl={getFullImageUrl(post.profile_image)} />
+              <div>
+                <h2 className="font-bold">{post.user_name}</h2>
+                <p className="text-sm text-gray-500">{formatTimeAgo(post.created_at)}</p>
+              </div>
             </div>
-          </div>
 
-          <div className="mt-5">
-            <div className="mb-3 inline-flex rounded-full bg-green-50 px-3 py-1 text-sm font-semibold text-green-700">
-              {post.challenge}
-            </div>
-            {post.photo && (
-              <img src={post.photo} alt={post.name} className="mb-4 h-56 w-full rounded-xl object-cover" />
-            )}
-            <p className="text-sm leading-6 text-gray-600">{post.summary}</p>
-            <div className="mt-5 grid grid-cols-3 gap-4">
-              <div className="rounded-lg bg-red-50 p-4">
-                <p className="text-gray-500">Calories</p>
-                <h2 className="text-2xl font-bold">{Math.round(post.calories)}</h2>
-              </div>
-              <div className="rounded-lg bg-blue-50 p-4">
-                <p className="text-gray-500">Distance</p>
-                <h2 className="text-2xl font-bold">{post.distance} km</h2>
-              </div>
-              <div className="rounded-lg bg-green-50 p-4">
-                <p className="text-gray-500">Steps</p>
-                <h2 className="text-2xl font-bold">{post.steps.toLocaleString()}</h2>
+            <div className="mt-5">
+              {post.image && (
+                <img src={getFullImageUrl(post.image)} alt={post.user_name} className="mb-4 h-56 w-full rounded-xl object-cover" />
+              )}
+              <p className="text-sm leading-6 text-gray-600">{post.summary || 'Shared an update.'}</p>
+              <div className="mt-5 grid grid-cols-3 gap-4">
+                <div className="rounded-lg bg-red-50 p-4">
+                  <p className="text-gray-500">Calories</p>
+                  <h2 className="text-2xl font-bold">{Math.round(metrics.calories || 0)}</h2>
+                </div>
+                <div className="rounded-lg bg-blue-50 p-4">
+                  <p className="text-gray-500">Distance</p>
+                  <h2 className="text-2xl font-bold">{(metrics.distance || 0).toFixed(1)} km</h2>
+                </div>
+                <div className="rounded-lg bg-green-50 p-4">
+                  <p className="text-gray-500">Steps</p>
+                  <h2 className="text-2xl font-bold">{(metrics.steps || 0).toLocaleString()}</h2>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="mt-6 flex justify-between border-t pt-4 text-gray-500">
-            <button>❤️ {post.likes || 0}</button>
-            <button>💬 {post.comments || 0}</button>
-            <button>↗ Share</button>
+            <div className="mt-6 flex justify-between border-t pt-4 text-gray-500">
+              <button>❤️ {post.likes || 0}</button>
+              <button>💬 {post.comments || 0}</button>
+              <button>↗ Share</button>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -216,70 +231,55 @@ function RightSidebar({ challenges = [], onAddClick }) {
 export default function LeaderboardPage() {
   const [leaders, setLeaders] = useState([]);
   const [posts, setPosts] = useState([]);
-  const [formData, setFormData] = useState({ name: '', photo: '', miles: '', challenge: '' });
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [challengeNames, setChallengeNames] = useState([]);
+  const [formData, setFormData] = useState({ name: '', photo: '', photoFile: null, miles: '', challenge: '' });
   const [showComposer, setShowComposer] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [posting, setPosting] = useState(false);
+  const [postError, setPostError] = useState(null);
   const { user } = useAuth();
 
-  // Fetch leaderboard data from API
-  useEffect(() => {
-    const fetchLeaderboard = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        console.log('Fetching leaderboard from:', `${API_BASE_URL}/api/leaderboard/`);
+  // Fetch leaderboard rankings from API
+  const fetchLeaderboard = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        const accessToken = getAccessToken();
-        const response = await fetch(`${API_BASE_URL}/api/leaderboard/`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-          },
-        });
+      const data = await getLeaderboard();
 
-        console.log('Response status:', response.status);
-        const data = await response.json();
-        console.log('Full API Response:', data);
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch leaderboard: ${response.status}`);
-        }
-
-        if (data.leaderboard && Array.isArray(data.leaderboard)) {
-          console.log('Setting leaders:', data.leaderboard);
-          setLeaders(data.leaderboard);
-          
-          // Also create posts from leaderboard data
-          const leaderboardPosts = data.leaderboard.map(leader => ({
-            name: leader.name,
-            time: 'Top performer',
-            calories: leader.calories,
-            steps: leader.steps,
-            distance: leader.distance,
-            likes: Math.floor(Math.random() * 300),
-            comments: Math.floor(Math.random() * 50),
-            challenge: 'Weekly Challenge',
-            summary: `${leader.name} achieved ${leader.steps.toLocaleString()} steps this week! 🎉`,
-            profile_image: leader.profile_image,
-            badge: leader.badge,
-          }));
-          setPosts(leaderboardPosts);
-        } else {
-          console.warn('No leaderboard data in response');
-          setError('No leaderboard data available');
-        }
-      } catch (err) {
-        console.error('Error fetching leaderboard:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
+      if (data.leaderboard && Array.isArray(data.leaderboard)) {
+        setLeaders(data.leaderboard);
+      } else {
+        console.warn('No leaderboard data in response');
+        setError('No leaderboard data available');
       }
-    };
-
-    fetchLeaderboard();
+    } catch (err) {
+      console.error('Error fetching leaderboard:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // Fetch posts feed from API
+  const fetchPosts = useCallback(async () => {
+    try {
+      setPostsLoading(true);
+      const data = await getLeaderboardPosts();
+      setPosts(data);
+    } catch (err) {
+      console.error('Error fetching leaderboard posts:', err);
+    } finally {
+      setPostsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLeaderboard();
+    fetchPosts();
+  }, [fetchLeaderboard, fetchPosts]);
 
   // Get user data from localStorage (from login)
   useEffect(() => {
@@ -318,51 +318,48 @@ export default function LeaderboardPage() {
 
     const reader = new FileReader();
     reader.onload = () => {
-      setFormData((prev) => ({ ...prev, photo: reader.result }));
+      setFormData((prev) => ({ ...prev, photo: reader.result, photoFile: file }));
     };
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!formData.name.trim() || !formData.photo || !formData.miles || !formData.challenge.trim()) {
+    if (!formData.name.trim() || !formData.miles || !formData.challenge.trim()) {
       return;
     }
 
     const milesValue = Number(formData.miles);
     const stepsValue = Math.round(milesValue * 1400);
     const distanceKm = milesValue * 1.60934; // Convert miles to km
+    const caloriesValue = stepsValue * 0.05;
 
-    const newEntry = {
-      rank: leaders.length + 1,
-      user_id: Math.random(), // Temporary ID
-      name: formData.name.trim(),
-      profile_image: formData.photo,
-      steps: stepsValue,
-      distance: distanceKm,
-      calories: stepsValue * 0.05, // Rough calculation
-      badge: '🏅',
-      activity_score: stepsValue,
-    };
+    const payload = new FormData();
+    payload.append('summary', `${formData.challenge.trim()}: Completed ${milesValue.toFixed(1)} miles!`);
+    payload.append('steps', String(stepsValue));
+    payload.append('distance', String(distanceKm));
+    payload.append('calories', String(caloriesValue));
+    payload.append('is_completed', 'true');
+    if (formData.photoFile) {
+      payload.append('image', formData.photoFile);
+    }
 
-    setLeaders((prev) => [newEntry, ...prev].slice(0, 10));
-    setPosts((prev) => [
-      {
-        name: formData.name.trim(),
-        time: 'Just now',
-        calories: stepsValue * 0.05,
-        steps: stepsValue,
-        distance: distanceKm,
-        likes: 42,
-        comments: 8,
-        challenge: formData.challenge.trim(),
-        summary: `Shared a fresh milestone of ${milesValue} miles and a new healthy challenge.`,
-        photo: formData.photo,
-      },
-      ...prev,
-    ]);
-    setFormData({ name: '', photo: '', miles: '', challenge: '' });
-    setShowComposer(false);
+    try {
+      setPosting(true);
+      setPostError(null);
+      await createLeaderboardPost(payload);
+
+      setChallengeNames((prev) => [formData.challenge.trim(), ...prev.filter((c) => c !== formData.challenge.trim())].slice(0, 5));
+      setFormData((prev) => ({ ...prev, photoFile: null, miles: '', challenge: '' }));
+      setShowComposer(false);
+      fetchPosts();
+      fetchLeaderboard();
+    } catch (err) {
+      console.error('Failed to create post:', err);
+      setPostError(err.message || 'Failed to share progress. Please try again.');
+    } finally {
+      setPosting(false);
+    }
   };
 
   return (
@@ -389,12 +386,12 @@ export default function LeaderboardPage() {
         </div>
 
         <div className="flex-1 space-y-6">
-          <Feed posts={posts} />
+          <Feed posts={posts} loading={postsLoading} />
         </div>
 
         <div className="hidden w-80 xl:block">
           <RightSidebar
-            challenges={Array.from(new Set(posts.map((post) => post.challenge).filter(Boolean)))}
+            challenges={challengeNames}
             onAddClick={() => setShowComposer(true)}
           />
         </div>
@@ -411,6 +408,9 @@ export default function LeaderboardPage() {
             className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl"
           >
             <h2 className="mb-4 text-lg font-bold">Share your progress</h2>
+            {postError && (
+              <p className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-700">{postError}</p>
+            )}
 
             {/* User Info Display */}
             <div className="mb-4 flex items-center gap-4 border-b pb-4">
@@ -455,8 +455,8 @@ export default function LeaderboardPage() {
               </div>
             </div>
             <div className="mt-4 flex gap-3">
-              <button type="submit" className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white">
-                Submit
+              <button type="submit" disabled={posting} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white disabled:opacity-60">
+                {posting ? 'Posting…' : 'Submit'}
               </button>
               <button type="button" onClick={() => setShowComposer(false)} className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700">
                 Cancel
