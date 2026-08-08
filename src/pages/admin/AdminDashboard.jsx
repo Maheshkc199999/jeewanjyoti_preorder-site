@@ -63,6 +63,7 @@ export default function AdminDashboard() {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [selectedUserName, setSelectedUserName] = useState(adminName);
   const [selectedUserProfileImage, setSelectedUserProfileImage] = useState(null);
+  const [selectedUserStatus, setSelectedUserStatus] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
 
   const [members, setMembers] = useState([]);
@@ -195,9 +196,10 @@ export default function AdminDashboard() {
     window.location.href = '/admin';
   };
 
-  const handleViewVitals = useCallback((userId, userName, profileImage) => {
+  const handleViewVitals = useCallback((userId, userName, profileImage, status) => {
     setSelectedUserId(userId);
     setSelectedUserName(userName);
+    setSelectedUserStatus(status);
     if (profileImage && profileImage.startsWith('/')) {
       setSelectedUserProfileImage(`https://jeewanjyoti-backend.smart.org.np${profileImage}`);
     } else {
@@ -206,7 +208,10 @@ export default function AdminDashboard() {
     setActiveTab('vitals');
   }, []);
 
-  const selectedUserInfo = useMemo(() => ({ name: selectedUserName, profileImage: selectedUserProfileImage }), [selectedUserName, selectedUserProfileImage]);
+  const selectedUserInfo = useMemo(
+    () => ({ name: selectedUserName, profileImage: selectedUserProfileImage, status: selectedUserStatus }),
+    [selectedUserName, selectedUserProfileImage, selectedUserStatus]
+  );
 
   const tabContent = useMemo(() => {
     switch (activeTab) {

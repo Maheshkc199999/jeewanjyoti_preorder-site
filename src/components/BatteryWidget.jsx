@@ -100,9 +100,26 @@ const BatteryWidget = ({ batteryData, size = 48, darkMode = false }) => {
   const readings = React.useMemo(() => {
     if (!batteryData) return [];
     const arr = Array.isArray(batteryData) ? batteryData : [batteryData];
-    return [...arr].sort(
-      (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
-    );
+
+    const normalize = (item) => {
+      const timestamp = item.timestamp ?? item.time ?? item.date ?? item.created_at ?? item.measure_time ?? null;
+      return {
+        percentage: item.percentage ?? item.battery ?? item.level ?? item.percent ?? null,
+        timestamp,
+        device_id: item.device_id ?? item.device ?? item.deviceId ?? null,
+        ...item,
+      };
+    };
+
+    const getTimestamp = (item) => {
+      const parsed = item.timestamp ? new Date(item.timestamp).getTime() : NaN;
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    return [...arr]
+      .map(normalize)
+      .filter((item) => item.percentage !== null && item.percentage !== undefined)
+      .sort((a, b) => getTimestamp(a) - getTimestamp(b));
   }, [batteryData]);
 
   // Latest reading (last after sort = most recent)

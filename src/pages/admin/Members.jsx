@@ -514,7 +514,7 @@ export default function AdminMembers({ users = [], loading = false, error = null
                     <td style={{ padding: '14px 16px' }}>
                       {onViewVitals && (
                         <button
-                          onClick={() => onViewVitals(u.id, name, u.profile_image)}
+                          onClick={() => onViewVitals(u.id, name, u.profile_image, u.status)}
                           title="View Vitals Dashboard"
                           style={{ padding: 8, borderRadius: 8, background: darkMode ? '#4c1d9520' : '#f5f3ff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                           <Eye size={14} color="#8b5cf6" />

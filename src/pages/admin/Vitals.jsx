@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { getBatteryStatus, getAIData } from '../../lib/api';
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import BatteryWidget from '../../components/BatteryWidget';
-import { Heart, Moon, Activity, Brain, Calendar, TrendingUp, Droplets, Eye, EyeOff } from 'lucide-react';
+import { Heart, Moon, Activity, Brain, Calendar, TrendingUp, Droplets, Eye, EyeOff, Sparkles, Target } from 'lucide-react';
 import SleepDataComponent from '../../components/SleepDataComponent';
 import SpO2DataComponent from '../../components/SpO2DataComponent';
 import HeartRateDataComponent from '../../components/HeartRateDataComponent';
@@ -11,6 +11,126 @@ import StressDataComponent from '../../components/StressDataComponent';
 import HRVDataComponent from '../../components/HRVDataComponent';
 import BloodPressureDataComponent from '../../components/BloodPressureDataComponent';
 
+const InsightCard = ({ title, icon: Icon, text, darkMode, accentColor }) => {
+  if (!text) return null;
+
+  const lines = text.split('\n');
+  const intro = lines[0];
+  const items = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i].trim()) {
+      const parts = lines[i].split('|');
+      if (parts.length >= 2) {
+        items.push({
+          title: parts[0].trim(),
+          details: parts[1].trim(),
+          status: parts[2] ? parts[2].trim() : null
+        });
+      }
+    }
+  }
+
+  const renderBadge = (status) => {
+    if (!status) return null;
+    const s = status.toLowerCase();
+    let bg, color, border, icon;
+
+    if (['good', 'normal', 'excellent', 'typical'].includes(s)) {
+      bg     = darkMode ? 'rgba(34,197,94,0.15)'  : '#dcfce7';
+      color  = darkMode ? '#4ade80'                : '#15803d';
+      border = darkMode ? 'rgba(34,197,94,0.35)'  : '#86efac';
+      icon   = '✓';
+    } else if (['low', 'elevated', 'short', 'high'].includes(s)) {
+      bg     = darkMode ? 'rgba(234,179,8,0.15)'  : '#fef9c3';
+      color  = darkMode ? '#facc15'               : '#a16207';
+      border = darkMode ? 'rgba(234,179,8,0.35)'  : '#fde047';
+      icon   = '⚠';
+    } else if (['very low', 'none', 'poor'].includes(s)) {
+      bg     = darkMode ? 'rgba(239,68,68,0.15)'  : '#fee2e2';
+      color  = darkMode ? '#f87171'               : '#b91c1c';
+      border = darkMode ? 'rgba(239,68,68,0.35)'  : '#fca5a5';
+      icon   = '✕';
+    } else {
+      bg     = darkMode ? 'rgba(156,163,175,0.15)' : '#f3f4f6';
+      color  = darkMode ? '#9ca3af'                : '#374151';
+      border = darkMode ? 'rgba(156,163,175,0.2)'  : '#e5e7eb';
+      icon   = '';
+    }
+
+    return (
+      <span
+        style={{ background: bg, color, border: `1px solid ${border}` }}
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wide whitespace-nowrap flex-shrink-0"
+      >
+        {icon && <span>{icon}</span>} {status}
+      </span>
+    );
+  };
+
+  const accentMap = {
+    blue:   { bg: darkMode ? 'rgba(59,130,246,0.2)'  : '#dbeafe', color: darkMode ? '#60a5fa' : '#1d4ed8' },
+    indigo: { bg: darkMode ? 'rgba(99,102,241,0.2)'  : '#e0e7ff', color: darkMode ? '#818cf8' : '#4338ca' },
+    green:  { bg: darkMode ? 'rgba(34,197,94,0.2)'   : '#dcfce7', color: darkMode ? '#4ade80' : '#15803d' },
+    orange: { bg: darkMode ? 'rgba(249,115,22,0.2)'  : '#ffedd5', color: darkMode ? '#fb923c' : '#c2410c' },
+  };
+  const accent = accentMap[accentColor] || accentMap.blue;
+
+  const cardBg     = darkMode ? '#151b2d'              : '#f9fafb';
+  const cardBorder = darkMode ? 'rgba(55,65,81,0.7)'  : '#e5e7eb';
+  const divider    = darkMode ? 'rgba(55,65,81,0.9)'  : '#e5e7eb';
+  const titleColor = darkMode ? '#f3f4f6'              : '#111827';
+  const introColor = darkMode ? '#9ca3af'              : '#6b7280';
+  const itemTitleColor = darkMode ? '#e5e7eb'          : '#1f2937';
+  const detailColor    = darkMode ? '#6b7280'          : '#6b7280';
+
+  return (
+    <div style={{ background: cardBg, border: `1px solid ${cardBorder}` }}
+      className="p-4 rounded-xl transition-all duration-200 flex flex-col">
+
+      {/* Card Header */}
+      <div className="flex items-center gap-2 mb-3">
+        <div style={{ background: accent.bg, color: accent.color }} className="p-1.5 rounded-lg flex-shrink-0">
+          <Icon className="w-4 h-4" />
+        </div>
+        <span style={{ color: titleColor }} className="text-sm font-bold">{title}</span>
+      </div>
+
+      {/* Intro sentence */}
+      {intro && (
+        <p style={{ color: introColor }} className="text-xs mb-3 leading-relaxed">
+          {intro}
+        </p>
+      )}
+
+      {/* Metric rows */}
+      {items.length > 0 && (
+        <div>
+          {items.map((item, idx) => {
+            const isTrend = item.title.toLowerCase() === 'trend';
+            return (
+              <div key={idx} style={{ borderTop: `1px solid ${divider}` }} className="py-2.5">
+                {isTrend ? (
+                  <p style={{ color: detailColor }} className="text-xs leading-relaxed">
+                    <span style={{ color: itemTitleColor }} className="font-semibold">{item.title}: </span>
+                    {item.details}
+                  </p>
+                ) : (
+                  <div>
+                    <div className="flex justify-between items-center gap-2 mb-0.5">
+                      <span style={{ color: itemTitleColor }} className="text-xs font-semibold">{item.title}</span>
+                      {renderBadge(item.status)}
+                    </div>
+                    <p style={{ color: detailColor }} className="text-xs leading-relaxed">{item.details}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const VitalsTab = ({
   darkMode,
@@ -27,6 +147,46 @@ const VitalsTab = ({
   const [stressApiData, setStressApiData] = useState(null);
   const [hrvApiData, setHrvApiData] = useState(null);
   const [batteryData, setBatteryData] = useState(null);
+  const latestBatteryReading = useMemo(() => {
+    if (!batteryData) return null;
+    const readings = Array.isArray(batteryData) ? batteryData : [batteryData];
+    const normalized = readings.map((item) => ({
+      percentage: item.percentage ?? item.battery ?? item.level ?? item.percent ?? null,
+      timestamp: item.timestamp ?? item.time ?? item.date ?? item.created_at ?? item.measure_time ?? null,
+      ...item,
+    }));
+    const valid = normalized.filter((item) => item.percentage !== null && item.percentage !== undefined);
+    if (!valid.length) return null;
+    return valid.sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0)).at(-1);
+  }, [batteryData]);
+
+  function formatDateTime(dateString, isDateOnly = false) {
+    if (!dateString) return null;
+    try {
+      if (typeof dateString === 'string' && dateString.length <= 10 && dateString.includes('-')) {
+        const parts = dateString.split('-');
+        if (parts.length === 3) {
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          return `${months[parseInt(parts[1], 10) - 1]} ${parseInt(parts[2], 10)}, ${parts[0]}`;
+        }
+      }
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return dateString;
+      return isDateOnly
+        ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    } catch {
+      return dateString;
+    }
+  }
+
+  const batteryTimestampDisplay = useMemo(() => {
+    if (!latestBatteryReading || !latestBatteryReading.timestamp) {
+      return 'No recent battery data';
+    }
+    return formatDateTime(latestBatteryReading.timestamp);
+  }, [latestBatteryReading]);
+
   const [aiData, setAiData] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [showAiSummaries, setShowAiSummaries] = useState(false);
@@ -192,26 +352,6 @@ const VitalsTab = ({
     return () => { cancelled = true; };
   }, [selectedUserId, globalDateRange]);
 
-  const formatDateTime = (dateString, isDateOnly = false) => {
-    if (!dateString) return null;
-    try {
-      if (typeof dateString === 'string' && dateString.length <= 10 && dateString.includes('-')) {
-        const parts = dateString.split('-');
-        if (parts.length === 3) {
-          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          return `${months[parseInt(parts[1]) - 1]} ${parseInt(parts[2])}, ${parts[0]}`;
-        }
-      }
-      const d = new Date(dateString);
-      if (isNaN(d.getTime())) return dateString;
-      return isDateOnly
-        ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        : d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-    } catch {
-      return dateString;
-    }
-  };
-
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
@@ -285,9 +425,35 @@ const VitalsTab = ({
             </div>
           )}
 
-          {/* Right: Battery Widget with history chart popup */}
-          <div className="flex-shrink-0 flex items-center justify-end">
-            <BatteryWidget batteryData={batteryData} size={48} darkMode={darkMode} />
+          {/* Right: Online/Offline status + Battery Widget */}
+          <div className="flex-shrink-0 flex items-center gap-3">
+            {(() => {
+              const status = selectedUserInfo?.status || 'offline';
+              const statusStyles = {
+                online: { dot: '#10b981', bg: darkMode ? '#064e3b' : '#d1fae5', color: darkMode ? '#6ee7b7' : '#065f46' },
+                away: { dot: '#f59e0b', bg: darkMode ? '#78350f' : '#fef3c7', color: darkMode ? '#fcd34d' : '#92400e' },
+                offline: { dot: '#9ca3af', bg: darkMode ? '#334155' : '#f1f5f9', color: darkMode ? '#94a3b8' : '#6b7280' },
+              };
+              const s = statusStyles[status] || statusStyles.offline;
+              return (
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold capitalize"
+                  style={{ background: s.bg, color: s.color }}
+                >
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ background: s.dot, boxShadow: status === 'online' ? `0 0 0 3px ${s.dot}33` : 'none' }}
+                  />
+                  {status}
+                </div>
+              );
+            })()}
+            <div className="flex flex-col items-end justify-center gap-2">
+              <BatteryWidget batteryData={batteryData} size={48} darkMode={darkMode} />
+              <div className={`text-right text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                <div className="font-semibold">{batteryTimestampDisplay}</div>
+              </div>
+            </div>
           </div>
 
         </div>
@@ -467,7 +633,7 @@ const VitalsTab = ({
           <div className="flex-1 w-full">
             <div className="flex items-center gap-2 mb-3">
               <h3 className={`font-semibold text-sm md:text-base ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                Health Summary
+                Health Insights
               </h3>
               {hasAnySummary && (
                 <button
@@ -484,93 +650,76 @@ const VitalsTab = ({
               )}
             </div>
 
-            {aiLoading ? (
+            {aiLoading && (
               <div className="mb-4">
                 <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'} animate-pulse`}>
-                  Loading AI Recommendations...
-                </p>
-              </div>
-            ) : recommendations.length > 0 ? (
-              <div className="mb-4">
-                <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-                  AI Recommendations
-                </p>
-                <ul className="space-y-1.5">
-                  {recommendations.map((rec, index) => (
-                    <li key={index} className={`text-xs md:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'} flex items-start gap-2`}>
-                      <span className="text-blue-500 mt-1">•</span>
-                      <span>{rec}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <div className="mb-4">
-                <p className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'} italic`}>
-                  No AI recommendations available for this period.
+                  Loading AI insights...
                 </p>
               </div>
             )}
 
-            {/* Expandable Summaries */}
+            {/* Always-visible Next Best Action */}
+            {recommendations.length > 0 && (
+              <div className={`mb-4 p-4 rounded-xl border ${darkMode ? 'bg-gray-900/50 border-gray-700/60' : 'bg-gray-50 border-gray-200'}`}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className={`p-1.5 rounded-lg ${darkMode ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-700'}`}>
+                    <Target className="w-4 h-4" />
+                  </div>
+                  <span className={`text-sm font-bold ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>Next Best Action</span>
+                </div>
+                <div className="space-y-3">
+                  {recommendations.map((rec, index) => (
+                    <div key={index} className="flex items-start gap-3">
+                      <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                        darkMode ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500 text-white'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <p className={`text-xs leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {rec}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <p className={`text-[10px] text-center mt-4 opacity-60 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  This report is for informational purposes only and does not replace medical advice.
+                </p>
+              </div>
+            )}
+
+            {/* Expandable Detail Cards (eye button) */}
             {showAiSummaries && hasAnySummary && (
-              <div className={`mt-4 pt-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-100'} space-y-3`}>
+              <div className={`mt-2 pt-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-100'} space-y-4`}>
                 <p className={`text-xs font-semibold uppercase tracking-wider ${darkMode ? 'text-purple-400' : 'text-purple-600'}`}>
                   Detailed AI Analysis
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {aiData.summary && (
-                    <div className={`p-3.5 rounded-xl border transition-all duration-200 ${
-                      darkMode
-                        ? 'bg-gray-900/30 border-gray-700 hover:border-blue-500/40 text-gray-300'
-                        : 'bg-blue-50/20 border-blue-100 hover:border-blue-300 text-gray-700'
-                    }`}>
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <div className={`p-1 rounded-lg ${darkMode ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-100/60 text-blue-700'}`}>
-                          <Brain className="w-3.5 h-3.5" />
-                        </div>
-                        <span className={`text-xs font-bold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Overall Health</span>
-                      </div>
-                      <p className="text-xs leading-relaxed">
-                        {aiData.summary}
-                      </p>
-                    </div>
+                    <InsightCard
+                      title="Daily Insight"
+                      icon={Sparkles}
+                      text={aiData.summary}
+                      darkMode={darkMode}
+                      accentColor="blue"
+                    />
                   )}
-
-                  {aiData.sleep_summary && (
-                    <div className={`p-3.5 rounded-xl border transition-all duration-200 ${
-                      darkMode
-                        ? 'bg-gray-900/30 border-gray-700 hover:border-indigo-500/40 text-gray-300'
-                        : 'bg-indigo-50/20 border-indigo-100 hover:border-indigo-300 text-gray-700'
-                    }`}>
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <div className={`p-1 rounded-lg ${darkMode ? 'bg-indigo-500/10 text-indigo-400' : 'bg-indigo-100/60 text-indigo-700'}`}>
-                          <Moon className="w-3.5 h-3.5" />
-                        </div>
-                        <span className={`text-xs font-bold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Sleep Analysis</span>
-                      </div>
-                      <p className="text-xs leading-relaxed">
-                        {aiData.sleep_summary}
-                      </p>
-                    </div>
-                  )}
-
                   {aiData.activity_summary && (
-                    <div className={`p-3.5 rounded-xl border transition-all duration-200 ${
-                      darkMode
-                        ? 'bg-gray-900/30 border-gray-700 hover:border-green-500/40 text-gray-300'
-                        : 'bg-green-50/20 border-green-100 hover:border-green-300 text-gray-700'
-                    }`}>
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <div className={`p-1 rounded-lg ${darkMode ? 'bg-green-500/10 text-green-400' : 'bg-green-100/60 text-green-700'}`}>
-                          <Activity className="w-3.5 h-3.5" />
-                        </div>
-                        <span className={`text-xs font-bold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Activity Analysis</span>
-                      </div>
-                      <p className="text-xs leading-relaxed">
-                        {aiData.activity_summary}
-                      </p>
-                    </div>
+                    <InsightCard
+                      title="Activity Insight"
+                      icon={Activity}
+                      text={aiData.activity_summary}
+                      darkMode={darkMode}
+                      accentColor="green"
+                    />
+                  )}
+                  {aiData.sleep_summary && (
+                    <InsightCard
+                      title="Sleep Insight"
+                      icon={Moon}
+                      text={aiData.sleep_summary}
+                      darkMode={darkMode}
+                      accentColor="indigo"
+                    />
                   )}
                 </div>
               </div>
