@@ -708,6 +708,27 @@ export async function getLeaderboard() {
 }
 
 /**
+ * Get the daily leaderboard rankings
+ * @returns {Promise<object>} { leaderboard: Array, period: string }
+ */
+export async function getDailyLeaderboard() {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/daily-leaderboard/`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch daily leaderboard: ${response.status}`)
+  }
+
+  return await response.json()
+}
+
+/**
  * Get the leaderboard posts feed
  * @returns {Promise<Array>} List of posts
  */

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getLeaderboard, getLeaderboardPosts, createLeaderboardPost } from '../../lib/api';
+import { getLeaderboard, getDailyLeaderboard, getLeaderboardPosts, createLeaderboardPost } from '../../lib/api';
 
 const API_BASE_URL = 'https://jeewanjyoti-backend.smart.org.np';
 
@@ -83,6 +83,46 @@ function Sidebar({ leaders, loading = false }) {
           <p className="text-gray-500 text-center py-4">No leaders yet</p>
         )}
       </div>
+    </div>
+  );
+}
+
+function DailyLeaderboard({ leaders, loading = false }) {
+  if (loading) {
+    return (
+      <div className="rounded-xl bg-white p-5 shadow">
+        <h2 className="mb-4 text-lg font-bold">Daily Leaderboard</h2>
+        <div className="flex justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl bg-white p-5 shadow">
+      <h2 className="mb-4 text-lg font-bold">Daily Leaderboard</h2>
+      {leaders && leaders.length > 0 ? (
+        leaders.map((user, index) => (
+          <div key={user.user_id || index} className="flex items-center justify-between border-b py-3 text-sm">
+            <div className="flex items-center gap-2 font-medium text-gray-700">
+              <LeaderAvatar name={user.name} imageUrl={getFullImageUrl(user.profile_image)} />
+              <div>
+                <div className="flex items-center gap-1">
+                  <span>{user.badge}</span>
+                  <span>{user.name}</span>
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="font-semibold text-gray-900">{user.steps.toLocaleString()} steps</div>
+              <div className="text-xs text-gray-500">{user.distance.toFixed(1)} km</div>
+            </div>
+          </div>
+        ))
+      ) : (
+        <p className="text-gray-500 text-center py-4">No leaders yet</p>
+      )}
     </div>
   );
 }
@@ -209,6 +249,8 @@ function RightSidebar({ challenges = [], onAddClick }) {
 export default function LeaderboardTab() {
   const [leaders, setLeaders] = useState([]);
   const [leadersLoading, setLeadersLoading] = useState(true);
+  const [dailyLeaders, setDailyLeaders] = useState([]);
+  const [dailyLeadersLoading, setDailyLeadersLoading] = useState(true);
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [challengeNames, setChallengeNames] = useState([]);
@@ -231,6 +273,20 @@ export default function LeaderboardTab() {
     }
   }, []);
 
+  const fetchDailyLeaderboard = useCallback(async () => {
+    try {
+      setDailyLeadersLoading(true);
+      const data = await getDailyLeaderboard();
+      if (data.leaderboard && Array.isArray(data.leaderboard)) {
+        setDailyLeaders(data.leaderboard);
+      }
+    } catch (error) {
+      console.error('Error fetching daily leaderboard:', error);
+    } finally {
+      setDailyLeadersLoading(false);
+    }
+  }, []);
+
   const fetchPosts = useCallback(async () => {
     try {
       setPostsLoading(true);
@@ -245,8 +301,9 @@ export default function LeaderboardTab() {
 
   useEffect(() => {
     fetchLeaderboard();
+    fetchDailyLeaderboard();
     fetchPosts();
-  }, [fetchLeaderboard, fetchPosts]);
+  }, [fetchLeaderboard, fetchDailyLeaderboard, fetchPosts]);
 
   const handlePhotoChange = (event) => {
     const file = event.target.files?.[0];
@@ -285,6 +342,7 @@ export default function LeaderboardTab() {
       setShowComposer(false);
       fetchPosts();
       fetchLeaderboard();
+      fetchDailyLeaderboard();
     } catch (error) {
       console.error('Failed to create post:', error);
       setPostError(error.message || 'Failed to share progress. Please try again.');
@@ -303,8 +361,9 @@ export default function LeaderboardTab() {
       `}</style>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[260px_1fr_260px]">
-        <div className="hidden lg:block">
+        <div className="hidden lg:block space-y-5">
           <Sidebar leaders={leaders} loading={leadersLoading} />
+          <DailyLeaderboard leaders={dailyLeaders} loading={dailyLeadersLoading} />
         </div>
 
         <div>
