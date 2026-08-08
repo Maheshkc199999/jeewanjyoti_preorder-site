@@ -210,21 +210,13 @@ function Feed({ posts, loading = false }) {
   );
 }
 
-function RightSidebar({ challenges = [], onAddClick }) {
+function RightSidebar({ challenges = [] }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+      <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
           Trending Challenges
         </h2>
-        <button
-          onClick={onAddClick}
-          aria-label="Add to leaderboard"
-          title="Add to leaderboard"
-          className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-base font-semibold text-white shadow-sm transition-transform hover:scale-105 active:scale-95"
-        >
-          +
-        </button>
       </div>
 
       <div className="space-y-2 px-5 py-4">
@@ -258,6 +250,8 @@ export default function LeaderboardTab() {
   const [showComposer, setShowComposer] = useState(false);
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState(null);
+  const [showChallengeComposer, setShowChallengeComposer] = useState(false);
+  const [newChallengeName, setNewChallengeName] = useState('');
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -351,6 +345,16 @@ export default function LeaderboardTab() {
     }
   };
 
+  const handleAddChallenge = (event) => {
+    event.preventDefault();
+    const name = newChallengeName.trim();
+    if (!name) return;
+
+    setChallengeNames((prev) => [name, ...prev.filter((c) => c !== name)].slice(0, 5));
+    setNewChallengeName('');
+    setShowChallengeComposer(false);
+  };
+
   return (
     <div className="mx-auto mt-4 max-w-6xl px-4">
       <style>{`
@@ -367,11 +371,27 @@ export default function LeaderboardTab() {
         </div>
 
         <div>
+          <div className="mb-4 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setShowComposer(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+            >
+              <span className="text-base leading-none">+</span> Add Post
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowChallengeComposer(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+            >
+              <span className="text-base leading-none">+</span> Add Challenge
+            </button>
+          </div>
           <Feed posts={posts} loading={postsLoading} />
         </div>
 
         <div className="hidden lg:block">
-          <RightSidebar challenges={challengeNames} onAddClick={() => setShowComposer(true)} />
+          <RightSidebar challenges={challengeNames} />
         </div>
       </div>
 
@@ -453,6 +473,58 @@ export default function LeaderboardTab() {
               <button
                 type="button"
                 onClick={() => setShowComposer(false)}
+                className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showChallengeComposer && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+          onClick={() => setShowChallengeComposer(false)}
+        >
+          <form
+            onSubmit={handleAddChallenge}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
+          >
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-slate-900">Add a challenge</h2>
+              <button
+                type="button"
+                onClick={() => setShowChallengeComposer(false)}
+                aria-label="Close"
+                className="text-slate-400 transition-colors hover:text-slate-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <label>
+              <span className="mb-1 block text-xs font-medium text-slate-500">Challenge name</span>
+              <input
+                value={newChallengeName}
+                onChange={(e) => setNewChallengeName(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                placeholder="Morning Walk"
+                autoFocus
+              />
+            </label>
+
+            <div className="mt-5 flex gap-3">
+              <button
+                type="submit"
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+              >
+                Add
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowChallengeComposer(false)}
                 className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
               >
                 Cancel
