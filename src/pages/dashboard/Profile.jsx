@@ -270,9 +270,9 @@ const ProfileTab = React.memo(({ darkMode, selectedUserId = null, selectedUserIn
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600"></div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 lg:items-start gap-6 md:gap-8">
           {/* Profile Info */}
-          <div className="lg:col-span-1">
+          <div className="lg:sticky lg:top-20 lg:col-span-1 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
             <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
               }`}>
               <div className="text-center mb-6">

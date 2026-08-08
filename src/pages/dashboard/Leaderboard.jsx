@@ -509,7 +509,7 @@ export default function LeaderboardTab() {
       `}</style>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[260px_1fr_260px] lg:items-start">
-        <div className="hidden lg:sticky lg:top-4 lg:block lg:max-h-[calc(100vh-2rem)] lg:space-y-5 lg:overflow-y-auto lg:pr-1">
+        <div className="hidden lg:sticky lg:top-20 lg:block lg:max-h-[calc(100vh-6rem)] lg:space-y-5 lg:overflow-y-auto lg:pr-1">
           <Sidebar leaders={leaders} loading={leadersLoading} />
           <DailyLeaderboard leaders={dailyLeaders} loading={dailyLeadersLoading} />
         </div>
@@ -540,7 +540,7 @@ export default function LeaderboardTab() {
           />
         </div>
 
-        <div className="hidden lg:sticky lg:top-4 lg:block lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:pr-1">
+        <div className="hidden lg:sticky lg:top-20 lg:block lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
           <RightSidebar challenges={challengeNames} />
         </div>
       </div>
