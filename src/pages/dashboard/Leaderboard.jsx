@@ -21,7 +21,7 @@ const formatTimeAgo = (dateString) => {
   return `${days}d ago`;
 };
 
-function LeaderAvatar({ name, imageUrl }) {
+function LeaderAvatar({ name, imageUrl, size = 'h-8 w-8' }) {
   const [imgError, setImgError] = useState(false);
   const initial = (name || '?').trim().charAt(0).toUpperCase();
 
@@ -30,14 +30,14 @@ function LeaderAvatar({ name, imageUrl }) {
       <img
         src={imageUrl}
         alt={name}
-        className="h-8 w-8 rounded-full object-cover"
+        className={`${size} rounded-full object-cover`}
         onError={() => setImgError(true)}
       />
     );
   }
 
   return (
-    <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-sm font-semibold text-white">
+    <div className={`${size} rounded-full bg-blue-500 flex items-center justify-center text-sm font-semibold text-white`}>
       {initial}
     </div>
   );
@@ -87,100 +87,122 @@ function Sidebar({ leaders, loading = false }) {
   );
 }
 
+const METRIC_CONFIG = [
+  { key: 'calories', label: 'Calories', format: (v) => Math.round(v || 0).toLocaleString() },
+  { key: 'distance', label: 'Distance', format: (v) => `${(v || 0).toFixed(1)} km` },
+  { key: 'steps', label: 'Steps', format: (v) => (v || 0).toLocaleString() },
+];
+
+function PostCard({ post, index }) {
+  const metrics = post.metrics || {};
+  return (
+    <article
+      style={{ animationDelay: `${index * 60}ms` }}
+      className="animate-[fadeIn_0.4s_ease-out_both] rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+    >
+      <header className="flex items-center gap-3">
+        <LeaderAvatar name={post.user_name} imageUrl={getFullImageUrl(post.profile_image)} size="h-10 w-10" />
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold text-slate-900">{post.user_name}</h3>
+          <p className="text-xs text-slate-400">{formatTimeAgo(post.created_at)}</p>
+        </div>
+      </header>
+
+      {post.image && (
+        <img
+          src={getFullImageUrl(post.image)}
+          alt={post.user_name}
+          className="mt-4 h-48 w-full rounded-xl border border-slate-100 object-cover"
+        />
+      )}
+
+      <p className="mt-4 text-sm leading-relaxed text-slate-600">
+        {post.summary || 'Shared an update.'}
+      </p>
+
+      <div className="mt-4 grid grid-cols-3 divide-x divide-slate-100 rounded-xl border border-slate-100 bg-slate-50/60">
+        {METRIC_CONFIG.map(({ key, label, format }) => (
+          <div key={key} className="px-3 py-3 text-center">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
+            <p className="mt-1 text-base font-bold text-blue-700">{format(metrics[key])}</p>
+          </div>
+        ))}
+      </div>
+
+      <footer className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-sm text-slate-500">
+        <button className="flex items-center gap-1.5 transition-colors hover:text-blue-600">
+          <span>❤️</span> {post.likes || 0}
+        </button>
+        <button className="flex items-center gap-1.5 transition-colors hover:text-blue-600">
+          <span>💬</span> {post.comments || 0}
+        </button>
+        <button className="flex items-center gap-1.5 transition-colors hover:text-blue-600">
+          <span>↗</span> Share
+        </button>
+      </footer>
+    </article>
+  );
+}
+
 function Feed({ posts, loading = false }) {
   if (loading) {
     return (
-      <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      <div className="flex justify-center py-10">
+        <div className="h-7 w-7 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600" />
       </div>
     );
   }
 
   if (!posts || posts.length === 0) {
     return (
-      <div className="rounded-xl bg-white p-6 text-center text-sm text-gray-500 shadow">
+      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400 shadow-sm">
         No posts yet
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {posts.map((post) => {
-        const metrics = post.metrics || {};
-        return (
-          <div key={post.id} className="rounded-xl bg-white p-6 shadow">
-            <div className="flex items-center gap-3">
-              <LeaderAvatar name={post.user_name} imageUrl={getFullImageUrl(post.profile_image)} />
-              <div>
-                <h2 className="font-bold">{post.user_name}</h2>
-                <p className="text-sm text-gray-500">{formatTimeAgo(post.created_at)}</p>
-              </div>
-            </div>
-
-            <div className="mt-5">
-              {post.image && (
-                <img src={getFullImageUrl(post.image)} alt={post.user_name} className="mb-4 h-56 w-full rounded-xl object-cover" />
-              )}
-              <p className="text-sm leading-6 text-gray-600">{post.summary || 'Shared an update.'}</p>
-              <div className="mt-5 grid grid-cols-3 gap-4">
-                <div className="rounded-lg bg-red-50 p-4">
-                  <p className="text-gray-500">Calories</p>
-                  <h2 className="text-2xl font-bold">{Math.round(metrics.calories || 0)}</h2>
-                </div>
-                <div className="rounded-lg bg-blue-50 p-4">
-                  <p className="text-gray-500">Distance</p>
-                  <h2 className="text-2xl font-bold">{(metrics.distance || 0).toFixed(1)} km</h2>
-                </div>
-                <div className="rounded-lg bg-green-50 p-4">
-                  <p className="text-gray-500">Steps</p>
-                  <h2 className="text-2xl font-bold">{(metrics.steps || 0).toLocaleString()}</h2>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-between border-t pt-4 text-gray-500">
-              <button>❤️ {post.likes || 0}</button>
-              <button>💬 {post.comments || 0}</button>
-              <button>↗ Share</button>
-            </div>
-          </div>
-        );
-      })}
+    <div className="space-y-5">
+      {posts.map((post, index) => (
+        <PostCard key={post.id} post={post} index={index} />
+      ))}
     </div>
   );
 }
 
-const CHALLENGE_STYLES = ['bg-green-50', 'bg-red-50', 'bg-blue-50', 'bg-yellow-50', 'bg-purple-50'];
-
 function RightSidebar({ challenges = [], onAddClick }) {
   return (
-    <div className="space-y-5">
-      <div className="rounded-xl bg-white p-5 shadow">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Trending Challenges</h2>
-          <button
-            onClick={onAddClick}
-            aria-label="Add to leaderboard"
-            title="Add to leaderboard"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-green-600 text-lg font-semibold text-white shadow"
-          >
-            +
-          </button>
-        </div>
-        <div className="space-y-3">
-          {challenges.length > 0 ? (
-            challenges.map((challenge, index) => (
-              <div key={challenge} className={`rounded-lg p-3 ${CHALLENGE_STYLES[index % CHALLENGE_STYLES.length]}`}>
-                🏆 {challenge}
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-gray-500">No challenges yet</p>
-          )}
-        </div>
+    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+          Trending Challenges
+        </h2>
+        <button
+          onClick={onAddClick}
+          aria-label="Add to leaderboard"
+          title="Add to leaderboard"
+          className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-base font-semibold text-white shadow-sm transition-transform hover:scale-105 active:scale-95"
+        >
+          +
+        </button>
       </div>
-    </div>
+
+      <div className="space-y-2 px-5 py-4">
+        {challenges.length > 0 ? (
+          challenges.map((challenge) => (
+            <div
+              key={challenge}
+              className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/60 px-3 py-2.5 text-sm text-slate-700"
+            >
+              <span>🏆</span>
+              <span className="truncate">{challenge}</span>
+            </div>
+          ))
+        ) : (
+          <p className="py-4 text-center text-sm text-slate-400">No challenges yet</p>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -272,71 +294,108 @@ export default function LeaderboardTab() {
   };
 
   return (
-    <div className="mt-4 mx-auto max-w-7xl px-4">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="hidden w-72 lg:block">
+    <div className="mx-auto mt-4 max-w-6xl px-4">
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[260px_1fr_260px]">
+        <div className="hidden lg:block">
           <Sidebar leaders={leaders} loading={leadersLoading} />
         </div>
 
-        <div className="flex-1 space-y-6">
+        <div>
           <Feed posts={posts} loading={postsLoading} />
         </div>
 
-        <div className="hidden w-80 xl:block">
-          <RightSidebar
-            challenges={challengeNames}
-            onAddClick={() => setShowComposer(true)}
-          />
+        <div className="hidden lg:block">
+          <RightSidebar challenges={challengeNames} onAddClick={() => setShowComposer(true)} />
         </div>
       </div>
 
       {showComposer && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
           onClick={() => setShowComposer(false)}
         >
           <form
             onSubmit={handleSubmit}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl"
+            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
           >
-            <h2 className="mb-4 text-lg font-bold">Share your progress</h2>
-            {postError && (
-              <p className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-700">{postError}</p>
-            )}
-            <div className="grid gap-3 md:grid-cols-2">
-              <input
-                value={formData.name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                className="rounded-lg border border-gray-200 px-3 py-2"
-                placeholder="Your name"
-              />
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoChange}
-                className="rounded-lg border border-gray-200 px-3 py-2"
-              />
-              <input
-                type="number"
-                step="0.1"
-                value={formData.miles}
-                onChange={(e) => setFormData((prev) => ({ ...prev, miles: e.target.value }))}
-                className="rounded-lg border border-gray-200 px-3 py-2"
-                placeholder="Miles"
-              />
-              <input
-                value={formData.challenge}
-                onChange={(e) => setFormData((prev) => ({ ...prev, challenge: e.target.value }))}
-                className="rounded-lg border border-gray-200 px-3 py-2"
-                placeholder="Challenge"
-              />
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-slate-900">Share your progress</h2>
+              <button
+                type="button"
+                onClick={() => setShowComposer(false)}
+                aria-label="Close"
+                className="text-slate-400 transition-colors hover:text-slate-600"
+              >
+                ✕
+              </button>
             </div>
-            <div className="mt-4 flex gap-3">
-              <button type="submit" disabled={posting} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white disabled:opacity-60">
+
+            {postError && (
+              <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{postError}</p>
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="col-span-2 sm:col-span-1">
+                <span className="mb-1 block text-xs font-medium text-slate-500">Your name</span>
+                <input
+                  value={formData.name}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  placeholder="e.g. Aarav Shrestha"
+                />
+              </label>
+              <label className="col-span-2 sm:col-span-1">
+                <span className="mb-1 block text-xs font-medium text-slate-500">Photo</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-blue-600 focus:border-blue-400 focus:outline-none"
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-xs font-medium text-slate-500">Miles</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={formData.miles}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, miles: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  placeholder="3.5"
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-xs font-medium text-slate-500">Challenge</span>
+                <input
+                  value={formData.challenge}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, challenge: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  placeholder="Morning Walk"
+                />
+              </label>
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <button
+                type="submit"
+                disabled={posting}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+              >
                 {posting ? 'Posting…' : 'Submit'}
               </button>
-              <button type="button" onClick={() => setShowComposer(false)} className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700">
+              <button
+                type="button"
+                onClick={() => setShowComposer(false)}
+                className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+              >
                 Cancel
               </button>
             </div>
