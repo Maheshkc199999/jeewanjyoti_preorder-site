@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getLeaderboard, getDailyLeaderboard, getLeaderboardPosts, createLeaderboardPost } from '../../lib/api';
+import { getLeaderboard, getDailyLeaderboard, getLeaderboardPosts, createLeaderboardPost, updateLeaderboardPost, deleteLeaderboardPost } from '../../lib/api';
+import { getUserData } from '../../lib/tokenManager';
 
 const API_BASE_URL = 'https://jeewanjyoti-backend.smart.org.np';
 
@@ -61,6 +62,50 @@ function Sidebar({ leaders, loading = false }) {
     <div className="space-y-5">
       <div className="rounded-xl bg-white p-5 shadow">
         <h2 className="mb-4 text-lg font-bold">Weekly Leaderboard</h2>
+        <div className="max-h-[40vh] overflow-y-auto pr-1">
+          {leaders && leaders.length > 0 ? (
+            leaders.map((user, index) => (
+              <div key={user.user_id || index} className="flex items-center justify-between border-b py-3 text-sm">
+                <div className="flex items-center gap-2 font-medium text-gray-700">
+                  <LeaderAvatar name={user.name} imageUrl={getFullImageUrl(user.profile_image)} />
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <span>{user.badge}</span>
+                      <span>{user.name}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-semibold text-gray-900">{user.steps.toLocaleString()} steps</div>
+                  <div className="text-xs text-gray-500">{user.distance.toFixed(1)} km</div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500 text-center py-4">No leaders yet</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DailyLeaderboard({ leaders, loading = false }) {
+  if (loading) {
+    return (
+      <div className="rounded-xl bg-white p-5 shadow">
+        <h2 className="mb-4 text-lg font-bold">Daily Leaderboard</h2>
+        <div className="flex justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl bg-white p-5 shadow">
+      <h2 className="mb-4 text-lg font-bold">Daily Leaderboard</h2>
+      <div className="max-h-[40vh] overflow-y-auto pr-1">
         {leaders && leaders.length > 0 ? (
           leaders.map((user, index) => (
             <div key={user.user_id || index} className="flex items-center justify-between border-b py-3 text-sm">
@@ -87,53 +132,89 @@ function Sidebar({ leaders, loading = false }) {
   );
 }
 
-function DailyLeaderboard({ leaders, loading = false }) {
-  if (loading) {
-    return (
-      <div className="rounded-xl bg-white p-5 shadow">
-        <h2 className="mb-4 text-lg font-bold">Daily Leaderboard</h2>
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-xl bg-white p-5 shadow">
-      <h2 className="mb-4 text-lg font-bold">Daily Leaderboard</h2>
-      {leaders && leaders.length > 0 ? (
-        leaders.map((user, index) => (
-          <div key={user.user_id || index} className="flex items-center justify-between border-b py-3 text-sm">
-            <div className="flex items-center gap-2 font-medium text-gray-700">
-              <LeaderAvatar name={user.name} imageUrl={getFullImageUrl(user.profile_image)} />
-              <div>
-                <div className="flex items-center gap-1">
-                  <span>{user.badge}</span>
-                  <span>{user.name}</span>
-                </div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="font-semibold text-gray-900">{user.steps.toLocaleString()} steps</div>
-              <div className="text-xs text-gray-500">{user.distance.toFixed(1)} km</div>
-            </div>
-          </div>
-        ))
-      ) : (
-        <p className="text-gray-500 text-center py-4">No leaders yet</p>
-      )}
-    </div>
-  );
-}
-
 const METRIC_CONFIG = [
   { key: 'calories', label: 'Calories', format: (v) => Math.round(v || 0).toLocaleString() },
   { key: 'distance', label: 'Distance', format: (v) => `${(v || 0).toFixed(1)} km` },
   { key: 'steps', label: 'Steps', format: (v) => (v || 0).toLocaleString() },
 ];
 
-function PostCard({ post, index }) {
+function PostMenu({ onEdit, onDelete }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative ml-auto">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-label="Post options"
+        className="rounded-full px-2 py-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+      >
+        ⋮
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-20 mt-1 w-32 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+            <button
+              type="button"
+              onClick={() => { setOpen(false); onEdit(); }}
+              className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => { setOpen(false); onDelete(); }}
+              className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+            >
+              Delete
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ExpandableImage({ src, alt, className }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <>
+      <img
+        src={src}
+        alt={alt}
+        onClick={() => setExpanded(true)}
+        className={`${className} cursor-zoom-in`}
+      />
+      {expanded && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4"
+          onClick={() => setExpanded(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            aria-label="Close"
+            className="absolute right-4 top-4 text-2xl text-white/80 transition-colors hover:text-white"
+          >
+            ✕
+          </button>
+          <img
+            src={src}
+            alt={alt}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-full max-w-full rounded-lg object-contain"
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+function PostCard({ post, index, currentUserId, onEdit, onDelete }) {
+  const canManage = currentUserId != null && post.user != null && Number(post.user) === Number(currentUserId);
+
   return (
     <article
       style={{ animationDelay: `${index * 60}ms` }}
@@ -145,13 +226,14 @@ function PostCard({ post, index }) {
           <h3 className="truncate text-sm font-semibold text-slate-900">{post.user_name}</h3>
           <p className="text-xs text-slate-400">{formatTimeAgo(post.created_at)}</p>
         </div>
+        {canManage && <PostMenu onEdit={() => onEdit(post)} onDelete={() => onDelete(post.id)} />}
       </header>
 
       {post.image && (
-        <img
+        <ExpandableImage
           src={getFullImageUrl(post.image)}
           alt={post.user_name}
-          className="mt-4 h-48 w-full rounded-xl border border-slate-100 object-cover"
+          className="mt-4 h-auto max-h-[36rem] w-full rounded-xl border border-slate-100 object-contain"
         />
       )}
 
@@ -183,7 +265,7 @@ function PostCard({ post, index }) {
   );
 }
 
-function Feed({ posts, loading = false }) {
+function Feed({ posts, loading = false, currentUserId, onEdit, onDelete }) {
   if (loading) {
     return (
       <div className="flex justify-center py-10">
@@ -203,7 +285,14 @@ function Feed({ posts, loading = false }) {
   return (
     <div className="space-y-5">
       {posts.map((post, index) => (
-        <PostCard key={post.id} post={post} index={index} />
+        <PostCard
+          key={post.id}
+          post={post}
+          index={index}
+          currentUserId={currentUserId}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       ))}
     </div>
   );
@@ -218,7 +307,7 @@ function RightSidebar({ challenges = [] }) {
         </h2>
       </div>
 
-      <div className="space-y-2 px-5 py-4">
+      <div className="max-h-[60vh] space-y-2 overflow-y-auto px-5 py-4">
         {challenges.length > 0 ? (
           challenges.map((challenge) => (
             <div
@@ -245,12 +334,17 @@ export default function LeaderboardTab() {
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [challengeNames, setChallengeNames] = useState([]);
-  const [formData, setFormData] = useState({ name: '', photo: '', photoFile: null, miles: '', challenge: '' });
+  const [formData, setFormData] = useState({ summary: '', steps: '', distance: '', calories: '', is_completed: false, photoFile: null });
   const [showComposer, setShowComposer] = useState(false);
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState(null);
   const [showChallengeComposer, setShowChallengeComposer] = useState(false);
   const [newChallengeName, setNewChallengeName] = useState('');
+  const [currentUserId] = useState(() => getUserData()?.id ?? null);
+  const [editingPost, setEditingPost] = useState(null);
+  const [editFormData, setEditFormData] = useState({ summary: '', steps: '', distance: '', calories: '', is_completed: false, photoFile: null });
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState(null);
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -301,26 +395,19 @@ export default function LeaderboardTab() {
   const handlePhotoChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setFormData((prev) => ({ ...prev, photo: reader.result, photoFile: file }));
-    reader.readAsDataURL(file);
+    setFormData((prev) => ({ ...prev, photoFile: file }));
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!formData.name.trim() || !formData.miles || !formData.challenge.trim()) return;
-
-    const milesValue = Number(formData.miles);
-    const stepsValue = Math.round(milesValue * 1400);
-    const distanceKm = milesValue * 1.60934;
-    const caloriesValue = stepsValue * 0.05;
+    if (!formData.summary.trim() && !formData.photoFile) return;
 
     const payload = new FormData();
-    payload.append('summary', `${formData.challenge.trim()}: Completed ${milesValue.toFixed(1)} miles!`);
-    payload.append('steps', String(stepsValue));
-    payload.append('distance', String(distanceKm));
-    payload.append('calories', String(caloriesValue));
-    payload.append('is_completed', 'true');
+    payload.append('summary', formData.summary);
+    payload.append('steps', String(formData.steps || 0));
+    payload.append('distance', String(formData.distance || 0));
+    payload.append('calories', String(formData.calories || 0));
+    payload.append('is_completed', String(formData.is_completed));
     if (formData.photoFile) {
       payload.append('image', formData.photoFile);
     }
@@ -330,8 +417,7 @@ export default function LeaderboardTab() {
       setPostError(null);
       await createLeaderboardPost(payload);
 
-      setChallengeNames((prev) => [formData.challenge.trim(), ...prev.filter((c) => c !== formData.challenge.trim())].slice(0, 5));
-      setFormData({ name: '', photo: '', photoFile: null, miles: '', challenge: '' });
+      setFormData({ summary: '', steps: '', distance: '', calories: '', is_completed: false, photoFile: null });
       setShowComposer(false);
       fetchPosts();
       fetchLeaderboard();
@@ -354,6 +440,65 @@ export default function LeaderboardTab() {
     setShowChallengeComposer(false);
   };
 
+  const openEditPost = (post) => {
+    setEditError(null);
+    setEditFormData({
+      summary: post.summary || '',
+      steps: post.steps ?? '',
+      distance: post.distance ?? '',
+      calories: post.calories ?? '',
+      is_completed: !!post.is_completed,
+      photoFile: null,
+    });
+    setEditingPost(post);
+  };
+
+  const handleEditPhotoChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setEditFormData((prev) => ({ ...prev, photoFile: file }));
+  };
+
+  const handleEditSubmit = async (event) => {
+    event.preventDefault();
+    if (!editingPost) return;
+
+    const payload = new FormData();
+    payload.append('summary', editFormData.summary);
+    payload.append('steps', String(editFormData.steps || 0));
+    payload.append('distance', String(editFormData.distance || 0));
+    payload.append('calories', String(editFormData.calories || 0));
+    payload.append('is_completed', String(editFormData.is_completed));
+    if (editFormData.photoFile) {
+      payload.append('image', editFormData.photoFile);
+    }
+
+    try {
+      setEditSubmitting(true);
+      setEditError(null);
+      await updateLeaderboardPost(editingPost.id, payload);
+      setEditingPost(null);
+      fetchPosts();
+    } catch (error) {
+      console.error('Failed to update post:', error);
+      setEditError(error.message || 'Failed to update post. Please try again.');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleDeletePost = async (postId) => {
+    if (!window.confirm('Delete this post? This cannot be undone.')) return;
+
+    try {
+      await deleteLeaderboardPost(postId);
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+    } catch (error) {
+      console.error('Failed to delete post:', error);
+      alert(error.message || 'Failed to delete post. Please try again.');
+    }
+  };
+
   return (
     <div className="mx-auto mt-4 max-w-6xl px-4">
       <style>{`
@@ -363,8 +508,8 @@ export default function LeaderboardTab() {
         }
       `}</style>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[260px_1fr_260px]">
-        <div className="hidden lg:block space-y-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[260px_1fr_260px] lg:items-start">
+        <div className="hidden lg:sticky lg:top-4 lg:block lg:max-h-[calc(100vh-2rem)] lg:space-y-5 lg:overflow-y-auto lg:pr-1">
           <Sidebar leaders={leaders} loading={leadersLoading} />
           <DailyLeaderboard leaders={dailyLeaders} loading={dailyLeadersLoading} />
         </div>
@@ -386,10 +531,16 @@ export default function LeaderboardTab() {
               <span className="text-base leading-none">+</span> Add Challenge
             </button>
           </div>
-          <Feed posts={posts} loading={postsLoading} />
+          <Feed
+            posts={posts}
+            loading={postsLoading}
+            currentUserId={currentUserId}
+            onEdit={openEditPost}
+            onDelete={handleDeletePost}
+          />
         </div>
 
-        <div className="hidden lg:block">
+        <div className="hidden lg:sticky lg:top-4 lg:block lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:pr-1">
           <RightSidebar challenges={challengeNames} />
         </div>
       </div>
@@ -420,17 +571,18 @@ export default function LeaderboardTab() {
               <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{postError}</p>
             )}
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="col-span-2 sm:col-span-1">
-                <span className="mb-1 block text-xs font-medium text-slate-500">Your name</span>
-                <input
-                  value={formData.name}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+            <div className="grid gap-3">
+              <label>
+                <span className="mb-1 block text-xs font-medium text-slate-500">Summary</span>
+                <textarea
+                  value={formData.summary}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, summary: e.target.value }))}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  placeholder="e.g. Aarav Shrestha"
+                  rows={3}
+                  placeholder="Had a great workout today! 💪🔥"
                 />
               </label>
-              <label className="col-span-2 sm:col-span-1">
+              <label>
                 <span className="mb-1 block text-xs font-medium text-slate-500">Photo</span>
                 <input
                   type="file"
@@ -439,25 +591,44 @@ export default function LeaderboardTab() {
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-blue-600 focus:border-blue-400 focus:outline-none"
                 />
               </label>
-              <label>
-                <span className="mb-1 block text-xs font-medium text-slate-500">Miles</span>
+              <div className="grid grid-cols-3 gap-3">
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Steps</span>
+                  <input
+                    type="number"
+                    value={formData.steps}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, steps: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Distance (km)</span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={formData.distance}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, distance: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Calories</span>
+                  <input
+                    type="number"
+                    value={formData.calories}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, calories: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+              </div>
+              <label className="flex items-center gap-2">
                 <input
-                  type="number"
-                  step="0.1"
-                  value={formData.miles}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, miles: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  placeholder="3.5"
+                  type="checkbox"
+                  checked={formData.is_completed}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, is_completed: e.target.checked }))}
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-400"
                 />
-              </label>
-              <label>
-                <span className="mb-1 block text-xs font-medium text-slate-500">Challenge</span>
-                <input
-                  value={formData.challenge}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, challenge: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  placeholder="Morning Walk"
-                />
+                <span className="text-sm text-slate-600">Mark as completed</span>
               </label>
             </div>
 
@@ -524,6 +695,113 @@ export default function LeaderboardTab() {
               <button
                 type="button"
                 onClick={() => setShowChallengeComposer(false)}
+                className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {editingPost && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+          onClick={() => setEditingPost(null)}
+        >
+          <form
+            onSubmit={handleEditSubmit}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
+          >
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-slate-900">Edit post</h2>
+              <button
+                type="button"
+                onClick={() => setEditingPost(null)}
+                aria-label="Close"
+                className="text-slate-400 transition-colors hover:text-slate-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            {editError && (
+              <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{editError}</p>
+            )}
+
+            <div className="grid gap-3">
+              <label>
+                <span className="mb-1 block text-xs font-medium text-slate-500">Summary</span>
+                <textarea
+                  value={editFormData.summary}
+                  onChange={(e) => setEditFormData((prev) => ({ ...prev, summary: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  rows={3}
+                  placeholder="Share an update..."
+                />
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Steps</span>
+                  <input
+                    type="number"
+                    value={editFormData.steps}
+                    onChange={(e) => setEditFormData((prev) => ({ ...prev, steps: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Distance (km)</span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={editFormData.distance}
+                    onChange={(e) => setEditFormData((prev) => ({ ...prev, distance: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Calories</span>
+                  <input
+                    type="number"
+                    value={editFormData.calories}
+                    onChange={(e) => setEditFormData((prev) => ({ ...prev, calories: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+              </div>
+              <label>
+                <span className="mb-1 block text-xs font-medium text-slate-500">Photo</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleEditPhotoChange}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-blue-600 focus:border-blue-400 focus:outline-none"
+                />
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={editFormData.is_completed}
+                  onChange={(e) => setEditFormData((prev) => ({ ...prev, is_completed: e.target.checked }))}
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-400"
+                />
+                <span className="text-sm text-slate-600">Mark as completed</span>
+              </label>
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <button
+                type="submit"
+                disabled={editSubmitting}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+              >
+                {editSubmitting ? 'Saving…' : 'Save changes'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingPost(null)}
                 className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
               >
                 Cancel

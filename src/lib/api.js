@@ -774,6 +774,52 @@ export async function createLeaderboardPost(formData) {
   return data
 }
 
+/**
+ * Update a leaderboard post (only the post's owner may do this)
+ * @param {number|string} postId
+ * @param {FormData} formData - multipart body: any of summary, steps, distance, calories, is_completed, image
+ * @returns {Promise<object>} Updated post
+ */
+export async function updateLeaderboardPost(postId, formData) {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/leaderboard/posts/${postId}/`, {
+    method: 'PATCH',
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: formData,
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const error = new Error(data.detail || 'Failed to update post')
+    error.details = data
+    throw error
+  }
+  return data
+}
+
+/**
+ * Delete a leaderboard post (only the post's owner may do this)
+ * @param {number|string} postId
+ */
+export async function deleteLeaderboardPost(postId) {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/leaderboard/posts/${postId}/`, {
+    method: 'DELETE',
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+
+  if (!response.ok && response.status !== 204) {
+    const data = await response.json().catch(() => ({}))
+    const error = new Error(data.detail || 'Failed to delete post')
+    error.details = data
+    throw error
+  }
+}
+
 export const initializePayment = async (token, invoiceNo, amount) => {
   return await apiRequest('/initialize_payment/', {
     method: 'POST',
