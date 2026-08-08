@@ -1510,7 +1510,7 @@ const Dashboard = () => {
 
       {/* Bottom Navigation for Mobile */}
       <div className={`md:hidden fixed bottom-0 left-0 right-0 z-10 border-t bg-white dark:bg-gray-900 dark:border-gray-800 ${isChatRoomOpen ? 'hidden' : ''}`}>
-        <div className="grid grid-cols-4 h-16">
+        <div className="grid grid-cols-5 h-16">
           <button
             onClick={() => handleTabChange('home')}
             className={`flex flex-col items-center justify-center p-2 transition-colors ${activeTab === 'home'
@@ -1538,6 +1538,20 @@ const Dashboard = () => {
           >
             <Calendar className="w-6 h-6" />
             <span className="text-xs mt-1">Appointments</span>
+          </button>
+          <button
+            onClick={() => handleTabChange('leaderboard')}
+            className={`flex flex-col items-center justify-center p-2 transition-colors ${activeTab === 'leaderboard'
+              ? darkMode
+                ? 'text-blue-400'
+                : 'text-blue-600'
+              : darkMode
+                ? 'text-gray-400'
+                : 'text-gray-500'
+              }`}
+          >
+            <Users className="w-6 h-6" />
+            <span className="text-xs mt-1">Leaderboard</span>
           </button>
           <button
             onClick={() => handleTabChange('chat')}
