@@ -127,7 +127,6 @@ function Feed({ posts, loading = false }) {
   return (
     <div className="space-y-6">
       {posts.map((post) => {
-        const metrics = post.metrics || {};
         return (
           <div key={post.id} className="rounded-xl bg-white p-6 shadow">
             <div className="flex items-center gap-3">
@@ -146,15 +145,15 @@ function Feed({ posts, loading = false }) {
               <div className="mt-5 grid grid-cols-3 gap-4">
                 <div className="rounded-lg bg-red-50 p-4">
                   <p className="text-gray-500">Calories</p>
-                  <h2 className="text-2xl font-bold">{Math.round(metrics.calories || 0)}</h2>
+                  <h2 className="text-2xl font-bold">{Math.round(post.calories || 0)}</h2>
                 </div>
                 <div className="rounded-lg bg-blue-50 p-4">
                   <p className="text-gray-500">Distance</p>
-                  <h2 className="text-2xl font-bold">{(metrics.distance || 0).toFixed(1)} km</h2>
+                  <h2 className="text-2xl font-bold">{(post.distance || 0).toFixed(1)} km</h2>
                 </div>
                 <div className="rounded-lg bg-green-50 p-4">
                   <p className="text-gray-500">Steps</p>
-                  <h2 className="text-2xl font-bold">{(metrics.steps || 0).toLocaleString()}</h2>
+                  <h2 className="text-2xl font-bold">{(post.steps || 0).toLocaleString()}</h2>
                 </div>
               </div>
             </div>

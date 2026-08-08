@@ -134,7 +134,6 @@ const METRIC_CONFIG = [
 ];
 
 function PostCard({ post, index }) {
-  const metrics = post.metrics || {};
   return (
     <article
       style={{ animationDelay: `${index * 60}ms` }}
@@ -164,7 +163,7 @@ function PostCard({ post, index }) {
         {METRIC_CONFIG.map(({ key, label, format }) => (
           <div key={key} className="px-3 py-3 text-center">
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
-            <p className="mt-1 text-base font-bold text-blue-700">{format(metrics[key])}</p>
+            <p className="mt-1 text-base font-bold text-blue-700">{format(post[key])}</p>
           </div>
         ))}
       </div>
