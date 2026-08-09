@@ -960,6 +960,198 @@ export async function addPostComment(postId, comment) {
   return data
 }
 
+/**
+ * Update a comment on a leaderboard post (only the comment's owner may do this)
+ * @param {number|string} postId
+ * @param {number|string} commentId
+ * @param {string} comment
+ * @returns {Promise<object>}
+ */
+export async function updateComment(postId, commentId, comment) {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/posts/${postId}/comments/${commentId}/`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: JSON.stringify({ comment }),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const error = new Error(data.detail || 'Failed to update comment')
+    error.details = data
+    throw error
+  }
+  return data
+}
+
+/**
+ * Delete a comment on a leaderboard post (only the comment's owner may do this)
+ * @param {number|string} postId
+ * @param {number|string} commentId
+ */
+export async function deleteComment(postId, commentId) {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/posts/${postId}/comments/${commentId}/`, {
+    method: 'DELETE',
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+
+  if (!response.ok && response.status !== 204) {
+    const data = await response.json().catch(() => ({}))
+    const error = new Error(data.detail || 'Failed to delete comment')
+    error.details = data
+    throw error
+  }
+}
+
+/**
+ * Get likes for a leaderboard challenge
+ * @param {number|string} challengeId
+ * @returns {Promise<{like_count: number, likes: Array}>}
+ */
+export async function getChallengeLikes(challengeId) {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/challenges/${challengeId}/like/`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch challenge likes: ${response.status}`)
+  }
+
+  return await response.json()
+}
+
+/**
+ * Toggle like/unlike on a leaderboard challenge for the current user
+ * @param {number|string} challengeId
+ * @returns {Promise<{like_count: number, likes: Array}>}
+ */
+export async function toggleLikeChallenge(challengeId) {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/challenges/${challengeId}/like/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const error = new Error(data.detail || 'Failed to toggle like')
+    error.details = data
+    throw error
+  }
+  return data
+}
+
+/**
+ * Get comments for a leaderboard challenge
+ * @param {number|string} challengeId
+ * @returns {Promise<{comment_count: number, comments: Array}>}
+ */
+export async function getChallengeComments(challengeId) {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/challenges/${challengeId}/comments/`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch challenge comments: ${response.status}`)
+  }
+
+  return await response.json()
+}
+
+/**
+ * Add a comment to a leaderboard challenge
+ * @param {number|string} challengeId
+ * @param {string} comment
+ * @returns {Promise<{comment_count: number, comments: Array}>}
+ */
+export async function addChallengeComment(challengeId, comment) {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/challenges/${challengeId}/comments/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: JSON.stringify({ comment }),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const error = new Error(data.detail || 'Failed to add comment')
+    error.details = data
+    throw error
+  }
+  return data
+}
+
+/**
+ * Update a comment on a leaderboard challenge (only the comment's owner may do this)
+ * @param {number|string} challengeId
+ * @param {number|string} commentId
+ * @param {string} comment
+ * @returns {Promise<object>}
+ */
+export async function updateChallengeComment(challengeId, commentId, comment) {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/challenges/${challengeId}/comments/${commentId}/`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: JSON.stringify({ comment }),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const error = new Error(data.detail || 'Failed to update comment')
+    error.details = data
+    throw error
+  }
+  return data
+}
+
+/**
+ * Delete a comment on a leaderboard challenge (only the comment's owner may do this)
+ * @param {number|string} challengeId
+ * @param {number|string} commentId
+ */
+export async function deleteChallengeComment(challengeId, commentId) {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/challenges/${challengeId}/comments/${commentId}/`, {
+    method: 'DELETE',
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+
+  if (!response.ok && response.status !== 204) {
+    const data = await response.json().catch(() => ({}))
+    const error = new Error(data.detail || 'Failed to delete comment')
+    error.details = data
+    throw error
+  }
+}
+
 export const initializePayment = async (token, invoiceNo, amount) => {
   return await apiRequest('/initialize_payment/', {
     method: 'POST',

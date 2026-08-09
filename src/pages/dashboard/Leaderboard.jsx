@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Facebook, Instagram, X, MessageCircle, Phone, Mail, Link2, Share2 } from 'lucide-react';
-import { getLeaderboard, getDailyLeaderboard, getLeaderboardPosts, createLeaderboardPost, updateLeaderboardPost, deleteLeaderboardPost, getLeaderboardChallenges, createLeaderboardChallenge, getPostLikes, toggleLikePost, getPostComments, addPostComment } from '../../lib/api';
+import { getLeaderboard, getDailyLeaderboard, getLeaderboardPosts, createLeaderboardPost, updateLeaderboardPost, deleteLeaderboardPost, getLeaderboardChallenges, createLeaderboardChallenge, getPostLikes, toggleLikePost, getPostComments, addPostComment, updateComment, deleteComment, getChallengeLikes, toggleLikeChallenge, getChallengeComments, addChallengeComment, updateChallengeComment, deleteChallengeComment } from '../../lib/api';
 import { getUserData } from '../../lib/tokenManager';
 
 const API_BASE_URL = 'https://jeewanjyoti-backend.smart.org.np';
@@ -27,6 +27,41 @@ const formatDate = (dateString) => {
   if (!dateString) return '';
   return new Date(dateString).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
+
+function ConfirmDialog({ open, title = 'Are you sure?', message, confirmLabel = 'Delete', onConfirm, onCancel }) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
+      >
+        <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+        {message && <p className="mt-2 text-sm text-slate-500">{message}</p>}
+        <div className="mt-5 flex gap-3">
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex-1 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+          >
+            {confirmLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const getChallengeStatus = (startDate, endDate) => {
   const now = new Date();
@@ -371,9 +406,50 @@ function ShareButton({ post }) {
   );
 }
 
-function CommentSection({ postId, commentData, onAddComment }) {
+function CommentMenu({ onEdit, onDelete }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-label="Comment options"
+        className="rounded-full px-1.5 py-0.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+      >
+        ⋮
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-20 mt-1 w-28 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+            <button
+              type="button"
+              onClick={() => { setOpen(false); onEdit(); }}
+              className="block w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => { setOpen(false); onDelete(); }}
+              className="block w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50"
+            >
+              Delete
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function CommentSection({ postId, commentData, onAddComment, currentUserId, onEditComment, onDeleteComment }) {
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
   const comments = commentData?.list ?? [];
 
   const handleSubmit = async (event) => {
@@ -389,22 +465,91 @@ function CommentSection({ postId, commentData, onAddComment }) {
     }
   };
 
+  const startEdit = (comment) => {
+    setEditingId(comment.id);
+    setEditText(comment.comment);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditText('');
+  };
+
+  const submitEdit = async (event, commentId) => {
+    event.preventDefault();
+    const text = editText.trim();
+    if (!text) return;
+    try {
+      setEditSubmitting(true);
+      await onEditComment(postId, commentId, text);
+      setEditingId(null);
+      setEditText('');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
+  const handleDelete = (commentId) => {
+    setDeleteConfirmId(commentId);
+  };
+
+  const confirmDelete = () => {
+    onDeleteComment(postId, deleteConfirmId);
+    setDeleteConfirmId(null);
+  };
+
   return (
     <div className="mt-4 border-t border-slate-100 pt-4">
       <div className="max-h-56 space-y-3 overflow-y-auto pr-1">
         {comments.length > 0 ? (
-          comments.map((comment) => (
-            <div key={comment.id} className="flex items-start gap-2">
-              <LeaderAvatar name={comment.user_name} imageUrl={getFullImageUrl(comment.profile_image)} size="h-7 w-7" />
-              <div className="min-w-0 flex-1 rounded-lg bg-slate-50 px-3 py-2">
-                <div className="flex items-baseline justify-between gap-2">
-                  <p className="truncate text-xs font-semibold text-slate-700">{comment.user_name}</p>
-                  <p className="shrink-0 text-[10px] text-slate-400">{formatTimeAgo(comment.created_at)}</p>
+          comments.map((comment) => {
+            const canManage = currentUserId != null && comment.user != null && Number(comment.user) === Number(currentUserId);
+            const isEditing = editingId === comment.id;
+            return (
+              <div key={comment.id} className="flex items-start gap-2">
+                <LeaderAvatar name={comment.user_name} imageUrl={getFullImageUrl(comment.profile_image)} size="h-7 w-7" />
+                <div className="min-w-0 flex-1 rounded-lg bg-slate-50 px-3 py-2">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="truncate text-xs font-semibold text-slate-700">{comment.user_name}</p>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <p className="text-[10px] text-slate-400">{formatTimeAgo(comment.created_at)}</p>
+                      {canManage && !isEditing && (
+                        <CommentMenu onEdit={() => startEdit(comment)} onDelete={() => handleDelete(comment.id)} />
+                      )}
+                    </div>
+                  </div>
+                  {isEditing ? (
+                    <form onSubmit={(event) => submitEdit(event, comment.id)} className="mt-1 flex gap-2">
+                      <input
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        className="flex-1 rounded-full border border-slate-200 px-3 py-1 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        autoFocus
+                      />
+                      <button
+                        type="submit"
+                        disabled={editSubmitting || !editText.trim()}
+                        className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEdit}
+                        className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500"
+                      >
+                        Cancel
+                      </button>
+                    </form>
+                  ) : (
+                    <p className="mt-0.5 text-sm text-slate-600">{comment.comment}</p>
+                  )}
                 </div>
-                <p className="mt-0.5 text-sm text-slate-600">{comment.comment}</p>
               </div>
-            </div>
-          ))
+            );
+          })
         ) : (
           <p className="text-center text-xs text-slate-400">No comments yet</p>
         )}
@@ -424,11 +569,18 @@ function CommentSection({ postId, commentData, onAddComment }) {
           {submitting ? '…' : 'Post'}
         </button>
       </form>
+      <ConfirmDialog
+        open={deleteConfirmId != null}
+        title="Delete comment?"
+        message="This cannot be undone."
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
     </div>
   );
 }
 
-function PostCard({ post, index, currentUserId, onEdit, onDelete, likeData, onToggleLike, commentData, onAddComment }) {
+function PostCard({ post, index, currentUserId, onEdit, onDelete, likeData, onToggleLike, commentData, onAddComment, onEditComment, onDeleteComment }) {
   const canManage = currentUserId != null && post.user != null && Number(post.user) === Number(currentUserId);
   const likeCount = likeData?.count ?? 0;
   const likedByMe = likeData?.likedByMe ?? false;
@@ -491,7 +643,14 @@ function PostCard({ post, index, currentUserId, onEdit, onDelete, likeData, onTo
       </footer>
 
       {commentsOpen && (
-        <CommentSection postId={post.id} commentData={commentData} onAddComment={onAddComment} />
+        <CommentSection
+          postId={post.id}
+          commentData={commentData}
+          onAddComment={onAddComment}
+          currentUserId={currentUserId}
+          onEditComment={onEditComment}
+          onDeleteComment={onDeleteComment}
+        />
       )}
     </article>
   );
@@ -503,8 +662,12 @@ const CHALLENGE_METRIC_CONFIG = [
   { key: 'calories', label: 'Calorie Goal', format: (v) => (v ? Math.round(Number(v)).toLocaleString() : '—') },
 ];
 
-function ChallengeCard({ challenge, index }) {
+function ChallengeCard({ challenge, index, currentUserId, likeData, onToggleLike, commentData, onAddComment, onEditComment, onDeleteComment }) {
   const status = getChallengeStatus(challenge.start_date, challenge.end_date);
+  const likeCount = likeData?.count ?? 0;
+  const likedByMe = likeData?.likedByMe ?? false;
+  const commentCount = commentData?.count ?? 0;
+  const [commentsOpen, setCommentsOpen] = useState(false);
 
   return (
     <article
@@ -556,6 +719,34 @@ function ChallengeCard({ challenge, index }) {
         <span>📅</span>
         <span>{formatDate(challenge.start_date)} – {formatDate(challenge.end_date)}</span>
       </footer>
+
+      <footer className="mt-3 flex items-center justify-between border-t border-amber-100 pt-3 text-sm text-slate-500">
+        <button
+          type="button"
+          onClick={() => onToggleLike(challenge.id)}
+          className={`flex items-center gap-1.5 transition-colors hover:text-amber-600 ${likedByMe ? 'text-amber-600' : ''}`}
+        >
+          <span>{likedByMe ? '⭐' : '☆'}</span> {likeCount}
+        </button>
+        <button
+          type="button"
+          onClick={() => setCommentsOpen((prev) => !prev)}
+          className={`flex items-center gap-1.5 transition-colors hover:text-blue-600 ${commentsOpen ? 'text-blue-600' : ''}`}
+        >
+          <span>💬</span> {commentCount}
+        </button>
+      </footer>
+
+      {commentsOpen && (
+        <CommentSection
+          postId={challenge.id}
+          commentData={commentData}
+          onAddComment={onAddComment}
+          currentUserId={currentUserId}
+          onEditComment={onEditComment}
+          onDeleteComment={onDeleteComment}
+        />
+      )}
     </article>
   );
 }
@@ -579,7 +770,7 @@ function buildFeedItems(posts, challenges) {
   );
 }
 
-function Feed({ posts, challenges, loading = false, currentUserId, onEdit, onDelete, postLikes, onToggleLike, postComments, onAddComment }) {
+function Feed({ posts, challenges, loading = false, currentUserId, onEdit, onDelete, postLikes, onToggleLike, postComments, onAddComment, onEditComment, onDeleteComment, challengeLikes, onToggleChallengeLike, challengeComments, onAddChallengeComment, onEditChallengeComment, onDeleteChallengeComment }) {
   if (loading) {
     return (
       <div className="flex justify-center py-10">
@@ -602,7 +793,18 @@ function Feed({ posts, challenges, loading = false, currentUserId, onEdit, onDel
     <div className="space-y-5">
       {feedItems.map((item, index) =>
         item.type === 'challenge' ? (
-          <ChallengeCard key={item.key} challenge={item.data} index={index} />
+          <ChallengeCard
+            key={item.key}
+            challenge={item.data}
+            index={index}
+            currentUserId={currentUserId}
+            likeData={challengeLikes?.[item.data.id]}
+            onToggleLike={onToggleChallengeLike}
+            commentData={challengeComments?.[item.data.id]}
+            onAddComment={onAddChallengeComment}
+            onEditComment={onEditChallengeComment}
+            onDeleteComment={onDeleteChallengeComment}
+          />
         ) : (
           <PostCard
             key={item.key}
@@ -615,6 +817,8 @@ function Feed({ posts, challenges, loading = false, currentUserId, onEdit, onDel
             onToggleLike={onToggleLike}
             commentData={postComments?.[item.data.id]}
             onAddComment={onAddComment}
+            onEditComment={onEditComment}
+            onDeleteComment={onDeleteComment}
           />
         )
       )}
@@ -669,10 +873,13 @@ export default function LeaderboardTab() {
   const [currentUserId] = useState(() => getUserData()?.id ?? null);
   const [postLikes, setPostLikes] = useState({});
   const [postComments, setPostComments] = useState({});
+  const [challengeLikes, setChallengeLikes] = useState({});
+  const [challengeComments, setChallengeComments] = useState({});
   const [editingPost, setEditingPost] = useState(null);
   const [editFormData, setEditFormData] = useState({ summary: '', is_completed: false, photoFile: null });
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState(null);
+  const [deletePostId, setDeletePostId] = useState(null);
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -760,6 +967,32 @@ export default function LeaderboardTab() {
     }
   }, []);
 
+  const handleEditComment = useCallback(async (postId, commentId, text) => {
+    try {
+      await updateComment(postId, commentId, text);
+      const data = await getPostComments(postId);
+      setPostComments((prev) => ({
+        ...prev,
+        [postId]: { count: data.comment_count || 0, list: data.comments || [] },
+      }));
+    } catch (error) {
+      console.error(`Failed to update comment ${commentId}:`, error);
+    }
+  }, []);
+
+  const handleDeleteComment = useCallback(async (postId, commentId) => {
+    try {
+      await deleteComment(postId, commentId);
+      const data = await getPostComments(postId);
+      setPostComments((prev) => ({
+        ...prev,
+        [postId]: { count: data.comment_count || 0, list: data.comments || [] },
+      }));
+    } catch (error) {
+      console.error(`Failed to delete comment ${commentId}:`, error);
+    }
+  }, []);
+
   const handleToggleLike = useCallback(async (postId) => {
     try {
       const data = await toggleLikePost(postId);
@@ -773,14 +1006,99 @@ export default function LeaderboardTab() {
     }
   }, [fetchPostLikes, posts]);
 
+  const fetchChallengeLikes = useCallback(async (challengeList) => {
+    const entries = await Promise.all(
+      (challengeList || []).map(async (challenge) => {
+        try {
+          const data = await getChallengeLikes(challenge.id);
+          const likedByMe = Array.isArray(data.likes) && data.likes.some((l) => Number(l.user) === Number(currentUserId));
+          return [challenge.id, { count: data.like_count || 0, likedByMe }];
+        } catch (error) {
+          console.error(`Error fetching likes for challenge ${challenge.id}:`, error);
+          return [challenge.id, { count: 0, likedByMe: false }];
+        }
+      })
+    );
+    setChallengeLikes(Object.fromEntries(entries));
+  }, [currentUserId]);
+
+  const fetchChallengeComments = useCallback(async (challengeList) => {
+    const entries = await Promise.all(
+      (challengeList || []).map(async (challenge) => {
+        try {
+          const data = await getChallengeComments(challenge.id);
+          return [challenge.id, { count: data.comment_count || 0, list: data.comments || [] }];
+        } catch (error) {
+          console.error(`Error fetching comments for challenge ${challenge.id}:`, error);
+          return [challenge.id, { count: 0, list: [] }];
+        }
+      })
+    );
+    setChallengeComments(Object.fromEntries(entries));
+  }, []);
+
   const fetchChallenges = useCallback(async () => {
     try {
       const data = await getLeaderboardChallenges();
       setChallenges(data);
+      fetchChallengeLikes(data);
+      fetchChallengeComments(data);
     } catch (error) {
       console.error('Error fetching leaderboard challenges:', error);
     }
+  }, [fetchChallengeLikes, fetchChallengeComments]);
+
+  const handleAddChallengeComment = useCallback(async (challengeId, text) => {
+    try {
+      await addChallengeComment(challengeId, text);
+      const data = await getChallengeComments(challengeId);
+      setChallengeComments((prev) => ({
+        ...prev,
+        [challengeId]: { count: data.comment_count || 0, list: data.comments || [] },
+      }));
+    } catch (error) {
+      console.error(`Failed to add comment to challenge ${challengeId}:`, error);
+    }
   }, []);
+
+  const handleEditChallengeComment = useCallback(async (challengeId, commentId, text) => {
+    try {
+      await updateChallengeComment(challengeId, commentId, text);
+      const data = await getChallengeComments(challengeId);
+      setChallengeComments((prev) => ({
+        ...prev,
+        [challengeId]: { count: data.comment_count || 0, list: data.comments || [] },
+      }));
+    } catch (error) {
+      console.error(`Failed to update comment ${commentId}:`, error);
+    }
+  }, []);
+
+  const handleDeleteChallengeComment = useCallback(async (challengeId, commentId) => {
+    try {
+      await deleteChallengeComment(challengeId, commentId);
+      const data = await getChallengeComments(challengeId);
+      setChallengeComments((prev) => ({
+        ...prev,
+        [challengeId]: { count: data.comment_count || 0, list: data.comments || [] },
+      }));
+    } catch (error) {
+      console.error(`Failed to delete comment ${commentId}:`, error);
+    }
+  }, []);
+
+  const handleToggleChallengeLike = useCallback(async (challengeId) => {
+    try {
+      const data = await toggleLikeChallenge(challengeId);
+      setChallengeLikes((prev) => ({
+        ...prev,
+        [challengeId]: { count: data.like_count || 0, likedByMe: !!data.liked },
+      }));
+    } catch (error) {
+      console.error(`Failed to toggle like for challenge ${challengeId}:`, error);
+      fetchChallengeLikes(challenges);
+    }
+  }, [fetchChallengeLikes, challenges]);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -909,9 +1227,13 @@ export default function LeaderboardTab() {
     }
   };
 
-  const handleDeletePost = async (postId) => {
-    if (!window.confirm('Delete this post? This cannot be undone.')) return;
+  const handleDeletePost = (postId) => {
+    setDeletePostId(postId);
+  };
 
+  const confirmDeletePost = async () => {
+    const postId = deletePostId;
+    setDeletePostId(null);
     try {
       await deleteLeaderboardPost(postId);
       setPosts((prev) => prev.filter((p) => p.id !== postId));
@@ -964,6 +1286,14 @@ export default function LeaderboardTab() {
             onToggleLike={handleToggleLike}
             postComments={postComments}
             onAddComment={handleAddComment}
+            onEditComment={handleEditComment}
+            onDeleteComment={handleDeleteComment}
+            challengeLikes={challengeLikes}
+            onToggleChallengeLike={handleToggleChallengeLike}
+            challengeComments={challengeComments}
+            onAddChallengeComment={handleAddChallengeComment}
+            onEditChallengeComment={handleEditChallengeComment}
+            onDeleteChallengeComment={handleDeleteChallengeComment}
           />
         </div>
 
@@ -1268,6 +1598,14 @@ export default function LeaderboardTab() {
           </form>
         </div>
       )}
+
+      <ConfirmDialog
+        open={deletePostId != null}
+        title="Delete post?"
+        message="This cannot be undone."
+        onConfirm={confirmDeletePost}
+        onCancel={() => setDeletePostId(null)}
+      />
     </div>
   );
 }
