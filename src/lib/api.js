@@ -912,6 +912,54 @@ export async function toggleLikePost(postId) {
   return data
 }
 
+/**
+ * Get comments for a leaderboard post
+ * @param {number|string} postId
+ * @returns {Promise<{comment_count: number, comments: Array}>}
+ */
+export async function getPostComments(postId) {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/posts/${postId}/comments/`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch post comments: ${response.status}`)
+  }
+
+  return await response.json()
+}
+
+/**
+ * Add a comment to a leaderboard post
+ * @param {number|string} postId
+ * @param {string} comment
+ * @returns {Promise<{comment_count: number, comments: Array}>}
+ */
+export async function addPostComment(postId, comment) {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/posts/${postId}/comments/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: JSON.stringify({ comment }),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const error = new Error(data.detail || 'Failed to add comment')
+    error.details = data
+    throw error
+  }
+  return data
+}
+
 export const initializePayment = async (token, invoiceNo, amount) => {
   return await apiRequest('/initialize_payment/', {
     method: 'POST',

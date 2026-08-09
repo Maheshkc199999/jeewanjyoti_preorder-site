@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getLeaderboard, getDailyLeaderboard, getLeaderboardPosts, createLeaderboardPost, updateLeaderboardPost, deleteLeaderboardPost, getLeaderboardChallenges, createLeaderboardChallenge, getPostLikes, toggleLikePost } from '../../lib/api';
+import { Facebook, Instagram, X, MessageCircle, Phone, Mail, Link2, Share2 } from 'lucide-react';
+import { getLeaderboard, getDailyLeaderboard, getLeaderboardPosts, createLeaderboardPost, updateLeaderboardPost, deleteLeaderboardPost, getLeaderboardChallenges, createLeaderboardChallenge, getPostLikes, toggleLikePost, getPostComments, addPostComment } from '../../lib/api';
 import { getUserData } from '../../lib/tokenManager';
 
 const API_BASE_URL = 'https://jeewanjyoti-backend.smart.org.np';
@@ -238,10 +239,201 @@ function ExpandableImage({ src, alt, className }) {
   );
 }
 
-function PostCard({ post, index, currentUserId, onEdit, onDelete, likeData, onToggleLike }) {
+async function tryNativeShare({ text, imageUrl }) {
+  if (!navigator.share) return false;
+
+  if (imageUrl && navigator.canShare) {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const file = new File([blob], imageUrl.split('/').pop() || 'post.jpg', { type: blob.type || 'image/jpeg' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ title: 'Jeewan Jyoti Digital Care', text, files: [file] });
+        return true;
+      }
+    } catch (fileError) {
+      console.warn('Unable to share image file, falling back to link share:', fileError);
+    }
+  }
+
+  try {
+    await navigator.share({ title: 'Jeewan Jyoti Digital Care', text, url: imageUrl || undefined });
+    return true;
+  } catch (error) {
+    if (error?.name === 'AbortError') return true;
+    console.warn('Native share failed:', error);
+    return false;
+  }
+}
+
+function ShareModal({ post, onClose }) {
+  const imageUrl = post.image ? getFullImageUrl(post.image) : null;
+  const shareText = post.summary || 'Check out this update on Jeewan Jyoti Digital Care!';
+  const shareUrl = imageUrl || window.location.origin;
+  const encodedText = encodeURIComponent(shareText);
+  const encodedUrl = encodeURIComponent(shareUrl);
+
+  const openWindow = (url) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    onClose();
+  };
+
+  const handleInstagramClick = async () => {
+    const shared = await tryNativeShare({ text: shareText, imageUrl });
+    if (!shared) {
+      alert("Instagram doesn't support sharing directly from a website. Use Copy Link, then paste it into Instagram yourself.");
+    }
+    onClose();
+  };
+
+  const handleMoreClick = async () => {
+    const shared = await tryNativeShare({ text: shareText, imageUrl });
+    if (shared) onClose();
+  };
+
+  const handleEmailClick = () => {
+    window.location.href = `mailto:?subject=${encodeURIComponent('Check this out')}&body=${encodedText}%20${encodedUrl}`;
+    onClose();
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(imageUrl || shareText);
+    } catch (error) {
+      console.error('Failed to copy link:', error);
+    }
+    onClose();
+  };
+
+  const targets = [
+    { key: 'facebook', label: 'Facebook', icon: Facebook, bg: 'bg-[#1877F2]', onClick: () => openWindow(`https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`) },
+    { key: 'x', label: 'X', icon: X, bg: 'bg-black', onClick: () => openWindow(`https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`) },
+    { key: 'instagram', label: 'Instagram', icon: Instagram, bg: 'bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF]', onClick: handleInstagramClick },
+    { key: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, bg: 'bg-[#25D366]', onClick: () => openWindow(`https://wa.me/?text=${encodedText}%20${encodedUrl}`) },
+    { key: 'viber', label: 'Viber', icon: Phone, bg: 'bg-[#7360F2]', onClick: () => openWindow(`viber://forward?text=${encodedText}%20${encodedUrl}`) },
+    { key: 'email', label: 'Email', icon: Mail, bg: 'bg-slate-500', onClick: handleEmailClick },
+    { key: 'copy', label: 'Copy Link', icon: Link2, bg: 'bg-slate-400', onClick: handleCopyLink },
+  ];
+
+  if (navigator.share) {
+    targets.push({ key: 'more', label: 'More', icon: Share2, bg: 'bg-slate-600', onClick: handleMoreClick });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 backdrop-blur-sm sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-slate-900">Share post</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-slate-400 transition-colors hover:text-slate-600">
+            ✕
+          </button>
+        </div>
+        <div className="grid grid-cols-4 gap-4">
+          {targets.map(({ key, label, icon: Icon, bg, onClick }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={onClick}
+              className="flex flex-col items-center gap-1.5 text-xs font-medium text-slate-600"
+            >
+              <span className={`flex h-12 w-12 items-center justify-center rounded-full text-white shadow-sm ${bg}`}>
+                <Icon className="h-5 w-5" />
+              </span>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShareButton({ post }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-1.5 transition-colors hover:text-blue-600"
+      >
+        <Share2 className="h-4 w-4" /> Share
+      </button>
+      {open && <ShareModal post={post} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+function CommentSection({ postId, commentData, onAddComment }) {
+  const [commentText, setCommentText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const comments = commentData?.list ?? [];
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const text = commentText.trim();
+    if (!text) return;
+    try {
+      setSubmitting(true);
+      await onAddComment(postId, text);
+      setCommentText('');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="mt-4 border-t border-slate-100 pt-4">
+      <div className="max-h-56 space-y-3 overflow-y-auto pr-1">
+        {comments.length > 0 ? (
+          comments.map((comment) => (
+            <div key={comment.id} className="flex items-start gap-2">
+              <LeaderAvatar name={comment.user_name} imageUrl={getFullImageUrl(comment.profile_image)} size="h-7 w-7" />
+              <div className="min-w-0 flex-1 rounded-lg bg-slate-50 px-3 py-2">
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="truncate text-xs font-semibold text-slate-700">{comment.user_name}</p>
+                  <p className="shrink-0 text-[10px] text-slate-400">{formatTimeAgo(comment.created_at)}</p>
+                </div>
+                <p className="mt-0.5 text-sm text-slate-600">{comment.comment}</p>
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="text-center text-xs text-slate-400">No comments yet</p>
+        )}
+      </div>
+      <form onSubmit={handleSubmit} className="mt-3 flex gap-2">
+        <input
+          value={commentText}
+          onChange={(e) => setCommentText(e.target.value)}
+          placeholder="Write a comment..."
+          className="flex-1 rounded-full border border-slate-200 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+        />
+        <button
+          type="submit"
+          disabled={submitting || !commentText.trim()}
+          className="rounded-full bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+        >
+          {submitting ? '…' : 'Post'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function PostCard({ post, index, currentUserId, onEdit, onDelete, likeData, onToggleLike, commentData, onAddComment }) {
   const canManage = currentUserId != null && post.user != null && Number(post.user) === Number(currentUserId);
   const likeCount = likeData?.count ?? 0;
   const likedByMe = likeData?.likedByMe ?? false;
+  const commentCount = commentData?.count ?? 0;
+  const [commentsOpen, setCommentsOpen] = useState(false);
 
   return (
     <article
@@ -288,13 +480,19 @@ function PostCard({ post, index, currentUserId, onEdit, onDelete, likeData, onTo
         >
           <span>{likedByMe ? '❤️' : '🤍'}</span> {likeCount}
         </button>
-        <button className="flex items-center gap-1.5 transition-colors hover:text-blue-600">
-          <span>💬</span> {post.comments || 0}
+        <button
+          type="button"
+          onClick={() => setCommentsOpen((prev) => !prev)}
+          className={`flex items-center gap-1.5 transition-colors hover:text-blue-600 ${commentsOpen ? 'text-blue-600' : ''}`}
+        >
+          <span>💬</span> {commentCount}
         </button>
-        <button className="flex items-center gap-1.5 transition-colors hover:text-blue-600">
-          <span>↗</span> Share
-        </button>
+        <ShareButton post={post} />
       </footer>
+
+      {commentsOpen && (
+        <CommentSection postId={post.id} commentData={commentData} onAddComment={onAddComment} />
+      )}
     </article>
   );
 }
@@ -381,7 +579,7 @@ function buildFeedItems(posts, challenges) {
   );
 }
 
-function Feed({ posts, challenges, loading = false, currentUserId, onEdit, onDelete, postLikes, onToggleLike }) {
+function Feed({ posts, challenges, loading = false, currentUserId, onEdit, onDelete, postLikes, onToggleLike, postComments, onAddComment }) {
   if (loading) {
     return (
       <div className="flex justify-center py-10">
@@ -415,6 +613,8 @@ function Feed({ posts, challenges, loading = false, currentUserId, onEdit, onDel
             onDelete={onDelete}
             likeData={postLikes?.[item.data.id]}
             onToggleLike={onToggleLike}
+            commentData={postComments?.[item.data.id]}
+            onAddComment={onAddComment}
           />
         )
       )}
@@ -468,6 +668,7 @@ export default function LeaderboardTab() {
   const [challengeError, setChallengeError] = useState(null);
   const [currentUserId] = useState(() => getUserData()?.id ?? null);
   const [postLikes, setPostLikes] = useState({});
+  const [postComments, setPostComments] = useState({});
   const [editingPost, setEditingPost] = useState(null);
   const [editFormData, setEditFormData] = useState({ summary: '', is_completed: false, photoFile: null });
   const [editSubmitting, setEditSubmitting] = useState(false);
@@ -517,40 +718,60 @@ export default function LeaderboardTab() {
     setPostLikes(Object.fromEntries(entries));
   }, [currentUserId]);
 
+  const fetchPostComments = useCallback(async (postList) => {
+    const entries = await Promise.all(
+      (postList || []).map(async (post) => {
+        try {
+          const data = await getPostComments(post.id);
+          return [post.id, { count: data.comment_count || 0, list: data.comments || [] }];
+        } catch (error) {
+          console.error(`Error fetching comments for post ${post.id}:`, error);
+          return [post.id, { count: 0, list: [] }];
+        }
+      })
+    );
+    setPostComments(Object.fromEntries(entries));
+  }, []);
+
   const fetchPosts = useCallback(async () => {
     try {
       setPostsLoading(true);
       const data = await getLeaderboardPosts();
       setPosts(data);
       fetchPostLikes(data);
+      fetchPostComments(data);
     } catch (error) {
       console.error('Error fetching leaderboard posts:', error);
     } finally {
       setPostsLoading(false);
     }
-  }, [fetchPostLikes]);
+  }, [fetchPostLikes, fetchPostComments]);
+
+  const handleAddComment = useCallback(async (postId, text) => {
+    try {
+      await addPostComment(postId, text);
+      const data = await getPostComments(postId);
+      setPostComments((prev) => ({
+        ...prev,
+        [postId]: { count: data.comment_count || 0, list: data.comments || [] },
+      }));
+    } catch (error) {
+      console.error(`Failed to add comment to post ${postId}:`, error);
+    }
+  }, []);
 
   const handleToggleLike = useCallback(async (postId) => {
-    setPostLikes((prev) => {
-      const current = prev[postId] || { count: 0, likedByMe: false };
-      return {
-        ...prev,
-        [postId]: {
-          count: current.likedByMe ? current.count - 1 : current.count + 1,
-          likedByMe: !current.likedByMe,
-        },
-      };
-    });
-
     try {
       const data = await toggleLikePost(postId);
-      const likedByMe = Array.isArray(data.likes) && data.likes.some((l) => Number(l.user) === Number(currentUserId));
-      setPostLikes((prev) => ({ ...prev, [postId]: { count: data.like_count || 0, likedByMe } }));
+      setPostLikes((prev) => ({
+        ...prev,
+        [postId]: { count: data.like_count || 0, likedByMe: !!data.liked },
+      }));
     } catch (error) {
       console.error(`Failed to toggle like for post ${postId}:`, error);
       fetchPostLikes(posts);
     }
-  }, [currentUserId, fetchPostLikes, posts]);
+  }, [fetchPostLikes, posts]);
 
   const fetchChallenges = useCallback(async () => {
     try {
@@ -741,6 +962,8 @@ export default function LeaderboardTab() {
             onDelete={handleDeletePost}
             postLikes={postLikes}
             onToggleLike={handleToggleLike}
+            postComments={postComments}
+            onAddComment={handleAddComment}
           />
         </div>
 
