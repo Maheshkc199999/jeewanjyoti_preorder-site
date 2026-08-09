@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getLeaderboard, getDailyLeaderboard, getLeaderboardPosts, createLeaderboardPost, updateLeaderboardPost, deleteLeaderboardPost } from '../../lib/api';
+import { getLeaderboard, getDailyLeaderboard, getLeaderboardPosts, createLeaderboardPost, updateLeaderboardPost, deleteLeaderboardPost, getLeaderboardChallenges, createLeaderboardChallenge } from '../../lib/api';
 import { getUserData } from '../../lib/tokenManager';
 
 const API_BASE_URL = 'https://jeewanjyoti-backend.smart.org.np';
@@ -20,6 +20,20 @@ const formatTimeAgo = (dateString) => {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  return new Date(dateString).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+
+const getChallengeStatus = (startDate, endDate) => {
+  const now = new Date();
+  const start = startDate ? new Date(startDate) : null;
+  const end = endDate ? new Date(endDate) : null;
+  if (start && now < start) return { label: 'Upcoming', className: 'bg-blue-100 text-blue-700' };
+  if (end && now > end) return { label: 'Ended', className: 'bg-slate-200 text-slate-600' };
+  return { label: 'Active', className: 'bg-emerald-100 text-emerald-700' };
 };
 
 function LeaderAvatar({ name, imageUrl, size = 'h-8 w-8' }) {
@@ -132,6 +146,18 @@ function DailyLeaderboard({ leaders, loading = false }) {
   );
 }
 
+const EMPTY_CHALLENGE_FORM = {
+  name: '',
+  description: '',
+  goal: '',
+  steps: '',
+  distance: '',
+  calories: '',
+  start_date: '',
+  end_date: '',
+  imageFile: null,
+};
+
 const METRIC_CONFIG = [
   { key: 'calories', label: 'Calories', format: (v) => Math.round(v || 0).toLocaleString() },
   { key: 'distance', label: 'Distance', format: (v) => `${(v || 0).toFixed(1)} km` },
@@ -241,14 +267,16 @@ function PostCard({ post, index, currentUserId, onEdit, onDelete }) {
         {post.summary || 'Shared an update.'}
       </p>
 
-      <div className="mt-4 grid grid-cols-3 divide-x divide-slate-100 rounded-xl border border-slate-100 bg-slate-50/60">
-        {METRIC_CONFIG.map(({ key, label, format }) => (
-          <div key={key} className="px-3 py-3 text-center">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
-            <p className="mt-1 text-base font-bold text-blue-700">{format(post[key])}</p>
-          </div>
-        ))}
-      </div>
+      {(post.calories || post.distance || post.steps) ? (
+        <div className="mt-4 grid grid-cols-3 divide-x divide-slate-100 rounded-xl border border-slate-100 bg-slate-50/60">
+          {METRIC_CONFIG.map(({ key, label, format }) => (
+            <div key={key} className="px-3 py-3 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
+              <p className="mt-1 text-base font-bold text-blue-700">{format(post[key])}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <footer className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-sm text-slate-500">
         <button className="flex items-center gap-1.5 transition-colors hover:text-blue-600">
@@ -265,7 +293,89 @@ function PostCard({ post, index, currentUserId, onEdit, onDelete }) {
   );
 }
 
-function Feed({ posts, loading = false, currentUserId, onEdit, onDelete }) {
+const CHALLENGE_METRIC_CONFIG = [
+  { key: 'steps', label: 'Step Goal', format: (v) => (v ? Number(v).toLocaleString() : '—') },
+  { key: 'distance', label: 'Distance Goal', format: (v) => (v ? `${Number(v).toFixed(1)} km` : '—') },
+  { key: 'calories', label: 'Calorie Goal', format: (v) => (v ? Math.round(Number(v)).toLocaleString() : '—') },
+];
+
+function ChallengeCard({ challenge, index }) {
+  const status = getChallengeStatus(challenge.start_date, challenge.end_date);
+
+  return (
+    <article
+      style={{ animationDelay: `${index * 60}ms` }}
+      className="animate-[fadeIn_0.4s_ease-out_both] rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm"
+    >
+      <header className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-400 text-lg text-white shadow-sm">
+          🏆
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+              Challenge
+            </span>
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${status.className}`}>
+              {status.label}
+            </span>
+          </div>
+          <h3 className="mt-1 truncate text-base font-bold text-slate-900">{challenge.name}</h3>
+          {challenge.user_name && (
+            <p className="text-xs text-slate-400">Created by {challenge.user_name}</p>
+          )}
+        </div>
+      </header>
+
+      {challenge.image && (
+        <ExpandableImage
+          src={getFullImageUrl(challenge.image)}
+          alt={challenge.name}
+          className="mt-4 h-auto max-h-[36rem] w-full rounded-xl border border-amber-100 object-contain"
+        />
+      )}
+
+      {challenge.description && (
+        <p className="mt-4 text-sm leading-relaxed text-slate-600">{challenge.description}</p>
+      )}
+
+      <div className="mt-4 grid grid-cols-3 divide-x divide-amber-100 rounded-xl border border-amber-100 bg-amber-50/60">
+        {CHALLENGE_METRIC_CONFIG.map(({ key, label, format }) => (
+          <div key={key} className="px-3 py-3 text-center">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-amber-700/70">{label}</p>
+            <p className="mt-1 text-base font-bold text-amber-700">{format(challenge[key])}</p>
+          </div>
+        ))}
+      </div>
+
+      <footer className="mt-4 flex items-center justify-center gap-2 border-t border-amber-100 pt-3 text-sm font-medium text-slate-500">
+        <span>📅</span>
+        <span>{formatDate(challenge.start_date)} – {formatDate(challenge.end_date)}</span>
+      </footer>
+    </article>
+  );
+}
+
+function buildFeedItems(posts, challenges) {
+  const postItems = (posts || []).map((post) => ({
+    type: 'post',
+    key: `post-${post.id}`,
+    sortKey: post.created_at || 0,
+    data: post,
+  }));
+  const challengeItems = (challenges || []).map((challenge) => ({
+    type: 'challenge',
+    key: `challenge-${challenge.id}`,
+    sortKey: challenge.created_at || 0,
+    data: challenge,
+  }));
+
+  return [...postItems, ...challengeItems].sort(
+    (a, b) => new Date(b.sortKey) - new Date(a.sortKey)
+  );
+}
+
+function Feed({ posts, challenges, loading = false, currentUserId, onEdit, onDelete }) {
   if (loading) {
     return (
       <div className="flex justify-center py-10">
@@ -274,7 +384,9 @@ function Feed({ posts, loading = false, currentUserId, onEdit, onDelete }) {
     );
   }
 
-  if (!posts || posts.length === 0) {
+  const feedItems = buildFeedItems(posts, challenges);
+
+  if (feedItems.length === 0) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400 shadow-sm">
         No posts yet
@@ -284,16 +396,20 @@ function Feed({ posts, loading = false, currentUserId, onEdit, onDelete }) {
 
   return (
     <div className="space-y-5">
-      {posts.map((post, index) => (
-        <PostCard
-          key={post.id}
-          post={post}
-          index={index}
-          currentUserId={currentUserId}
-          onEdit={onEdit}
-          onDelete={onDelete}
-        />
-      ))}
+      {feedItems.map((item, index) =>
+        item.type === 'challenge' ? (
+          <ChallengeCard key={item.key} challenge={item.data} index={index} />
+        ) : (
+          <PostCard
+            key={item.key}
+            post={item.data}
+            index={index}
+            currentUserId={currentUserId}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+        )
+      )}
     </div>
   );
 }
@@ -333,16 +449,18 @@ export default function LeaderboardTab() {
   const [dailyLeadersLoading, setDailyLeadersLoading] = useState(true);
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
-  const [challengeNames, setChallengeNames] = useState([]);
-  const [formData, setFormData] = useState({ summary: '', steps: '', distance: '', calories: '', is_completed: false, photoFile: null });
+  const [challenges, setChallenges] = useState([]);
+  const [formData, setFormData] = useState({ summary: '', is_completed: false, photoFile: null });
   const [showComposer, setShowComposer] = useState(false);
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState(null);
   const [showChallengeComposer, setShowChallengeComposer] = useState(false);
-  const [newChallengeName, setNewChallengeName] = useState('');
+  const [challengeFormData, setChallengeFormData] = useState(EMPTY_CHALLENGE_FORM);
+  const [challengeSubmitting, setChallengeSubmitting] = useState(false);
+  const [challengeError, setChallengeError] = useState(null);
   const [currentUserId] = useState(() => getUserData()?.id ?? null);
   const [editingPost, setEditingPost] = useState(null);
-  const [editFormData, setEditFormData] = useState({ summary: '', steps: '', distance: '', calories: '', is_completed: false, photoFile: null });
+  const [editFormData, setEditFormData] = useState({ summary: '', is_completed: false, photoFile: null });
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState(null);
 
@@ -386,11 +504,21 @@ export default function LeaderboardTab() {
     }
   }, []);
 
+  const fetchChallenges = useCallback(async () => {
+    try {
+      const data = await getLeaderboardChallenges();
+      setChallenges(data);
+    } catch (error) {
+      console.error('Error fetching leaderboard challenges:', error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchLeaderboard();
     fetchDailyLeaderboard();
     fetchPosts();
-  }, [fetchLeaderboard, fetchDailyLeaderboard, fetchPosts]);
+    fetchChallenges();
+  }, [fetchLeaderboard, fetchDailyLeaderboard, fetchPosts, fetchChallenges]);
 
   const handlePhotoChange = (event) => {
     const file = event.target.files?.[0];
@@ -404,9 +532,6 @@ export default function LeaderboardTab() {
 
     const payload = new FormData();
     payload.append('summary', formData.summary);
-    payload.append('steps', String(formData.steps || 0));
-    payload.append('distance', String(formData.distance || 0));
-    payload.append('calories', String(formData.calories || 0));
     payload.append('is_completed', String(formData.is_completed));
     if (formData.photoFile) {
       payload.append('image', formData.photoFile);
@@ -417,7 +542,7 @@ export default function LeaderboardTab() {
       setPostError(null);
       await createLeaderboardPost(payload);
 
-      setFormData({ summary: '', steps: '', distance: '', calories: '', is_completed: false, photoFile: null });
+      setFormData({ summary: '', is_completed: false, photoFile: null });
       setShowComposer(false);
       fetchPosts();
       fetchLeaderboard();
@@ -430,23 +555,54 @@ export default function LeaderboardTab() {
     }
   };
 
-  const handleAddChallenge = (event) => {
+  const handleChallengeFieldChange = (field) => (event) => {
+    setChallengeFormData((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const handleChallengeImageChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setChallengeFormData((prev) => ({ ...prev, imageFile: file }));
+  };
+
+  const handleAddChallenge = async (event) => {
     event.preventDefault();
-    const name = newChallengeName.trim();
+    const name = challengeFormData.name.trim();
     if (!name) return;
 
-    setChallengeNames((prev) => [name, ...prev.filter((c) => c !== name)].slice(0, 5));
-    setNewChallengeName('');
-    setShowChallengeComposer(false);
+    const payload = new FormData();
+    payload.append('name', name);
+    payload.append('description', challengeFormData.description);
+    payload.append('goal', challengeFormData.goal);
+    payload.append('steps', challengeFormData.steps);
+    payload.append('distance', challengeFormData.distance);
+    payload.append('calories', challengeFormData.calories);
+    payload.append('start_date', challengeFormData.start_date);
+    payload.append('end_date', challengeFormData.end_date);
+    if (challengeFormData.imageFile) {
+      payload.append('image', challengeFormData.imageFile);
+    }
+
+    try {
+      setChallengeSubmitting(true);
+      setChallengeError(null);
+      await createLeaderboardChallenge(payload);
+
+      setChallengeFormData(EMPTY_CHALLENGE_FORM);
+      setShowChallengeComposer(false);
+      fetchChallenges();
+    } catch (error) {
+      console.error('Failed to create challenge:', error);
+      setChallengeError(error.message || 'Failed to create challenge. Please try again.');
+    } finally {
+      setChallengeSubmitting(false);
+    }
   };
 
   const openEditPost = (post) => {
     setEditError(null);
     setEditFormData({
       summary: post.summary || '',
-      steps: post.steps ?? '',
-      distance: post.distance ?? '',
-      calories: post.calories ?? '',
       is_completed: !!post.is_completed,
       photoFile: null,
     });
@@ -465,9 +621,6 @@ export default function LeaderboardTab() {
 
     const payload = new FormData();
     payload.append('summary', editFormData.summary);
-    payload.append('steps', String(editFormData.steps || 0));
-    payload.append('distance', String(editFormData.distance || 0));
-    payload.append('calories', String(editFormData.calories || 0));
     payload.append('is_completed', String(editFormData.is_completed));
     if (editFormData.photoFile) {
       payload.append('image', editFormData.photoFile);
@@ -533,6 +686,7 @@ export default function LeaderboardTab() {
           </div>
           <Feed
             posts={posts}
+            challenges={challenges}
             loading={postsLoading}
             currentUserId={currentUserId}
             onEdit={openEditPost}
@@ -541,7 +695,7 @@ export default function LeaderboardTab() {
         </div>
 
         <div className="hidden lg:sticky lg:top-20 lg:block lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
-          <RightSidebar challenges={challengeNames} />
+          <RightSidebar challenges={challenges.map((c) => c.name)} />
         </div>
       </div>
 
@@ -591,36 +745,6 @@ export default function LeaderboardTab() {
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-blue-600 focus:border-blue-400 focus:outline-none"
                 />
               </label>
-              <div className="grid grid-cols-3 gap-3">
-                <label>
-                  <span className="mb-1 block text-xs font-medium text-slate-500">Steps</span>
-                  <input
-                    type="number"
-                    value={formData.steps}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, steps: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
-                </label>
-                <label>
-                  <span className="mb-1 block text-xs font-medium text-slate-500">Distance (km)</span>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={formData.distance}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, distance: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
-                </label>
-                <label>
-                  <span className="mb-1 block text-xs font-medium text-slate-500">Calories</span>
-                  <input
-                    type="number"
-                    value={formData.calories}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, calories: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
-                </label>
-              </div>
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -660,7 +784,7 @@ export default function LeaderboardTab() {
           <form
             onSubmit={handleAddChallenge}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
+            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
           >
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-base font-semibold text-slate-900">Add a challenge</h2>
@@ -674,23 +798,114 @@ export default function LeaderboardTab() {
               </button>
             </div>
 
-            <label>
-              <span className="mb-1 block text-xs font-medium text-slate-500">Challenge name</span>
-              <input
-                value={newChallengeName}
-                onChange={(e) => setNewChallengeName(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                placeholder="Morning Walk"
-                autoFocus
-              />
-            </label>
+            {challengeError && (
+              <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{challengeError}</p>
+            )}
+
+            <div className="grid gap-3">
+              <label>
+                <span className="mb-1 block text-xs font-medium text-slate-500">Challenge name</span>
+                <input
+                  value={challengeFormData.name}
+                  onChange={handleChallengeFieldChange('name')}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  placeholder="10K Steps Challenge"
+                  autoFocus
+                  required
+                />
+              </label>
+
+              <label>
+                <span className="mb-1 block text-xs font-medium text-slate-500">Description</span>
+                <textarea
+                  value={challengeFormData.description}
+                  onChange={handleChallengeFieldChange('description')}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  rows={3}
+                  placeholder="Walk 10,000 steps every day for one week!"
+                />
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Goal</span>
+                  <input
+                    type="number"
+                    value={challengeFormData.goal}
+                    onChange={handleChallengeFieldChange('goal')}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    placeholder="10000"
+                  />
+                </label>
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Steps</span>
+                  <input
+                    type="number"
+                    value={challengeFormData.steps}
+                    onChange={handleChallengeFieldChange('steps')}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    placeholder="10000"
+                  />
+                </label>
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Distance (km)</span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={challengeFormData.distance}
+                    onChange={handleChallengeFieldChange('distance')}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    placeholder="7.5"
+                  />
+                </label>
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Calories</span>
+                  <input
+                    type="number"
+                    value={challengeFormData.calories}
+                    onChange={handleChallengeFieldChange('calories')}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    placeholder="500"
+                  />
+                </label>
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Start date</span>
+                  <input
+                    type="date"
+                    value={challengeFormData.start_date}
+                    onChange={handleChallengeFieldChange('start_date')}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">End date</span>
+                  <input
+                    type="date"
+                    value={challengeFormData.end_date}
+                    onChange={handleChallengeFieldChange('end_date')}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+              </div>
+
+              <label>
+                <span className="mb-1 block text-xs font-medium text-slate-500">Image</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleChallengeImageChange}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-blue-600 focus:border-blue-400 focus:outline-none"
+                />
+              </label>
+            </div>
 
             <div className="mt-5 flex gap-3">
               <button
                 type="submit"
-                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                disabled={challengeSubmitting}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
               >
-                Add
+                {challengeSubmitting ? 'Adding…' : 'Add'}
               </button>
               <button
                 type="button"
@@ -741,36 +956,6 @@ export default function LeaderboardTab() {
                   placeholder="Share an update..."
                 />
               </label>
-              <div className="grid grid-cols-3 gap-3">
-                <label>
-                  <span className="mb-1 block text-xs font-medium text-slate-500">Steps</span>
-                  <input
-                    type="number"
-                    value={editFormData.steps}
-                    onChange={(e) => setEditFormData((prev) => ({ ...prev, steps: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
-                </label>
-                <label>
-                  <span className="mb-1 block text-xs font-medium text-slate-500">Distance (km)</span>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={editFormData.distance}
-                    onChange={(e) => setEditFormData((prev) => ({ ...prev, distance: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
-                </label>
-                <label>
-                  <span className="mb-1 block text-xs font-medium text-slate-500">Calories</span>
-                  <input
-                    type="number"
-                    value={editFormData.calories}
-                    onChange={(e) => setEditFormData((prev) => ({ ...prev, calories: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
-                </label>
-              </div>
               <label>
                 <span className="mb-1 block text-xs font-medium text-slate-500">Photo</span>
                 <input

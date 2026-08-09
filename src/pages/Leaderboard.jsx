@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import jjlogo from '../assets/jjlogo.png';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserData } from '../lib/tokenManager';
-import { getLeaderboard, getLeaderboardPosts, createLeaderboardPost, updateLeaderboardPost, deleteLeaderboardPost } from '../lib/api';
+import { getLeaderboard, getLeaderboardPosts, createLeaderboardPost, updateLeaderboardPost, deleteLeaderboardPost, getLeaderboardChallenges, createLeaderboardChallenge } from '../lib/api';
 
 const API_BASE_URL = 'https://jeewanjyoti-backend.smart.org.np';
 
@@ -22,6 +22,20 @@ const formatTimeAgo = (dateString) => {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  return new Date(dateString).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+
+const getChallengeStatus = (startDate, endDate) => {
+  const now = new Date();
+  const start = startDate ? new Date(startDate) : null;
+  const end = endDate ? new Date(endDate) : null;
+  if (start && now < start) return { label: 'Upcoming', className: 'bg-blue-100 text-blue-700' };
+  if (end && now > end) return { label: 'Ended', className: 'bg-gray-200 text-gray-600' };
+  return { label: 'Active', className: 'bg-green-100 text-green-700' };
 };
 
 function Navbar() {
@@ -183,7 +197,135 @@ function ExpandableImage({ src, alt, className }) {
   );
 }
 
-function Feed({ posts, loading = false, currentUserId, onEdit, onDelete }) {
+function PostFeedCard({ post, currentUserId, onEdit, onDelete }) {
+  const canManage = currentUserId != null && post.user != null && Number(post.user) === Number(currentUserId);
+  return (
+    <div className="rounded-xl bg-white p-6 shadow">
+      <div className="flex items-center gap-3">
+        <LeaderAvatar name={post.user_name} imageUrl={getFullImageUrl(post.profile_image)} />
+        <div>
+          <h2 className="font-bold">{post.user_name}</h2>
+          <p className="text-sm text-gray-500">{formatTimeAgo(post.created_at)}</p>
+        </div>
+        {canManage && <PostMenu onEdit={() => onEdit(post)} onDelete={() => onDelete(post.id)} />}
+      </div>
+
+      <div className="mt-5">
+        {post.image && (
+          <ExpandableImage
+            src={getFullImageUrl(post.image)}
+            alt={post.user_name}
+            className="mb-4 h-auto max-h-[36rem] w-full rounded-xl object-contain"
+          />
+        )}
+        <p className="text-sm leading-6 text-gray-600">{post.summary || 'Shared an update.'}</p>
+        {(post.calories || post.distance || post.steps) ? (
+          <div className="mt-5 grid grid-cols-3 gap-4">
+            <div className="rounded-lg bg-red-50 p-4">
+              <p className="text-gray-500">Calories</p>
+              <h2 className="text-2xl font-bold">{Math.round(post.calories || 0)}</h2>
+            </div>
+            <div className="rounded-lg bg-blue-50 p-4">
+              <p className="text-gray-500">Distance</p>
+              <h2 className="text-2xl font-bold">{(post.distance || 0).toFixed(1)} km</h2>
+            </div>
+            <div className="rounded-lg bg-green-50 p-4">
+              <p className="text-gray-500">Steps</p>
+              <h2 className="text-2xl font-bold">{(post.steps || 0).toLocaleString()}</h2>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="mt-6 flex justify-between border-t pt-4 text-gray-500">
+        <button>❤️ {post.likes || 0}</button>
+        <button>💬 {post.comments || 0}</button>
+        <button>↗ Share</button>
+      </div>
+    </div>
+  );
+}
+
+function ChallengeFeedCard({ challenge }) {
+  const status = getChallengeStatus(challenge.start_date, challenge.end_date);
+
+  return (
+    <div className="rounded-xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-white p-6 shadow">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-400 text-lg text-white shadow-sm">
+          🏆
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+              Challenge
+            </span>
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${status.className}`}>
+              {status.label}
+            </span>
+          </div>
+          <h2 className="mt-1 font-bold text-gray-900">{challenge.name}</h2>
+          {challenge.user_name && (
+            <p className="text-xs text-gray-400">Created by {challenge.user_name}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-5">
+        {challenge.image && (
+          <ExpandableImage
+            src={getFullImageUrl(challenge.image)}
+            alt={challenge.name}
+            className="mb-4 h-auto max-h-[36rem] w-full rounded-xl object-contain"
+          />
+        )}
+        {challenge.description && (
+          <p className="text-sm leading-6 text-gray-600">{challenge.description}</p>
+        )}
+        <div className="mt-5 grid grid-cols-3 gap-4">
+          <div className="rounded-lg bg-amber-100/70 p-4">
+            <p className="text-amber-700/70">Step Goal</p>
+            <h2 className="text-2xl font-bold text-amber-700">{challenge.steps ? Number(challenge.steps).toLocaleString() : '—'}</h2>
+          </div>
+          <div className="rounded-lg bg-amber-100/70 p-4">
+            <p className="text-amber-700/70">Distance Goal</p>
+            <h2 className="text-2xl font-bold text-amber-700">{challenge.distance ? `${Number(challenge.distance).toFixed(1)} km` : '—'}</h2>
+          </div>
+          <div className="rounded-lg bg-amber-100/70 p-4">
+            <p className="text-amber-700/70">Calorie Goal</p>
+            <h2 className="text-2xl font-bold text-amber-700">{challenge.calories ? Math.round(Number(challenge.calories)).toLocaleString() : '—'}</h2>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 flex items-center justify-center gap-2 border-t border-amber-200 pt-4 text-sm font-medium text-gray-500">
+        <span>📅</span>
+        <span>{formatDate(challenge.start_date)} – {formatDate(challenge.end_date)}</span>
+      </div>
+    </div>
+  );
+}
+
+function buildFeedItems(posts, challenges) {
+  const postItems = (posts || []).map((post) => ({
+    type: 'post',
+    key: `post-${post.id}`,
+    sortKey: post.created_at || 0,
+    data: post,
+  }));
+  const challengeItems = (challenges || []).map((challenge) => ({
+    type: 'challenge',
+    key: `challenge-${challenge.id}`,
+    sortKey: challenge.created_at || 0,
+    data: challenge,
+  }));
+
+  return [...postItems, ...challengeItems].sort(
+    (a, b) => new Date(b.sortKey) - new Date(a.sortKey)
+  );
+}
+
+function Feed({ posts, challenges, loading = false, currentUserId, onEdit, onDelete }) {
   if (loading) {
     return (
       <div className="flex justify-center py-8">
@@ -192,7 +334,9 @@ function Feed({ posts, loading = false, currentUserId, onEdit, onDelete }) {
     );
   }
 
-  if (!posts || posts.length === 0) {
+  const feedItems = buildFeedItems(posts, challenges);
+
+  if (feedItems.length === 0) {
     return (
       <div className="rounded-xl bg-white p-6 text-center text-sm text-gray-500 shadow">
         No posts yet
@@ -202,55 +346,34 @@ function Feed({ posts, loading = false, currentUserId, onEdit, onDelete }) {
 
   return (
     <div className="space-y-6">
-      {posts.map((post) => {
-        const canManage = currentUserId != null && post.user != null && Number(post.user) === Number(currentUserId);
-        return (
-          <div key={post.id} className="rounded-xl bg-white p-6 shadow">
-            <div className="flex items-center gap-3">
-              <LeaderAvatar name={post.user_name} imageUrl={getFullImageUrl(post.profile_image)} />
-              <div>
-                <h2 className="font-bold">{post.user_name}</h2>
-                <p className="text-sm text-gray-500">{formatTimeAgo(post.created_at)}</p>
-              </div>
-              {canManage && <PostMenu onEdit={() => onEdit(post)} onDelete={() => onDelete(post.id)} />}
-            </div>
-
-            <div className="mt-5">
-              {post.image && (
-                <ExpandableImage
-                  src={getFullImageUrl(post.image)}
-                  alt={post.user_name}
-                  className="mb-4 h-auto max-h-[36rem] w-full rounded-xl object-contain"
-                />
-              )}
-              <p className="text-sm leading-6 text-gray-600">{post.summary || 'Shared an update.'}</p>
-              <div className="mt-5 grid grid-cols-3 gap-4">
-                <div className="rounded-lg bg-red-50 p-4">
-                  <p className="text-gray-500">Calories</p>
-                  <h2 className="text-2xl font-bold">{Math.round(post.calories || 0)}</h2>
-                </div>
-                <div className="rounded-lg bg-blue-50 p-4">
-                  <p className="text-gray-500">Distance</p>
-                  <h2 className="text-2xl font-bold">{(post.distance || 0).toFixed(1)} km</h2>
-                </div>
-                <div className="rounded-lg bg-green-50 p-4">
-                  <p className="text-gray-500">Steps</p>
-                  <h2 className="text-2xl font-bold">{(post.steps || 0).toLocaleString()}</h2>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-between border-t pt-4 text-gray-500">
-              <button>❤️ {post.likes || 0}</button>
-              <button>💬 {post.comments || 0}</button>
-              <button>↗ Share</button>
-            </div>
-          </div>
-        );
-      })}
+      {feedItems.map((item) =>
+        item.type === 'challenge' ? (
+          <ChallengeFeedCard key={item.key} challenge={item.data} />
+        ) : (
+          <PostFeedCard
+            key={item.key}
+            post={item.data}
+            currentUserId={currentUserId}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+        )
+      )}
     </div>
   );
 }
+
+const EMPTY_CHALLENGE_FORM = {
+  name: '',
+  description: '',
+  goal: '',
+  steps: '',
+  distance: '',
+  calories: '',
+  start_date: '',
+  end_date: '',
+  imageFile: null,
+};
 
 const CHALLENGE_STYLES = ['bg-green-50', 'bg-red-50', 'bg-blue-50', 'bg-yellow-50', 'bg-purple-50'];
 
@@ -313,8 +436,12 @@ export default function LeaderboardPage() {
   const [leaders, setLeaders] = useState([]);
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
-  const [challengeNames] = useState([]);
-  const [formData, setFormData] = useState({ summary: '', steps: '', distance: '', calories: '', is_completed: false, photoFile: null });
+  const [challenges, setChallenges] = useState([]);
+  const [formData, setFormData] = useState({ summary: '', is_completed: false, photoFile: null });
+  const [showChallengeComposer, setShowChallengeComposer] = useState(false);
+  const [challengeFormData, setChallengeFormData] = useState(EMPTY_CHALLENGE_FORM);
+  const [challengeSubmitting, setChallengeSubmitting] = useState(false);
+  const [challengeError, setChallengeError] = useState(null);
   const [profile, setProfile] = useState({ name: '', photo: '' });
   const [showComposer, setShowComposer] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -323,7 +450,7 @@ export default function LeaderboardPage() {
   const [postError, setPostError] = useState(null);
   const [currentUserId] = useState(() => getUserData()?.id ?? null);
   const [editingPost, setEditingPost] = useState(null);
-  const [editFormData, setEditFormData] = useState({ summary: '', steps: '', distance: '', calories: '', is_completed: false, photoFile: null });
+  const [editFormData, setEditFormData] = useState({ summary: '', is_completed: false, photoFile: null });
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState(null);
   const { user } = useAuth();
@@ -363,10 +490,20 @@ export default function LeaderboardPage() {
     }
   }, []);
 
+  const fetchChallenges = useCallback(async () => {
+    try {
+      const data = await getLeaderboardChallenges();
+      setChallenges(data);
+    } catch (err) {
+      console.error('Error fetching leaderboard challenges:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchLeaderboard();
     fetchPosts();
-  }, [fetchLeaderboard, fetchPosts]);
+    fetchChallenges();
+  }, [fetchLeaderboard, fetchPosts, fetchChallenges]);
 
   // Get user data from localStorage (from login) to show a "Posting as" preview
   useEffect(() => {
@@ -406,9 +543,6 @@ export default function LeaderboardPage() {
 
     const payload = new FormData();
     payload.append('summary', formData.summary);
-    payload.append('steps', String(formData.steps || 0));
-    payload.append('distance', String(formData.distance || 0));
-    payload.append('calories', String(formData.calories || 0));
     payload.append('is_completed', String(formData.is_completed));
     if (formData.photoFile) {
       payload.append('image', formData.photoFile);
@@ -419,7 +553,7 @@ export default function LeaderboardPage() {
       setPostError(null);
       await createLeaderboardPost(payload);
 
-      setFormData({ summary: '', steps: '', distance: '', calories: '', is_completed: false, photoFile: null });
+      setFormData({ summary: '', is_completed: false, photoFile: null });
       setShowComposer(false);
       fetchPosts();
       fetchLeaderboard();
@@ -431,13 +565,54 @@ export default function LeaderboardPage() {
     }
   };
 
+  const handleChallengeFieldChange = (field) => (event) => {
+    setChallengeFormData((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const handleChallengeImageChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setChallengeFormData((prev) => ({ ...prev, imageFile: file }));
+  };
+
+  const handleAddChallenge = async (event) => {
+    event.preventDefault();
+    const name = challengeFormData.name.trim();
+    if (!name) return;
+
+    const payload = new FormData();
+    payload.append('name', name);
+    payload.append('description', challengeFormData.description);
+    payload.append('goal', challengeFormData.goal);
+    payload.append('steps', challengeFormData.steps);
+    payload.append('distance', challengeFormData.distance);
+    payload.append('calories', challengeFormData.calories);
+    payload.append('start_date', challengeFormData.start_date);
+    payload.append('end_date', challengeFormData.end_date);
+    if (challengeFormData.imageFile) {
+      payload.append('image', challengeFormData.imageFile);
+    }
+
+    try {
+      setChallengeSubmitting(true);
+      setChallengeError(null);
+      await createLeaderboardChallenge(payload);
+
+      setChallengeFormData(EMPTY_CHALLENGE_FORM);
+      setShowChallengeComposer(false);
+      fetchChallenges();
+    } catch (err) {
+      console.error('Failed to create challenge:', err);
+      setChallengeError(err.message || 'Failed to create challenge. Please try again.');
+    } finally {
+      setChallengeSubmitting(false);
+    }
+  };
+
   const openEditPost = (post) => {
     setEditError(null);
     setEditFormData({
       summary: post.summary || '',
-      steps: post.steps ?? '',
-      distance: post.distance ?? '',
-      calories: post.calories ?? '',
       is_completed: !!post.is_completed,
       photoFile: null,
     });
@@ -456,9 +631,6 @@ export default function LeaderboardPage() {
 
     const payload = new FormData();
     payload.append('summary', editFormData.summary);
-    payload.append('steps', String(editFormData.steps || 0));
-    payload.append('distance', String(editFormData.distance || 0));
-    payload.append('calories', String(editFormData.calories || 0));
     payload.append('is_completed', String(editFormData.is_completed));
     if (editFormData.photoFile) {
       payload.append('image', editFormData.photoFile);
@@ -516,6 +688,7 @@ export default function LeaderboardPage() {
         <div className="min-w-0 flex-1 space-y-6">
           <Feed
             posts={posts}
+            challenges={challenges}
             loading={postsLoading}
             currentUserId={currentUserId}
             onEdit={openEditPost}
@@ -525,8 +698,8 @@ export default function LeaderboardPage() {
 
         <div className="hidden w-80 shrink-0 xl:sticky xl:top-20 xl:block xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-1">
           <RightSidebar
-            challenges={challengeNames}
-            onAddClick={() => setShowComposer(true)}
+            challenges={challenges.map((c) => c.name)}
+            onAddClick={() => setShowChallengeComposer(true)}
           />
         </div>
       </div>
@@ -584,36 +757,6 @@ export default function LeaderboardPage() {
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-gray-500"
                 />
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Steps</label>
-                  <input
-                    type="number"
-                    value={formData.steps}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, steps: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Distance (km)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={formData.distance}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, distance: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Calories</label>
-                  <input
-                    type="number"
-                    value={formData.calories}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, calories: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
-                  />
-                </div>
-              </div>
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -629,6 +772,125 @@ export default function LeaderboardPage() {
                 {posting ? 'Posting…' : 'Submit'}
               </button>
               <button type="button" onClick={() => setShowComposer(false)} className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700">
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showChallengeComposer && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowChallengeComposer(false)}
+        >
+          <form
+            onSubmit={handleAddChallenge}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl"
+          >
+            <h2 className="mb-4 text-lg font-bold">Add a challenge</h2>
+            {challengeError && (
+              <p className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-700">{challengeError}</p>
+            )}
+
+            <div className="grid gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Challenge name</label>
+                <input
+                  value={challengeFormData.name}
+                  onChange={handleChallengeFieldChange('name')}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  placeholder="10K Steps Challenge"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  value={challengeFormData.description}
+                  onChange={handleChallengeFieldChange('description')}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  rows={3}
+                  placeholder="Walk 10,000 steps every day for one week!"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Goal</label>
+                  <input
+                    type="number"
+                    value={challengeFormData.goal}
+                    onChange={handleChallengeFieldChange('goal')}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    placeholder="10000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Steps</label>
+                  <input
+                    type="number"
+                    value={challengeFormData.steps}
+                    onChange={handleChallengeFieldChange('steps')}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    placeholder="10000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Distance (km)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={challengeFormData.distance}
+                    onChange={handleChallengeFieldChange('distance')}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    placeholder="7.5"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Calories</label>
+                  <input
+                    type="number"
+                    value={challengeFormData.calories}
+                    onChange={handleChallengeFieldChange('calories')}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    placeholder="500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Start date</label>
+                  <input
+                    type="date"
+                    value={challengeFormData.start_date}
+                    onChange={handleChallengeFieldChange('start_date')}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">End date</label>
+                  <input
+                    type="date"
+                    value={challengeFormData.end_date}
+                    onChange={handleChallengeFieldChange('end_date')}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Image</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleChallengeImageChange}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-gray-500"
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex gap-3">
+              <button type="submit" disabled={challengeSubmitting} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white disabled:opacity-60">
+                {challengeSubmitting ? 'Adding…' : 'Add'}
+              </button>
+              <button type="button" onClick={() => setShowChallengeComposer(false)} className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700">
                 Cancel
               </button>
             </div>
@@ -661,36 +923,6 @@ export default function LeaderboardPage() {
                   rows={3}
                   placeholder="Share an update..."
                 />
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Steps</label>
-                  <input
-                    type="number"
-                    value={editFormData.steps}
-                    onChange={(e) => setEditFormData((prev) => ({ ...prev, steps: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Distance (km)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={editFormData.distance}
-                    onChange={(e) => setEditFormData((prev) => ({ ...prev, distance: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Calories</label>
-                  <input
-                    type="number"
-                    value={editFormData.calories}
-                    onChange={(e) => setEditFormData((prev) => ({ ...prev, calories: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
-                  />
-                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Photo</label>

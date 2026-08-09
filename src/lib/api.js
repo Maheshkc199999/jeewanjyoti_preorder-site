@@ -820,6 +820,52 @@ export async function deleteLeaderboardPost(postId) {
   }
 }
 
+/**
+ * Get the leaderboard challenges list
+ * @returns {Promise<Array>} List of challenges
+ */
+export async function getLeaderboardChallenges() {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/leaderboard/challenge/`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch challenges: ${response.status}`)
+  }
+
+  const data = await response.json()
+  return Array.isArray(data.challenges) ? data.challenges : []
+}
+
+/**
+ * Create a leaderboard challenge
+ * @param {FormData} formData - multipart body: name, description, goal, steps, distance, calories, start_date, end_date, image
+ * @returns {Promise<object>} Created challenge
+ */
+export async function createLeaderboardChallenge(formData) {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/leaderboard/challenge/`, {
+    method: 'POST',
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: formData,
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const error = new Error(data.detail || 'Failed to create challenge')
+    error.details = data
+    throw error
+  }
+  return data
+}
+
 export const initializePayment = async (token, invoiceNo, amount) => {
   return await apiRequest('/initialize_payment/', {
     method: 'POST',
