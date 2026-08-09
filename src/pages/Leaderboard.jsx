@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import jjlogo from '../assets/jjlogo.png';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserData } from '../lib/tokenManager';
-import { getLeaderboard, getLeaderboardPosts, createLeaderboardPost, updateLeaderboardPost, deleteLeaderboardPost, getLeaderboardChallenges, createLeaderboardChallenge } from '../lib/api';
+import { getLeaderboard, getLeaderboardPosts, createLeaderboardPost, updateLeaderboardPost, deleteLeaderboardPost, getLeaderboardChallenges, createLeaderboardChallenge, getPostLikes, toggleLikePost } from '../lib/api';
 
 const API_BASE_URL = 'https://jeewanjyoti-backend.smart.org.np';
 
@@ -197,8 +197,10 @@ function ExpandableImage({ src, alt, className }) {
   );
 }
 
-function PostFeedCard({ post, currentUserId, onEdit, onDelete }) {
+function PostFeedCard({ post, currentUserId, onEdit, onDelete, likeData, onToggleLike }) {
   const canManage = currentUserId != null && post.user != null && Number(post.user) === Number(currentUserId);
+  const likeCount = likeData?.count ?? 0;
+  const likedByMe = likeData?.likedByMe ?? false;
   return (
     <div className="rounded-xl bg-white p-6 shadow">
       <div className="flex items-center gap-3">
@@ -238,7 +240,13 @@ function PostFeedCard({ post, currentUserId, onEdit, onDelete }) {
       </div>
 
       <div className="mt-6 flex justify-between border-t pt-4 text-gray-500">
-        <button>❤️ {post.likes || 0}</button>
+        <button
+          type="button"
+          onClick={() => onToggleLike(post.id)}
+          className={`transition-colors hover:text-red-600 ${likedByMe ? 'text-red-600' : ''}`}
+        >
+          {likedByMe ? '❤️' : '🤍'} {likeCount}
+        </button>
         <button>💬 {post.comments || 0}</button>
         <button>↗ Share</button>
       </div>
@@ -325,7 +333,7 @@ function buildFeedItems(posts, challenges) {
   );
 }
 
-function Feed({ posts, challenges, loading = false, currentUserId, onEdit, onDelete }) {
+function Feed({ posts, challenges, loading = false, currentUserId, onEdit, onDelete, postLikes, onToggleLike }) {
   if (loading) {
     return (
       <div className="flex justify-center py-8">
@@ -356,6 +364,8 @@ function Feed({ posts, challenges, loading = false, currentUserId, onEdit, onDel
             currentUserId={currentUserId}
             onEdit={onEdit}
             onDelete={onDelete}
+            likeData={postLikes?.[item.data.id]}
+            onToggleLike={onToggleLike}
           />
         )
       )}
@@ -449,6 +459,7 @@ export default function LeaderboardPage() {
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState(null);
   const [currentUserId] = useState(() => getUserData()?.id ?? null);
+  const [postLikes, setPostLikes] = useState({});
   const [editingPost, setEditingPost] = useState(null);
   const [editFormData, setEditFormData] = useState({ summary: '', is_completed: false, photoFile: null });
   const [editSubmitting, setEditSubmitting] = useState(false);
@@ -477,18 +488,57 @@ export default function LeaderboardPage() {
     }
   }, []);
 
+  const fetchPostLikes = useCallback(async (postList) => {
+    const entries = await Promise.all(
+      (postList || []).map(async (post) => {
+        try {
+          const data = await getPostLikes(post.id);
+          const likedByMe = Array.isArray(data.likes) && data.likes.some((l) => Number(l.user) === Number(currentUserId));
+          return [post.id, { count: data.like_count || 0, likedByMe }];
+        } catch (err) {
+          console.error(`Error fetching likes for post ${post.id}:`, err);
+          return [post.id, { count: 0, likedByMe: false }];
+        }
+      })
+    );
+    setPostLikes(Object.fromEntries(entries));
+  }, [currentUserId]);
+
   // Fetch posts feed from API
   const fetchPosts = useCallback(async () => {
     try {
       setPostsLoading(true);
       const data = await getLeaderboardPosts();
       setPosts(data);
+      fetchPostLikes(data);
     } catch (err) {
       console.error('Error fetching leaderboard posts:', err);
     } finally {
       setPostsLoading(false);
     }
-  }, []);
+  }, [fetchPostLikes]);
+
+  const handleToggleLike = useCallback(async (postId) => {
+    setPostLikes((prev) => {
+      const current = prev[postId] || { count: 0, likedByMe: false };
+      return {
+        ...prev,
+        [postId]: {
+          count: current.likedByMe ? current.count - 1 : current.count + 1,
+          likedByMe: !current.likedByMe,
+        },
+      };
+    });
+
+    try {
+      const data = await toggleLikePost(postId);
+      const likedByMe = Array.isArray(data.likes) && data.likes.some((l) => Number(l.user) === Number(currentUserId));
+      setPostLikes((prev) => ({ ...prev, [postId]: { count: data.like_count || 0, likedByMe } }));
+    } catch (err) {
+      console.error(`Failed to toggle like for post ${postId}:`, err);
+      fetchPostLikes(posts);
+    }
+  }, [currentUserId, fetchPostLikes, posts]);
 
   const fetchChallenges = useCallback(async () => {
     try {
@@ -693,6 +743,8 @@ export default function LeaderboardPage() {
             currentUserId={currentUserId}
             onEdit={openEditPost}
             onDelete={handleDeletePost}
+            postLikes={postLikes}
+            onToggleLike={handleToggleLike}
           />
         </div>
 

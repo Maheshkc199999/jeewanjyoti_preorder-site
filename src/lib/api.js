@@ -866,6 +866,52 @@ export async function createLeaderboardChallenge(formData) {
   return data
 }
 
+/**
+ * Get likes for a leaderboard post
+ * @param {number|string} postId
+ * @returns {Promise<{like_count: number, likes: Array}>}
+ */
+export async function getPostLikes(postId) {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/posts/${postId}/like/`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch post likes: ${response.status}`)
+  }
+
+  return await response.json()
+}
+
+/**
+ * Toggle like/unlike on a leaderboard post for the current user
+ * @param {number|string} postId
+ * @returns {Promise<{like_count: number, likes: Array}>}
+ */
+export async function toggleLikePost(postId) {
+  const accessToken = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/posts/${postId}/like/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const error = new Error(data.detail || 'Failed to toggle like')
+    error.details = data
+    throw error
+  }
+  return data
+}
+
 export const initializePayment = async (token, invoiceNo, amount) => {
   return await apiRequest('/initialize_payment/', {
     method: 'POST',
