@@ -488,6 +488,7 @@ const Dashboard = () => {
             selectedUserInfo={getSelectedUserInfo()}
             globalDateFilter={globalDateFilter}
             globalDateRange={globalDateRange}
+            userStatuses={userStatuses}
           />
         );
       case 'appointments':
@@ -508,7 +509,7 @@ const Dashboard = () => {
       case 'settings':
         return <SettingsTab darkMode={darkMode} />;
       default:
-        return <HomeTab darkMode={darkMode} selectedPeriod={selectedPeriod} setSelectedPeriod={setSelectedPeriod} />;
+        return <HomeTab darkMode={darkMode} selectedPeriod={selectedPeriod} setSelectedPeriod={setSelectedPeriod} userStatuses={userStatuses} />;
     }
   };
 

@@ -138,7 +138,8 @@ const HomeTab = ({
   selectedUserId,
   selectedUserInfo,
   globalDateFilter,
-  globalDateRange
+  globalDateRange,
+  userStatuses = {}
 }) => {
   // State for all health data
   const [sleepData, setSleepData] = useState(null);
@@ -195,6 +196,15 @@ const HomeTab = ({
       ? stepsData.step.toLocaleString()
       : '—';
   }, [stepsData]);
+
+  // Get user online status
+  const userStatus = useMemo(() => {
+    if (selectedUserId && userStatuses[selectedUserId]) {
+      const status = userStatuses[selectedUserId].status;
+      return status === 'online' ? 'Online' : 'Offline';
+    }
+    return null;
+  }, [selectedUserId, userStatuses]);
 
   // Format date range for display
   const getDateRangeDisplay = () => {
@@ -429,7 +439,7 @@ const HomeTab = ({
             </div>
           </div>
 
-          {/* Center: Loading Indicator or Calendar */}
+          {/* Center: Loading Indicator or Status + Calendar */}
           {isLoading ? (
             <div className="flex items-center gap-2 px-3 py-1.5 flex-shrink-0">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
@@ -438,18 +448,34 @@ const HomeTab = ({
               </span>
             </div>
           ) : (
-            <div className="hidden md:flex items-center gap-3 px-4 py-2 flex-shrink-0">
-              <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-blue-50'}`}>
-                <Calendar className={`w-5 h-5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
-              </div>
-              <div className="text-right">
-                <p className={`text-xs font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>TODAY</p>
-                <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  {new Date().toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric'
-                  })}
-                </p>
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-4 px-4 py-2 flex-shrink-0">
+              {/* Online/Offline Status */}
+              {selectedUserId && (
+                <div className="flex items-center gap-2">
+                  <div className={`w-2.5 h-2.5 rounded-full ${userStatus === 'Online' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                  <div className="text-right">
+                    <p className={`text-xs font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>STATUS</p>
+                    <p className={`text-sm font-bold ${userStatus === 'Online' ? (darkMode ? 'text-green-400' : 'text-green-600') : (darkMode ? 'text-gray-400' : 'text-gray-600')}`}>
+                      {userStatus || 'Checking...'}
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Calendar/Date */}
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-blue-50'}`}>
+                  <Calendar className={`w-5 h-5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                </div>
+                <div className="text-right">
+                  <p className={`text-xs font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>TODAY</p>
+                  <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {new Date().toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </p>
+                </div>
               </div>
             </div>
           )}
