@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { getBatteryStatus, getAIData } from '../../lib/api';
+import { getBatteryStatus, getAIData, getLastSync, getUserOnlineStatus } from '../../lib/api';
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import BatteryWidget from '../../components/BatteryWidget';
 import { Heart, Moon, Activity, Brain, Calendar, TrendingUp, Droplets, Eye, EyeOff, Sparkles, Target } from 'lucide-react';
@@ -137,9 +137,7 @@ const HomeTab = ({
   darkMode,
   selectedUserId,
   selectedUserInfo,
-  globalDateFilter,
-  globalDateRange,
-  userStatuses = {}
+  globalDateRange
 }) => {
   // State for all health data
   const [sleepData, setSleepData] = useState(null);
@@ -150,6 +148,8 @@ const HomeTab = ({
   const [stressApiData, setStressApiData] = useState(null);
   const [hrvApiData, setHrvApiData] = useState(null);
   const [batteryData, setBatteryData] = useState(null);
+  const [lastSyncData, setLastSyncData] = useState(null);
+  const [lastSyncLoading, setLastSyncLoading] = useState(true);
   const [aiData, setAiData] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [showAiSummaries, setShowAiSummaries] = useState(false);
@@ -197,53 +197,33 @@ const HomeTab = ({
       : '—';
   }, [stepsData]);
 
-  // Get user online status
-  const userStatus = useMemo(() => {
-    if (selectedUserId && userStatuses[selectedUserId]) {
-      const status = userStatuses[selectedUserId].status;
-      return status === 'online' ? 'Online' : 'Offline';
-    }
-    return null;
-  }, [selectedUserId, userStatuses]);
+  // Get user online status via REST poll (mapped user only)
+  const [userStatus, setUserStatus] = useState(null);
 
-  // Format date range for display
-  const getDateRangeDisplay = () => {
-    const formatDateLabel = (value) => {
-      if (!value) return null;
-      const d = new Date(value);
-      if (Number.isNaN(d.getTime())) return value;
-      return d.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      });
+  useEffect(() => {
+    if (!selectedUserId) {
+      setUserStatus(null);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchUserStatus = async () => {
+      try {
+        const data = await getUserOnlineStatus(selectedUserId);
+        if (cancelled) return;
+        const isOnline = data?.status === 'online' || data?.online === true || data?.is_online === true;
+        setUserStatus(isOnline ? 'Online' : 'Offline');
+      } catch (err) {
+        console.warn('User online status fetch failed:', err);
+        if (!cancelled) setUserStatus(null);
+      }
     };
 
-    if (globalDateRange?.customRange && globalDateRange.date) {
-      return `Showing data for (${formatDateLabel(globalDateRange.date) || globalDateRange.date})`;
-    }
-
-    if (globalDateRange?.date) {
-      return `Showing data for (${formatDateLabel(globalDateRange.date) || globalDateRange.date})`;
-    }
-
-    switch (globalDateFilter) {
-      case 'today':
-        return new Date().toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric'
-        });
-      case 'week':
-        return 'Last 7 days';
-      case 'month':
-        return 'Last 30 days';
-      case 'custom':
-        return 'Custom date';
-      default:
-        return 'Latest data';
-    }
-  };
+    setUserStatus(null);
+    fetchUserStatus();
+    const interval = setInterval(fetchUserStatus, 5000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [selectedUserId]);
 
   // Track loading states from child components
   const handleDataLoading = (dataType, isLoading) => {
@@ -275,6 +255,45 @@ const HomeTab = ({
     fetchBattery();
     return () => { cancelled = true; };
   }, [selectedUserId]);
+
+  // Fetch last sync timestamp whenever the selected user changes
+  useEffect(() => {
+    let cancelled = false;
+    const fetchLastSync = async () => {
+      try {
+        setLastSyncLoading(true);
+        const data = await getLastSync(selectedUserId || null);
+        if (!cancelled) setLastSyncData(data);
+      } catch (err) {
+        console.warn('Last sync fetch failed:', err);
+        if (!cancelled) setLastSyncData(null);
+      } finally {
+        if (!cancelled) setLastSyncLoading(false);
+      }
+    };
+    fetchLastSync();
+    return () => { cancelled = true; };
+  }, [selectedUserId]);
+
+  const lastSyncDisplay = useMemo(() => {
+    if (lastSyncLoading) return 'Loading...';
+    const value = lastSyncData?.last_sync;
+    if (!value) return 'No sync data';
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return value;
+
+    const now = new Date();
+    const isSameDay = (a, b) =>
+      a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+
+    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+    if (isSameDay(d, now)) return `Today, ${time}`;
+    if (isSameDay(d, yesterday)) return `Yesterday, ${time}`;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }, [lastSyncData, lastSyncLoading]);
 
   const latestBatteryTimestamp = useMemo(() => {
     if (!batteryData) return null;
@@ -433,9 +452,6 @@ const HomeTab = ({
               <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                 {selectedUserInfo?.name}'s Fitness Dashboard
               </h2>
-              <p className={`text-xs mt-1 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-                {getDateRangeDisplay()}
-              </p>
             </div>
           </div>
 
@@ -452,10 +468,10 @@ const HomeTab = ({
               {/* Online/Offline Status */}
               {selectedUserId && (
                 <div className="flex items-center gap-2">
-                  <div className={`w-2.5 h-2.5 rounded-full ${userStatus === 'Online' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                  <div className={`w-2.5 h-2.5 rounded-full ${userStatus === 'Online' ? 'bg-green-500' : userStatus === 'Offline' ? 'bg-red-500' : 'bg-gray-400'}`}></div>
                   <div className="text-right">
                     <p className={`text-xs font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>STATUS</p>
-                    <p className={`text-sm font-bold ${userStatus === 'Online' ? (darkMode ? 'text-green-400' : 'text-green-600') : (darkMode ? 'text-gray-400' : 'text-gray-600')}`}>
+                    <p className={`text-sm font-bold ${userStatus === 'Online' ? (darkMode ? 'text-green-400' : 'text-green-600') : userStatus === 'Offline' ? (darkMode ? 'text-red-400' : 'text-red-600') : (darkMode ? 'text-gray-400' : 'text-gray-600')}`}>
                       {userStatus || 'Checking...'}
                     </p>
                   </div>
@@ -476,6 +492,14 @@ const HomeTab = ({
                     })}
                   </p>
                 </div>
+              </div>
+
+              {/* Last Sync */}
+              <div className="text-right">
+                <p className={`text-xs font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>LAST SYNC</p>
+                <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {lastSyncDisplay}
+                </p>
               </div>
             </div>
           )}

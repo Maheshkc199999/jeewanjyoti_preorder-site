@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Facebook, Instagram, X, MessageCircle, Phone, Mail, Link2, Share2 } from 'lucide-react';
 import AppHeader from '../components/AppHeader';
-import { getPublicLeaderboard, getPublicDailyLeaderboard, getLeaderboardPosts, createLeaderboardPost, updateLeaderboardPost, deleteLeaderboardPost, getLeaderboardChallenges, createLeaderboardChallenge, getPostLikes, toggleLikePost, getPostComments, addPostComment, updateComment, deleteComment, getChallengeLikes, toggleLikeChallenge, getChallengeComments, addChallengeComment, updateChallengeComment, deleteChallengeComment } from '../lib/api';
+import { getPublicLeaderboard, getPublicDailyLeaderboard, getLeaderboardPosts, updateLeaderboardPost, deleteLeaderboardPost, getLeaderboardChallenges, getPostLikes, toggleLikePost, getPostComments, addPostComment, updateComment, deleteComment, getChallengeLikes, toggleLikeChallenge, getChallengeComments, addChallengeComment, updateChallengeComment, deleteChallengeComment } from '../lib/api';
 import { getUserData } from '../lib/tokenManager';
 
 const API_BASE_URL = 'https://jeewanjyoti-backend.smart.org.np';
@@ -182,18 +182,6 @@ function DailyLeaderboard({ leaders, loading = false }) {
     </div>
   );
 }
-
-const EMPTY_CHALLENGE_FORM = {
-  name: '',
-  description: '',
-  goal: '',
-  steps: '',
-  distance: '',
-  calories: '',
-  start_date: '',
-  end_date: '',
-  imageFile: null,
-};
 
 const METRIC_CONFIG = [
   { key: 'calories', label: 'Calories', format: (v) => Math.round(v || 0).toLocaleString() },
@@ -863,14 +851,6 @@ export default function LeaderboardPage() {
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [challenges, setChallenges] = useState([]);
-  const [formData, setFormData] = useState({ summary: '', is_completed: false, photoFile: null });
-  const [showComposer, setShowComposer] = useState(false);
-  const [posting, setPosting] = useState(false);
-  const [postError, setPostError] = useState(null);
-  const [showChallengeComposer, setShowChallengeComposer] = useState(false);
-  const [challengeFormData, setChallengeFormData] = useState(EMPTY_CHALLENGE_FORM);
-  const [challengeSubmitting, setChallengeSubmitting] = useState(false);
-  const [challengeError, setChallengeError] = useState(null);
   const [currentUserId] = useState(() => getUserData()?.id ?? null);
   const [postLikes, setPostLikes] = useState({});
   const [postComments, setPostComments] = useState({});
@@ -1108,85 +1088,6 @@ export default function LeaderboardPage() {
     fetchChallenges();
   }, [fetchLeaderboard, fetchDailyLeaderboard, fetchPosts, fetchChallenges]);
 
-  const handlePhotoChange = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setFormData((prev) => ({ ...prev, photoFile: file }));
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    if (!formData.summary.trim() && !formData.photoFile) return;
-
-    const payload = new FormData();
-    payload.append('summary', formData.summary);
-    payload.append('is_completed', String(formData.is_completed));
-    if (formData.photoFile) {
-      payload.append('image', formData.photoFile);
-    }
-
-    try {
-      setPosting(true);
-      setPostError(null);
-      await createLeaderboardPost(payload);
-
-      setFormData({ summary: '', is_completed: false, photoFile: null });
-      setShowComposer(false);
-      fetchPosts();
-      fetchLeaderboard();
-      fetchDailyLeaderboard();
-    } catch (error) {
-      console.error('Failed to create post:', error);
-      setPostError(error.message || 'Failed to share progress. Please try again.');
-    } finally {
-      setPosting(false);
-    }
-  };
-
-  const handleChallengeFieldChange = (field) => (event) => {
-    setChallengeFormData((prev) => ({ ...prev, [field]: event.target.value }));
-  };
-
-  const handleChallengeImageChange = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setChallengeFormData((prev) => ({ ...prev, imageFile: file }));
-  };
-
-  const handleAddChallenge = async (event) => {
-    event.preventDefault();
-    const name = challengeFormData.name.trim();
-    if (!name) return;
-
-    const payload = new FormData();
-    payload.append('name', name);
-    payload.append('description', challengeFormData.description);
-    payload.append('goal', challengeFormData.goal);
-    payload.append('steps', challengeFormData.steps);
-    payload.append('distance', challengeFormData.distance);
-    payload.append('calories', challengeFormData.calories);
-    payload.append('start_date', challengeFormData.start_date);
-    payload.append('end_date', challengeFormData.end_date);
-    if (challengeFormData.imageFile) {
-      payload.append('image', challengeFormData.imageFile);
-    }
-
-    try {
-      setChallengeSubmitting(true);
-      setChallengeError(null);
-      await createLeaderboardChallenge(payload);
-
-      setChallengeFormData(EMPTY_CHALLENGE_FORM);
-      setShowChallengeComposer(false);
-      fetchChallenges();
-    } catch (error) {
-      console.error('Failed to create challenge:', error);
-      setChallengeError(error.message || 'Failed to create challenge. Please try again.');
-    } finally {
-      setChallengeSubmitting(false);
-    }
-  };
-
   const openEditPost = (post) => {
     setEditError(null);
     setEditFormData({
@@ -1290,226 +1191,6 @@ export default function LeaderboardPage() {
           </div>
         </div>
       </div>
-
-      {showComposer && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
-          onClick={() => setShowComposer(false)}
-        >
-          <form
-            onSubmit={handleSubmit}
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
-          >
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-900">Share your progress</h2>
-              <button
-                type="button"
-                onClick={() => setShowComposer(false)}
-                aria-label="Close"
-                className="text-slate-400 transition-colors hover:text-slate-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            {postError && (
-              <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{postError}</p>
-            )}
-
-            <div className="grid gap-3">
-              <label>
-                <span className="mb-1 block text-xs font-medium text-slate-500">Summary</span>
-                <textarea
-                  value={formData.summary}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, summary: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  rows={3}
-                  placeholder="Had a great workout today! 💪🔥"
-                />
-              </label>
-              <label>
-                <span className="mb-1 block text-xs font-medium text-slate-500">Photo</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoChange}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-blue-600 focus:border-blue-400 focus:outline-none"
-                />
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.is_completed}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, is_completed: e.target.checked }))}
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-400"
-                />
-                <span className="text-sm text-slate-600">Mark as completed</span>
-              </label>
-            </div>
-
-            <div className="mt-5 flex gap-3">
-              <button
-                type="submit"
-                disabled={posting}
-                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
-              >
-                {posting ? 'Posting…' : 'Submit'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowComposer(false)}
-                className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {showChallengeComposer && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
-          onClick={() => setShowChallengeComposer(false)}
-        >
-          <form
-            onSubmit={handleAddChallenge}
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
-          >
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-900">Add a challenge</h2>
-              <button
-                type="button"
-                onClick={() => setShowChallengeComposer(false)}
-                aria-label="Close"
-                className="text-slate-400 transition-colors hover:text-slate-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            {challengeError && (
-              <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{challengeError}</p>
-            )}
-
-            <div className="grid gap-3">
-              <label>
-                <span className="mb-1 block text-xs font-medium text-slate-500">Challenge name</span>
-                <input
-                  value={challengeFormData.name}
-                  onChange={handleChallengeFieldChange('name')}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  placeholder="10K Steps Challenge"
-                  autoFocus
-                  required
-                />
-              </label>
-
-              <label>
-                <span className="mb-1 block text-xs font-medium text-slate-500">Description</span>
-                <textarea
-                  value={challengeFormData.description}
-                  onChange={handleChallengeFieldChange('description')}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  rows={3}
-                  placeholder="Walk 10,000 steps every day for one week!"
-                />
-              </label>
-
-              <div className="grid grid-cols-2 gap-3">
-                <label>
-                  <span className="mb-1 block text-xs font-medium text-slate-500">Goal</span>
-                  <input
-                    type="number"
-                    value={challengeFormData.goal}
-                    onChange={handleChallengeFieldChange('goal')}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    placeholder="10000"
-                  />
-                </label>
-                <label>
-                  <span className="mb-1 block text-xs font-medium text-slate-500">Steps</span>
-                  <input
-                    type="number"
-                    value={challengeFormData.steps}
-                    onChange={handleChallengeFieldChange('steps')}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    placeholder="10000"
-                  />
-                </label>
-                <label>
-                  <span className="mb-1 block text-xs font-medium text-slate-500">Distance (km)</span>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={challengeFormData.distance}
-                    onChange={handleChallengeFieldChange('distance')}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    placeholder="7.5"
-                  />
-                </label>
-                <label>
-                  <span className="mb-1 block text-xs font-medium text-slate-500">Calories</span>
-                  <input
-                    type="number"
-                    value={challengeFormData.calories}
-                    onChange={handleChallengeFieldChange('calories')}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    placeholder="500"
-                  />
-                </label>
-                <label>
-                  <span className="mb-1 block text-xs font-medium text-slate-500">Start date</span>
-                  <input
-                    type="date"
-                    value={challengeFormData.start_date}
-                    onChange={handleChallengeFieldChange('start_date')}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
-                </label>
-                <label>
-                  <span className="mb-1 block text-xs font-medium text-slate-500">End date</span>
-                  <input
-                    type="date"
-                    value={challengeFormData.end_date}
-                    onChange={handleChallengeFieldChange('end_date')}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
-                </label>
-              </div>
-
-              <label>
-                <span className="mb-1 block text-xs font-medium text-slate-500">Image</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleChallengeImageChange}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-blue-600 focus:border-blue-400 focus:outline-none"
-                />
-              </label>
-            </div>
-
-            <div className="mt-5 flex gap-3">
-              <button
-                type="submit"
-                disabled={challengeSubmitting}
-                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
-              >
-                {challengeSubmitting ? 'Adding…' : 'Add'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowChallengeComposer(false)}
-                className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
       {editingPost && (
         <div

@@ -663,6 +663,33 @@ export async function getBatteryStatus(userId = null) {
 }
 
 /**
+ * Get the last sync timestamp for a device
+ * @param {string|null} userId - Optional mapped user ID (omit for self)
+ * @returns {Promise<object>} Last sync info { last_sync }
+ */
+export async function getLastSync(userId = null) {
+  const url = userId ? `/api/last_sync/?user_id=${userId}` : '/api/last_sync/'
+  const response = await apiRequest(url)
+  if (!response.ok) {
+    throw new Error('Failed to fetch last sync')
+  }
+  return await response.json()
+}
+
+/**
+ * Get the online/offline status of a mapped user
+ * @param {string|number} userId - Mapped user ID
+ * @returns {Promise<object>} Online status info
+ */
+export async function getUserOnlineStatus(userId) {
+  const response = await apiRequest(`/api/user_online_status/${userId}/`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch user online status')
+  }
+  return await response.json()
+}
+
+/**
  * Fetch AI data
  * @param {string|null} userId - Optional user ID
  * @param {string|null} date - Optional date (YYYY-MM-DD)

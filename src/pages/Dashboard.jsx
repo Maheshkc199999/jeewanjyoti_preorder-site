@@ -90,8 +90,8 @@ const Dashboard = () => {
   const [totalUnread, setTotalUnread] = useState(0); // Real unread count from ChatTab
 
   // Presence/status WebSocket — connects as soon as the dashboard mounts (i.e. on login),
-  // not only when the user opens the chat tab.
-  const { userStatuses } = useStatusSocket();
+  // not only when the user opens the chat tab. Subscribe to the selected mapped user.
+  const { userStatuses } = useStatusSocket(selectedUserId);
 
   // Global filter states
   const [globalDateFilter, setGlobalDateFilter] = useState('today');
@@ -486,9 +486,7 @@ const Dashboard = () => {
             darkMode={darkMode}
             selectedUserId={selectedUserId}
             selectedUserInfo={getSelectedUserInfo()}
-            globalDateFilter={globalDateFilter}
             globalDateRange={globalDateRange}
-            userStatuses={userStatuses}
           />
         );
       case 'appointments':
