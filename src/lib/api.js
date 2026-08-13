@@ -729,6 +729,44 @@ export async function getDailyLeaderboard() {
 }
 
 /**
+ * Get the public leaderboard (week)
+ * @returns {Promise<object>} { leaderboard: Array, period: string }
+ */
+export async function getPublicLeaderboard() {
+  const response = await fetch(`${API_BASE_URL}/api/public/leaderboard/`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch public leaderboard: ${response.status}`)
+  }
+
+  return await response.json()
+}
+
+/**
+ * Get the public daily leaderboard (no auth required, max 3 users)
+ * @returns {Promise<object>} { leaderboard: Array, period: string }
+ */
+export async function getPublicDailyLeaderboard() {
+  const response = await fetch(`${API_BASE_URL}/api/public/daily-leaderboard/`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch public daily leaderboard: ${response.status}`)
+  }
+
+  return await response.json()
+}
+
+/**
  * Get the leaderboard posts feed
  * @returns {Promise<Array>} List of posts
  */

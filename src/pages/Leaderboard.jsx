@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Facebook, Instagram, X, MessageCircle, Phone, Mail, Link2, Share2 } from 'lucide-react';
 import AppHeader from '../components/AppHeader';
-import { getLeaderboard, getDailyLeaderboard, getLeaderboardPosts, createLeaderboardPost, updateLeaderboardPost, deleteLeaderboardPost, getLeaderboardChallenges, createLeaderboardChallenge, getPostLikes, toggleLikePost, getPostComments, addPostComment, updateComment, deleteComment, getChallengeLikes, toggleLikeChallenge, getChallengeComments, addChallengeComment, updateChallengeComment, deleteChallengeComment } from '../lib/api';
+import { getPublicLeaderboard, getPublicDailyLeaderboard, getLeaderboardPosts, createLeaderboardPost, updateLeaderboardPost, deleteLeaderboardPost, getLeaderboardChallenges, createLeaderboardChallenge, getPostLikes, toggleLikePost, getPostComments, addPostComment, updateComment, deleteComment, getChallengeLikes, toggleLikeChallenge, getChallengeComments, addChallengeComment, updateChallengeComment, deleteChallengeComment } from '../lib/api';
 import { getUserData } from '../lib/tokenManager';
 
 const API_BASE_URL = 'https://jeewanjyoti-backend.smart.org.np';
@@ -885,7 +885,7 @@ export default function LeaderboardPage() {
   const fetchLeaderboard = useCallback(async () => {
     try {
       setLeadersLoading(true);
-      const data = await getLeaderboard();
+      const data = await getPublicLeaderboard();
       if (data.leaderboard && Array.isArray(data.leaderboard)) {
         setLeaders(data.leaderboard);
       }
@@ -899,7 +899,7 @@ export default function LeaderboardPage() {
   const fetchDailyLeaderboard = useCallback(async () => {
     try {
       setDailyLeadersLoading(true);
-      const data = await getDailyLeaderboard();
+      const data = await getPublicDailyLeaderboard();
       if (data.leaderboard && Array.isArray(data.leaderboard)) {
         setDailyLeaders(data.leaderboard);
       }
