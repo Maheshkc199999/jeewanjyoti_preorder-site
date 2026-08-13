@@ -109,6 +109,16 @@ const Dashboard = () => {
     const checkAuthentication = () => {
       if (isAuthenticated()) {
         const userData = getUserData();
+        // Mirrors the admin dashboard's guard: an admin account whose tokens
+        // are still around from a previous /admin/dashboard session shouldn't
+        // be able to land on the member dashboard and see it rendered with
+        // their admin identity — send them back to sign in properly.
+        const isAdminAccount = !!(userData?.is_superuser || userData?.role === 'ADMIN');
+        if (isAdminAccount) {
+          clearTokens();
+          navigate('/login');
+          return;
+        }
         setBackendUser(userData);
         setLoading(false);
       } else {

@@ -11,6 +11,7 @@ import ReportsTab from '../institution/Reports';
 import AlertsTab from '../institution/Alerts';
 import PlaceholderTab from '../institution/Placeholder';
 import { getUserData, clearTokens, authenticatedFetch } from '../../lib/tokenManager';
+import { logoutUser } from '../../lib/api';
 import jjlogo from '../../assets/jjlogo.png';
 
 const NAV = [
@@ -53,12 +54,26 @@ export default function AdminDashboard() {
   }, []);
   const [collapsed, setCollapsed] = useState(false);
   const [globalDateRange] = useState({ period: 'today', customRange: false });
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const adminData = getUserData();
+  // Only an actual admin (superuser or role === 'ADMIN') may see this dashboard —
+  // a non-admin who's logged in on the normal member dashboard and navigates
+  // straight to /admin/dashboard would otherwise render fine here with their
+  // own name/photo, since this page never checked the account's role.
+  const isAdminAccount = !!(adminData?.is_superuser || adminData?.role === 'ADMIN');
   const adminName = adminData?.first_name ? `${adminData.first_name} ${adminData.last_name || ''}`.trim() : 'Administrator';
   const adminType = adminData?.role || 'Admin';
   const adminLogo = adminData?.profile_image || null;
   const adminInitial = adminName.charAt(0).toUpperCase();
+
+  useEffect(() => {
+    if (!isAdminAccount) {
+      clearTokens();
+      window.location.href = '/admin';
+    }
+  }, [isAdminAccount]);
 
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [selectedUserName, setSelectedUserName] = useState(adminName);
@@ -117,10 +132,11 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
+    if (!isAdminAccount) return;
     fetchAllUsers();
     const interval = setInterval(fetchAllUsers, 15000);
     return () => clearInterval(interval);
-  }, [fetchAllUsers]);
+  }, [fetchAllUsers, isAdminAccount]);
 
   const fetchMembers = useCallback(async () => {
     try {
@@ -151,8 +167,9 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
+    if (!isAdminAccount) return;
     fetchMembers();
-  }, [fetchMembers]);
+  }, [fetchMembers, isAdminAccount]);
 
   // Scan allUsers (all doctors + patients system-wide), not the institution-scoped
   // `members` list — admin accounts aren't tied to an institution, so `members`
@@ -193,10 +210,35 @@ export default function AdminDashboard() {
     });
   }, [allUsers, thresholds]);
 
-  const handleLogout = () => {
-    clearTokens();
+  const handleLogoutClick = () => {
+    setShowAdminMenu(false);
+    setShowLogoutConfirm(true);
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutConfirm(false);
+  };
+
+  const handleLogoutConfirm = async () => {
+    try {
+      await logoutUser();
+    } catch (error) {
+      console.error('Error signing out:', error);
+      clearTokens();
+    }
     window.location.href = '/admin';
   };
+
+  // Close the admin profile dropdown when clicking outside of it
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showAdminMenu && !event.target.closest('.admin-user-dropdown')) {
+        setShowAdminMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showAdminMenu]);
 
   const handleViewVitals = useCallback((userId, userName, profileImage, status) => {
     setSelectedUserId(userId);
@@ -234,6 +276,12 @@ export default function AdminDashboard() {
     }
   }, [activeTab, handleViewVitals, selectedUserId, selectedUserInfo, darkMode, globalDateRange, members, loading, error, fetchMembers, thresholds, alerts, allUsers, usersLoading, usersError, fetchAllUsers]);
 
+  // Non-admin accounts get redirected to /admin by the effect above — render
+  // nothing in the meantime instead of flashing the dashboard with their data.
+  if (!isAdminAccount) {
+    return null;
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: darkMode ? '#0f172a' : '#f8fafc', fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif" }}>
       <style>{GLOBAL_STYLES}</style>
@@ -264,7 +312,7 @@ export default function AdminDashboard() {
           })}
         </nav>
         <div style={{ padding: '12px 10px', borderTop: '1px solid #1e293b' }}>
-          <button onClick={handleLogout} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: collapsed ? '10px 16px' : '10px 12px', borderRadius: 10, background: 'transparent', border: 'none', cursor: 'pointer', justifyContent: collapsed ? 'center' : 'flex-start' }} onMouseEnter={e => e.currentTarget.style.background = '#1e293b'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+          <button onClick={handleLogoutClick} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: collapsed ? '10px 16px' : '10px 12px', borderRadius: 10, background: 'transparent', border: 'none', cursor: 'pointer', justifyContent: collapsed ? 'center' : 'flex-start' }} onMouseEnter={e => e.currentTarget.style.background = '#1e293b'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
             <LogOut size={16} color="#ef4444" />
             {!collapsed && <span style={{ fontSize: 13, fontWeight: 600, color: '#ef4444' }}>Logout</span>}
           </button>
@@ -288,22 +336,71 @@ export default function AdminDashboard() {
               <span style={{ position: 'absolute', top: 7, right: 7, width: 7, height: 7, background: '#ef4444', borderRadius: '50%', border: '1.5px solid #fff' }} />
             </button>
             <div style={{ width: 1, height: 28, background: darkMode ? '#334155' : '#e2e8f0', margin: '0 4px' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 12px 6px 6px', background: darkMode ? '#334155' : '#f8fafc', border: `1px solid ${darkMode ? '#475569' : '#e2e8f0'}`, borderRadius: 12, cursor: 'pointer' }}>
-              {adminLogo ? (
-                <img src={adminLogo} alt={adminName} style={{ width: 32, height: 32, borderRadius: 9, objectFit: 'cover' }} />
-              ) : (
-                <div style={{ width: 32, height: 32, borderRadius: 9, background: 'linear-gradient(135deg, #3b82f6, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff' }}>{adminInitial}</div>
-              )}
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: darkMode ? '#fff' : '#0f172a', lineHeight: 1.3 }}>{adminName}</div>
-                <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{adminType}</div>
+            <div className="admin-user-dropdown" style={{ position: 'relative' }}>
+              <div
+                onClick={() => setShowAdminMenu(v => !v)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 12px 6px 6px', background: darkMode ? '#334155' : '#f8fafc', border: `1px solid ${darkMode ? '#475569' : '#e2e8f0'}`, borderRadius: 12, cursor: 'pointer' }}
+              >
+                {adminLogo ? (
+                  <img src={adminLogo} alt={adminName} style={{ width: 32, height: 32, borderRadius: 9, objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: 32, height: 32, borderRadius: 9, background: 'linear-gradient(135deg, #3b82f6, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff' }}>{adminInitial}</div>
+                )}
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: darkMode ? '#fff' : '#0f172a', lineHeight: 1.3 }}>{adminName}</div>
+                  <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{adminType}</div>
+                </div>
+                <ChevronDown size={14} color="#9ca3af" style={{ transform: showAdminMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
               </div>
-              <ChevronDown size={14} color="#9ca3af" />
+
+              {showAdminMenu && (
+                <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 180, background: darkMode ? '#1e293b' : '#fff', border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`, borderRadius: 12, boxShadow: '0 12px 28px rgba(0,0,0,0.18)', overflow: 'hidden', zIndex: 60 }}>
+                  <button
+                    onClick={handleLogoutClick}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                    onMouseEnter={e => e.currentTarget.style.background = darkMode ? '#33415580' : '#fef2f2'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <LogOut size={15} color="#ef4444" />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#ef4444' }}>Logout</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
         <div style={{ padding: 24, flex: 1 }}>{tabContent}</div>
       </main>
+
+      {showLogoutConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)' }}>
+          <div style={{ width: '100%', maxWidth: 400, margin: '0 16px', borderRadius: 16, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.25)', background: darkMode ? '#1e293b' : '#fff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+              <div style={{ padding: 12, borderRadius: '50%', background: darkMode ? '#7f1d1d33' : '#fef2f2' }}>
+                <LogOut size={22} color="#ef4444" />
+              </div>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: darkMode ? '#fff' : '#0f172a' }}>Logout</div>
+                <div style={{ fontSize: 13, color: darkMode ? '#94a3b8' : '#6b7280' }}>Are you sure you want to logout?</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={handleLogoutCancel}
+                style={{ padding: '10px 16px', borderRadius: 10, fontWeight: 600, fontSize: 13, border: 'none', cursor: 'pointer', background: darkMode ? '#334155' : '#f1f5f9', color: darkMode ? '#e2e8f0' : '#374151' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogoutConfirm}
+                style={{ padding: '10px 16px', borderRadius: 10, fontWeight: 600, fontSize: 13, border: 'none', cursor: 'pointer', background: '#dc2626', color: '#fff' }}
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

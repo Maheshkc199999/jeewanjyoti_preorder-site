@@ -112,48 +112,64 @@ export const isTokenExpired = (token) => {
   }
 };
 
+// Multiple call sites (authenticatedFetch on a 401, the status WebSocket's
+// pre-connect expiry check, etc.) can all decide to refresh at the same
+// moment. Refresh tokens are typically single-use, so without de-duping,
+// every caller but the first would fail and call clearTokens() — wiping out
+// the good access token the first call just stored and breaking every other
+// in-flight request. Share one in-flight refresh across all callers instead.
+let refreshPromise = null;
+
 /**
  * Refresh access token using refresh token
  * @returns {Promise<boolean>} True if token refresh was successful
  */
 export const refreshAccessToken = async () => {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) {
-    console.error('No refresh token available');
-    return false;
-  }
+  if (refreshPromise) return refreshPromise;
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/token/refresh/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        refresh: refreshToken
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Token refresh failed: ${response.status}`);
+  refreshPromise = (async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      console.error('No refresh token available');
+      return false;
     }
 
-    const data = await response.json();
-    
-    if (data.access) {
-      // Store the new access token
-      localStorage.setItem(TOKEN_KEYS.ACCESS_TOKEN, data.access);
-      console.log('Access token refreshed successfully');
-      return true;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/token/refresh/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          refresh: refreshToken
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Token refresh failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.access) {
+        // Store the new access token
+        localStorage.setItem(TOKEN_KEYS.ACCESS_TOKEN, data.access);
+        console.log('Access token refreshed successfully');
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      // If refresh fails, clear all tokens
+      clearTokens();
+      return false;
+    } finally {
+      refreshPromise = null;
     }
-    
-    return false;
-  } catch (error) {
-    console.error('Error refreshing token:', error);
-    // If refresh fails, clear all tokens
-    clearTokens();
-    return false;
-  }
+  })();
+
+  return refreshPromise;
 };
 
 /**
