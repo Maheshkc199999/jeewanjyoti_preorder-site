@@ -118,6 +118,8 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchAllUsers();
+    const interval = setInterval(fetchAllUsers, 15000);
+    return () => clearInterval(interval);
   }, [fetchAllUsers]);
 
   const fetchMembers = useCallback(async () => {
