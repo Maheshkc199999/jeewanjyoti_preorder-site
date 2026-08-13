@@ -19,7 +19,7 @@ export default function AppHeader() {
 
   const navItems = [
     { name: 'Lifestyle', href: '/#lifestyle' },
-    { name: 'Leaderboard', href: '/dashboard#leaderboard' },
+    { name: 'Leaderboard', href: '/leaderboard' },
     { name: 'About', href: '/#about' },
     { name: 'Features', href: '/#features' },
     { name: 'Blogs', href: '/blogs' },

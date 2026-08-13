@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Facebook, Instagram, X, MessageCircle, Phone, Mail, Link2, Share2 } from 'lucide-react';
-import jjlogo from '../assets/jjlogo.png';
-import { useAuth } from '../contexts/AuthContext';
+import AppHeader from '../components/AppHeader';
+import { getLeaderboard, getDailyLeaderboard, getLeaderboardPosts, createLeaderboardPost, updateLeaderboardPost, deleteLeaderboardPost, getLeaderboardChallenges, createLeaderboardChallenge, getPostLikes, toggleLikePost, getPostComments, addPostComment, updateComment, deleteComment, getChallengeLikes, toggleLikeChallenge, getChallengeComments, addChallengeComment, updateChallengeComment, deleteChallengeComment } from '../lib/api';
 import { getUserData } from '../lib/tokenManager';
-import { getLeaderboard, getLeaderboardPosts, createLeaderboardPost, updateLeaderboardPost, deleteLeaderboardPost, getLeaderboardChallenges, createLeaderboardChallenge, getPostLikes, toggleLikePost, getPostComments, addPostComment, updateComment, deleteComment, getChallengeLikes, toggleLikeChallenge, getChallengeComments, addChallengeComment, updateChallengeComment, deleteChallengeComment } from '../lib/api';
 
 const API_BASE_URL = 'https://jeewanjyoti-backend.smart.org.np';
 
@@ -35,18 +34,24 @@ const getChallengeStatus = (startDate, endDate) => {
   const start = startDate ? new Date(startDate) : null;
   const end = endDate ? new Date(endDate) : null;
   if (start && now < start) return { label: 'Upcoming', className: 'bg-blue-100 text-blue-700' };
-  if (end && now > end) return { label: 'Ended', className: 'bg-gray-200 text-gray-600' };
-  return { label: 'Active', className: 'bg-green-100 text-green-700' };
+  if (end && now > end) return { label: 'Ended', className: 'bg-slate-200 text-slate-600' };
+  return { label: 'Active', className: 'bg-emerald-100 text-emerald-700' };
 };
 
 function ConfirmDialog({ open, title = 'Are you sure?', message, confirmLabel = 'Delete', onConfirm, onCancel }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
-        <h2 className="text-lg font-bold">{title}</h2>
-        {message && <p className="mt-2 text-sm text-gray-500">{message}</p>}
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
+      >
+        <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+        {message && <p className="mt-2 text-sm text-slate-500">{message}</p>}
         <div className="mt-5 flex gap-3">
           <button
             type="button"
@@ -58,7 +63,7 @@ function ConfirmDialog({ open, title = 'Are you sure?', message, confirmLabel = 
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+            className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
           >
             Cancel
           </button>
@@ -68,24 +73,7 @@ function ConfirmDialog({ open, title = 'Are you sure?', message, confirmLabel = 
   );
 }
 
-function Navbar() {
-  return (
-    <nav className="sticky top-0 z-50 bg-white shadow">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
-        <a href="/" className="flex items-center gap-2 md:gap-3">
-          <img src={jjlogo} alt="JJ Logo" className="h-8 w-8 md:h-10 md:w-10 object-contain" />
-          <h1 className="text-xl font-bold whitespace-nowrap text-blue-500 md:text-2xl" style={{ fontFamily: 'DM Sans, Inter, sans-serif' }}>
-            DIGITAL CARE
-          </h1>
-        </a>
-        <input className="w-96 rounded-full bg-gray-100 px-5 py-2" placeholder="Search people..." />
-        <img className="h-10 w-10 rounded-full" src="https://i.pravatar.cc/150" alt="avatar" />
-      </div>
-    </nav>
-  );
-}
-
-function LeaderAvatar({ name, imageUrl }) {
+function LeaderAvatar({ name, imageUrl, size = 'h-8 w-8' }) {
   const [imgError, setImgError] = useState(false);
   const initial = (name || '?').trim().charAt(0).toUpperCase();
 
@@ -94,14 +82,14 @@ function LeaderAvatar({ name, imageUrl }) {
       <img
         src={imageUrl}
         alt={name}
-        className="h-8 w-8 rounded-full object-cover"
+        className={`${size} rounded-full object-cover`}
         onError={() => setImgError(true)}
       />
     );
   }
 
   return (
-    <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-sm font-semibold text-white">
+    <div className={`${size} rounded-full bg-blue-500 flex items-center justify-center text-sm font-semibold text-white`}>
       {initial}
     </div>
   );
@@ -153,6 +141,66 @@ function Sidebar({ leaders, loading = false }) {
   );
 }
 
+function DailyLeaderboard({ leaders, loading = false }) {
+  if (loading) {
+    return (
+      <div className="rounded-xl bg-white p-5 shadow">
+        <h2 className="mb-4 text-lg font-bold">Daily Leaderboard</h2>
+        <div className="flex justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl bg-white p-5 shadow">
+      <h2 className="mb-4 text-lg font-bold">Daily Leaderboard</h2>
+      <div className="max-h-[40vh] overflow-y-auto pr-1">
+        {leaders && leaders.length > 0 ? (
+          leaders.map((user, index) => (
+            <div key={user.user_id || index} className="flex items-center justify-between border-b py-3 text-sm">
+              <div className="flex items-center gap-2 font-medium text-gray-700">
+                <LeaderAvatar name={user.name} imageUrl={getFullImageUrl(user.profile_image)} />
+                <div>
+                  <div className="flex items-center gap-1">
+                    <span>{user.badge}</span>
+                    <span>{user.name}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold text-gray-900">{user.steps.toLocaleString()} steps</div>
+                <div className="text-xs text-gray-500">{user.distance.toFixed(1)} km</div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-500 text-center py-4">No leaders yet</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const EMPTY_CHALLENGE_FORM = {
+  name: '',
+  description: '',
+  goal: '',
+  steps: '',
+  distance: '',
+  calories: '',
+  start_date: '',
+  end_date: '',
+  imageFile: null,
+};
+
+const METRIC_CONFIG = [
+  { key: 'calories', label: 'Calories', format: (v) => Math.round(v || 0).toLocaleString() },
+  { key: 'distance', label: 'Distance', format: (v) => `${(v || 0).toFixed(1)} km` },
+  { key: 'steps', label: 'Steps', format: (v) => (v || 0).toLocaleString() },
+];
+
 function PostMenu({ onEdit, onDelete }) {
   const [open, setOpen] = useState(false);
 
@@ -162,18 +210,18 @@ function PostMenu({ onEdit, onDelete }) {
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         aria-label="Post options"
-        className="rounded-full px-2 py-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+        className="rounded-full px-2 py-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
       >
         ⋮
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-20 mt-1 w-32 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
+          <div className="absolute right-0 top-full z-20 mt-1 w-32 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
             <button
               type="button"
               onClick={() => { setOpen(false); onEdit(); }}
-              className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
             >
               Edit
             </button>
@@ -299,23 +347,26 @@ function ShareModal({ post, onClose }) {
     { key: 'instagram', label: 'Instagram', icon: Instagram, bg: 'bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF]', onClick: handleInstagramClick },
     { key: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, bg: 'bg-[#25D366]', onClick: () => openWindow(`https://wa.me/?text=${encodedText}%20${encodedUrl}`) },
     { key: 'viber', label: 'Viber', icon: Phone, bg: 'bg-[#7360F2]', onClick: () => openWindow(`viber://forward?text=${encodedText}%20${encodedUrl}`) },
-    { key: 'email', label: 'Email', icon: Mail, bg: 'bg-gray-500', onClick: handleEmailClick },
-    { key: 'copy', label: 'Copy Link', icon: Link2, bg: 'bg-gray-400', onClick: handleCopyLink },
+    { key: 'email', label: 'Email', icon: Mail, bg: 'bg-slate-500', onClick: handleEmailClick },
+    { key: 'copy', label: 'Copy Link', icon: Link2, bg: 'bg-slate-400', onClick: handleCopyLink },
   ];
 
   if (navigator.share) {
-    targets.push({ key: 'more', label: 'More', icon: Share2, bg: 'bg-gray-600', onClick: handleMoreClick });
+    targets.push({ key: 'more', label: 'More', icon: Share2, bg: 'bg-slate-600', onClick: handleMoreClick });
   }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 backdrop-blur-sm sm:items-center"
       onClick={onClose}
     >
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
+      >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Share post</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600">
+          <h2 className="text-base font-semibold text-slate-900">Share post</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-slate-400 transition-colors hover:text-slate-600">
             ✕
           </button>
         </div>
@@ -325,7 +376,7 @@ function ShareModal({ post, onClose }) {
               key={key}
               type="button"
               onClick={onClick}
-              className="flex flex-col items-center gap-1.5 text-xs font-medium text-gray-600"
+              className="flex flex-col items-center gap-1.5 text-xs font-medium text-slate-600"
             >
               <span className={`flex h-12 w-12 items-center justify-center rounded-full text-white shadow-sm ${bg}`}>
                 <Icon className="h-5 w-5" />
@@ -344,7 +395,11 @@ function ShareButton({ post }) {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="flex items-center gap-1.5 transition-colors hover:text-blue-600">
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-1.5 transition-colors hover:text-blue-600"
+      >
         <Share2 className="h-4 w-4" /> Share
       </button>
       {open && <ShareModal post={post} onClose={() => setOpen(false)} />}
@@ -361,18 +416,18 @@ function CommentMenu({ onEdit, onDelete }) {
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         aria-label="Comment options"
-        className="rounded-full px-1.5 py-0.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+        className="rounded-full px-1.5 py-0.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
       >
         ⋮
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-20 mt-1 w-28 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
+          <div className="absolute right-0 top-full z-20 mt-1 w-28 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
             <button
               type="button"
               onClick={() => { setOpen(false); onEdit(); }}
-              className="block w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50"
+              className="block w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50"
             >
               Edit
             </button>
@@ -447,7 +502,7 @@ function CommentSection({ postId, commentData, onAddComment, currentUserId, onEd
   };
 
   return (
-    <div className="mt-4 border-t pt-4">
+    <div className="mt-4 border-t border-slate-100 pt-4">
       <div className="max-h-56 space-y-3 overflow-y-auto pr-1">
         {comments.length > 0 ? (
           comments.map((comment) => {
@@ -455,12 +510,12 @@ function CommentSection({ postId, commentData, onAddComment, currentUserId, onEd
             const isEditing = editingId === comment.id;
             return (
               <div key={comment.id} className="flex items-start gap-2">
-                <LeaderAvatar name={comment.user_name} imageUrl={getFullImageUrl(comment.profile_image)} />
-                <div className="min-w-0 flex-1 rounded-lg bg-gray-50 px-3 py-2">
+                <LeaderAvatar name={comment.user_name} imageUrl={getFullImageUrl(comment.profile_image)} size="h-7 w-7" />
+                <div className="min-w-0 flex-1 rounded-lg bg-slate-50 px-3 py-2">
                   <div className="flex items-baseline justify-between gap-2">
-                    <p className="truncate text-xs font-semibold text-gray-700">{comment.user_name}</p>
+                    <p className="truncate text-xs font-semibold text-slate-700">{comment.user_name}</p>
                     <div className="flex shrink-0 items-center gap-1">
-                      <p className="text-[10px] text-gray-400">{formatTimeAgo(comment.created_at)}</p>
+                      <p className="text-[10px] text-slate-400">{formatTimeAgo(comment.created_at)}</p>
                       {canManage && !isEditing && (
                         <CommentMenu onEdit={() => startEdit(comment)} onDelete={() => handleDelete(comment.id)} />
                       )}
@@ -471,33 +526,33 @@ function CommentSection({ postId, commentData, onAddComment, currentUserId, onEd
                       <input
                         value={editText}
                         onChange={(e) => setEditText(e.target.value)}
-                        className="flex-1 rounded-full border border-gray-200 px-3 py-1 text-sm"
+                        className="flex-1 rounded-full border border-slate-200 px-3 py-1 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                         autoFocus
                       />
                       <button
                         type="submit"
                         disabled={editSubmitting || !editText.trim()}
-                        className="rounded-full bg-green-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                        className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
                       >
                         Save
                       </button>
                       <button
                         type="button"
                         onClick={cancelEdit}
-                        className="rounded-full border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-500"
+                        className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500"
                       >
                         Cancel
                       </button>
                     </form>
                   ) : (
-                    <p className="mt-0.5 text-sm text-gray-600">{comment.comment}</p>
+                    <p className="mt-0.5 text-sm text-slate-600">{comment.comment}</p>
                   )}
                 </div>
               </div>
             );
           })
         ) : (
-          <p className="text-center text-xs text-gray-400">No comments yet</p>
+          <p className="text-center text-xs text-slate-400">No comments yet</p>
         )}
       </div>
       <form onSubmit={handleSubmit} className="mt-3 flex gap-2">
@@ -505,12 +560,12 @@ function CommentSection({ postId, commentData, onAddComment, currentUserId, onEd
           value={commentText}
           onChange={(e) => setCommentText(e.target.value)}
           placeholder="Write a comment..."
-          className="flex-1 rounded-full border border-gray-200 px-3 py-1.5 text-sm"
+          className="flex-1 rounded-full border border-slate-200 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
         />
         <button
           type="submit"
           disabled={submitting || !commentText.trim()}
-          className="rounded-full bg-green-600 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+          className="rounded-full bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
         >
           {submitting ? '…' : 'Post'}
         </button>
@@ -526,67 +581,67 @@ function CommentSection({ postId, commentData, onAddComment, currentUserId, onEd
   );
 }
 
-function PostFeedCard({ post, currentUserId, onEdit, onDelete, likeData, onToggleLike, commentData, onAddComment, onEditComment, onDeleteComment }) {
+function PostCard({ post, index, currentUserId, onEdit, onDelete, likeData, onToggleLike, commentData, onAddComment, onEditComment, onDeleteComment }) {
   const canManage = currentUserId != null && post.user != null && Number(post.user) === Number(currentUserId);
   const likeCount = likeData?.count ?? 0;
   const likedByMe = likeData?.likedByMe ?? false;
   const commentCount = commentData?.count ?? 0;
   const [commentsOpen, setCommentsOpen] = useState(false);
+
   return (
-    <div className="rounded-xl bg-white p-6 shadow">
-      <div className="flex items-center gap-3">
-        <LeaderAvatar name={post.user_name} imageUrl={getFullImageUrl(post.profile_image)} />
-        <div>
-          <h2 className="font-bold">{post.user_name}</h2>
-          <p className="text-sm text-gray-500">{formatTimeAgo(post.created_at)}</p>
+    <article
+      style={{ animationDelay: `${index * 60}ms` }}
+      className="animate-[fadeIn_0.4s_ease-out_both] rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+    >
+      <header className="flex items-center gap-3">
+        <LeaderAvatar name={post.user_name} imageUrl={getFullImageUrl(post.profile_image)} size="h-10 w-10" />
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold text-slate-900">{post.user_name}</h3>
+          <p className="text-xs text-slate-400">{formatTimeAgo(post.created_at)}</p>
         </div>
         {canManage && <PostMenu onEdit={() => onEdit(post)} onDelete={() => onDelete(post.id)} />}
-      </div>
+      </header>
 
-      <div className="mt-5">
-        {post.image && (
-          <ExpandableImage
-            src={getFullImageUrl(post.image)}
-            alt={post.user_name}
-            className="mb-4 h-auto max-h-[36rem] w-full rounded-xl object-contain"
-          />
-        )}
-        <p className="text-sm leading-6 text-gray-600">{post.summary || 'Shared an update.'}</p>
-        {(post.calories || post.distance || post.steps) ? (
-          <div className="mt-5 grid grid-cols-3 gap-4">
-            <div className="rounded-lg bg-red-50 p-4">
-              <p className="text-gray-500">Calories</p>
-              <h2 className="text-2xl font-bold">{Math.round(post.calories || 0)}</h2>
-            </div>
-            <div className="rounded-lg bg-blue-50 p-4">
-              <p className="text-gray-500">Distance</p>
-              <h2 className="text-2xl font-bold">{(post.distance || 0).toFixed(1)} km</h2>
-            </div>
-            <div className="rounded-lg bg-green-50 p-4">
-              <p className="text-gray-500">Steps</p>
-              <h2 className="text-2xl font-bold">{(post.steps || 0).toLocaleString()}</h2>
-            </div>
-          </div>
-        ) : null}
-      </div>
+      {post.image && (
+        <ExpandableImage
+          src={getFullImageUrl(post.image)}
+          alt={post.user_name}
+          className="mt-4 h-auto max-h-[36rem] w-full rounded-xl border border-slate-100 object-contain"
+        />
+      )}
 
-      <div className="mt-6 flex justify-between border-t pt-4 text-gray-500">
+      <p className="mt-4 text-sm leading-relaxed text-slate-600">
+        {post.summary || 'Shared an update.'}
+      </p>
+
+      {(post.calories || post.distance || post.steps) ? (
+        <div className="mt-4 grid grid-cols-3 divide-x divide-slate-100 rounded-xl border border-slate-100 bg-slate-50/60">
+          {METRIC_CONFIG.map(({ key, label, format }) => (
+            <div key={key} className="px-3 py-3 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
+              <p className="mt-1 text-base font-bold text-blue-700">{format(post[key])}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <footer className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-sm text-slate-500">
         <button
           type="button"
           onClick={() => onToggleLike(post.id)}
-          className={`transition-colors hover:text-red-600 ${likedByMe ? 'text-red-600' : ''}`}
+          className={`flex items-center gap-1.5 transition-colors hover:text-red-600 ${likedByMe ? 'text-red-600' : ''}`}
         >
-          {likedByMe ? '❤️' : '🤍'} {likeCount}
+          <span>{likedByMe ? '❤️' : '🤍'}</span> {likeCount}
         </button>
         <button
           type="button"
           onClick={() => setCommentsOpen((prev) => !prev)}
-          className={`transition-colors hover:text-blue-600 ${commentsOpen ? 'text-blue-600' : ''}`}
+          className={`flex items-center gap-1.5 transition-colors hover:text-blue-600 ${commentsOpen ? 'text-blue-600' : ''}`}
         >
-          💬 {commentCount}
+          <span>💬</span> {commentCount}
         </button>
         <ShareButton post={post} />
-      </div>
+      </footer>
 
       {commentsOpen && (
         <CommentSection
@@ -598,11 +653,17 @@ function PostFeedCard({ post, currentUserId, onEdit, onDelete, likeData, onToggl
           onDeleteComment={onDeleteComment}
         />
       )}
-    </div>
+    </article>
   );
 }
 
-function ChallengeFeedCard({ challenge, currentUserId, likeData, onToggleLike, commentData, onAddComment, onEditComment, onDeleteComment }) {
+const CHALLENGE_METRIC_CONFIG = [
+  { key: 'steps', label: 'Step Goal', format: (v) => (v ? Number(v).toLocaleString() : '—') },
+  { key: 'distance', label: 'Distance Goal', format: (v) => (v ? `${Number(v).toFixed(1)} km` : '—') },
+  { key: 'calories', label: 'Calorie Goal', format: (v) => (v ? Math.round(Number(v)).toLocaleString() : '—') },
+];
+
+function ChallengeCard({ challenge, index, currentUserId, likeData, onToggleLike, commentData, onAddComment, onEditComment, onDeleteComment }) {
   const status = getChallengeStatus(challenge.start_date, challenge.end_date);
   const likeCount = likeData?.count ?? 0;
   const likedByMe = likeData?.likedByMe ?? false;
@@ -610,8 +671,11 @@ function ChallengeFeedCard({ challenge, currentUserId, likeData, onToggleLike, c
   const [commentsOpen, setCommentsOpen] = useState(false);
 
   return (
-    <div className="rounded-xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-white p-6 shadow">
-      <div className="flex items-start gap-3">
+    <article
+      style={{ animationDelay: `${index * 60}ms` }}
+      className="animate-[fadeIn_0.4s_ease-out_both] rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm"
+    >
+      <header className="flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-400 text-lg text-white shadow-sm">
           🏆
         </div>
@@ -624,61 +688,55 @@ function ChallengeFeedCard({ challenge, currentUserId, likeData, onToggleLike, c
               {status.label}
             </span>
           </div>
-          <h2 className="mt-1 font-bold text-gray-900">{challenge.name}</h2>
+          <h3 className="mt-1 truncate text-base font-bold text-slate-900">{challenge.name}</h3>
           {challenge.user_name && (
-            <p className="text-xs text-gray-400">Created by {challenge.user_name}</p>
+            <p className="text-xs text-slate-400">Created by {challenge.user_name}</p>
           )}
         </div>
+      </header>
+
+      {challenge.image && (
+        <ExpandableImage
+          src={getFullImageUrl(challenge.image)}
+          alt={challenge.name}
+          className="mt-4 h-auto max-h-[36rem] w-full rounded-xl border border-amber-100 object-contain"
+        />
+      )}
+
+      {challenge.description && (
+        <p className="mt-4 text-sm leading-relaxed text-slate-600">{challenge.description}</p>
+      )}
+
+      <div className="mt-4 grid grid-cols-3 divide-x divide-amber-100 rounded-xl border border-amber-100 bg-amber-50/60">
+        {CHALLENGE_METRIC_CONFIG.map(({ key, label, format }) => (
+          <div key={key} className="px-3 py-3 text-center">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-amber-700/70">{label}</p>
+            <p className="mt-1 text-base font-bold text-amber-700">{format(challenge[key])}</p>
+          </div>
+        ))}
       </div>
 
-      <div className="mt-5">
-        {challenge.image && (
-          <ExpandableImage
-            src={getFullImageUrl(challenge.image)}
-            alt={challenge.name}
-            className="mb-4 h-auto max-h-[36rem] w-full rounded-xl object-contain"
-          />
-        )}
-        {challenge.description && (
-          <p className="text-sm leading-6 text-gray-600">{challenge.description}</p>
-        )}
-        <div className="mt-5 grid grid-cols-3 gap-4">
-          <div className="rounded-lg bg-amber-100/70 p-4">
-            <p className="text-amber-700/70">Step Goal</p>
-            <h2 className="text-2xl font-bold text-amber-700">{challenge.steps ? Number(challenge.steps).toLocaleString() : '—'}</h2>
-          </div>
-          <div className="rounded-lg bg-amber-100/70 p-4">
-            <p className="text-amber-700/70">Distance Goal</p>
-            <h2 className="text-2xl font-bold text-amber-700">{challenge.distance ? `${Number(challenge.distance).toFixed(1)} km` : '—'}</h2>
-          </div>
-          <div className="rounded-lg bg-amber-100/70 p-4">
-            <p className="text-amber-700/70">Calorie Goal</p>
-            <h2 className="text-2xl font-bold text-amber-700">{challenge.calories ? Math.round(Number(challenge.calories)).toLocaleString() : '—'}</h2>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6 flex items-center justify-center gap-2 border-t border-amber-200 pt-4 text-sm font-medium text-gray-500">
+      <footer className="mt-4 flex items-center justify-center gap-2 border-t border-amber-100 pt-3 text-sm font-medium text-slate-500">
         <span>📅</span>
         <span>{formatDate(challenge.start_date)} – {formatDate(challenge.end_date)}</span>
-      </div>
+      </footer>
 
-      <div className="mt-4 flex justify-between border-t border-amber-200 pt-4 text-gray-500">
+      <footer className="mt-3 flex items-center justify-between border-t border-amber-100 pt-3 text-sm text-slate-500">
         <button
           type="button"
           onClick={() => onToggleLike(challenge.id)}
-          className={`transition-colors hover:text-amber-600 ${likedByMe ? 'text-amber-600' : ''}`}
+          className={`flex items-center gap-1.5 transition-colors hover:text-amber-600 ${likedByMe ? 'text-amber-600' : ''}`}
         >
-          {likedByMe ? '⭐' : '☆'} {likeCount}
+          <span>{likedByMe ? '⭐' : '☆'}</span> {likeCount}
         </button>
         <button
           type="button"
           onClick={() => setCommentsOpen((prev) => !prev)}
-          className={`transition-colors hover:text-blue-600 ${commentsOpen ? 'text-blue-600' : ''}`}
+          className={`flex items-center gap-1.5 transition-colors hover:text-blue-600 ${commentsOpen ? 'text-blue-600' : ''}`}
         >
-          💬 {commentCount}
+          <span>💬</span> {commentCount}
         </button>
-      </div>
+      </footer>
 
       {commentsOpen && (
         <CommentSection
@@ -690,7 +748,7 @@ function ChallengeFeedCard({ challenge, currentUserId, likeData, onToggleLike, c
           onDeleteComment={onDeleteComment}
         />
       )}
-    </div>
+    </article>
   );
 }
 
@@ -716,8 +774,8 @@ function buildFeedItems(posts, challenges) {
 function Feed({ posts, challenges, loading = false, currentUserId, onEdit, onDelete, postLikes, onToggleLike, postComments, onAddComment, onEditComment, onDeleteComment, challengeLikes, onToggleChallengeLike, challengeComments, onAddChallengeComment, onEditChallengeComment, onDeleteChallengeComment }) {
   if (loading) {
     return (
-      <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      <div className="flex justify-center py-10">
+        <div className="h-7 w-7 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600" />
       </div>
     );
   }
@@ -726,19 +784,20 @@ function Feed({ posts, challenges, loading = false, currentUserId, onEdit, onDel
 
   if (feedItems.length === 0) {
     return (
-      <div className="rounded-xl bg-white p-6 text-center text-sm text-gray-500 shadow">
+      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400 shadow-sm">
         No posts yet
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {feedItems.map((item) =>
+    <div className="space-y-5">
+      {feedItems.map((item, index) =>
         item.type === 'challenge' ? (
-          <ChallengeFeedCard
+          <ChallengeCard
             key={item.key}
             challenge={item.data}
+            index={index}
             currentUserId={currentUserId}
             likeData={challengeLikes?.[item.data.id]}
             onToggleLike={onToggleChallengeLike}
@@ -748,9 +807,10 @@ function Feed({ posts, challenges, loading = false, currentUserId, onEdit, onDel
             onDeleteComment={onDeleteChallengeComment}
           />
         ) : (
-          <PostFeedCard
+          <PostCard
             key={item.key}
             post={item.data}
+            index={index}
             currentUserId={currentUserId}
             onEdit={onEdit}
             onDelete={onDelete}
@@ -767,91 +827,50 @@ function Feed({ posts, challenges, loading = false, currentUserId, onEdit, onDel
   );
 }
 
-const EMPTY_CHALLENGE_FORM = {
-  name: '',
-  description: '',
-  goal: '',
-  steps: '',
-  distance: '',
-  calories: '',
-  start_date: '',
-  end_date: '',
-  imageFile: null,
-};
-
-const CHALLENGE_STYLES = ['bg-green-50', 'bg-red-50', 'bg-blue-50', 'bg-yellow-50', 'bg-purple-50'];
-
-function RightSidebar({ challenges = [], onAddClick }) {
+function RightSidebar({ challenges = [] }) {
   return (
-    <div className="space-y-5">
-      <div className="rounded-xl bg-white p-5 shadow">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Trending Challenges</h2>
-          <button
-            onClick={onAddClick}
-            aria-label="Add to leaderboard"
-            title="Add to leaderboard"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-green-600 text-lg font-semibold text-white shadow"
-          >
-            +
-          </button>
-        </div>
-        <div className="max-h-[45vh] space-y-3 overflow-y-auto pr-1">
-          {challenges.length > 0 ? (
-            challenges.map((challenge, index) => (
-              <div key={challenge} className={`rounded-lg p-3 ${CHALLENGE_STYLES[index % CHALLENGE_STYLES.length]}`}>
-                🏆 {challenge}
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-gray-500">No challenges yet</p>
-          )}
-        </div>
+    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-100 px-5 py-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+          Trending Challenges
+        </h2>
       </div>
 
-      <div className="rounded-xl bg-white p-5 shadow">
-        <h2 className="text-lg font-bold">Your Progress</h2>
-        <div className="mt-5 space-y-4">
-          <div>
-            Calories
-            <div className="mt-2 h-2 rounded bg-gray-200">
-              <div className="h-2 w-4/5 rounded bg-red-500"></div>
+      <div className="max-h-[60vh] space-y-2 overflow-y-auto px-5 py-4">
+        {challenges.length > 0 ? (
+          challenges.map((challenge) => (
+            <div
+              key={challenge}
+              className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/60 px-3 py-2.5 text-sm text-slate-700"
+            >
+              <span>🏆</span>
+              <span className="truncate">{challenge}</span>
             </div>
-          </div>
-          <div>
-            Steps
-            <div className="mt-2 h-2 rounded bg-gray-200">
-              <div className="h-2 w-3/4 rounded bg-green-500"></div>
-            </div>
-          </div>
-          <div>
-            Distance
-            <div className="mt-2 h-2 rounded bg-gray-200">
-              <div className="h-2 w-2/3 rounded bg-blue-500"></div>
-            </div>
-          </div>
-        </div>
+          ))
+        ) : (
+          <p className="py-4 text-center text-sm text-slate-400">No challenges yet</p>
+        )}
       </div>
-    </div>
+    </section>
   );
 }
 
 export default function LeaderboardPage() {
   const [leaders, setLeaders] = useState([]);
+  const [leadersLoading, setLeadersLoading] = useState(true);
+  const [dailyLeaders, setDailyLeaders] = useState([]);
+  const [dailyLeadersLoading, setDailyLeadersLoading] = useState(true);
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [challenges, setChallenges] = useState([]);
   const [formData, setFormData] = useState({ summary: '', is_completed: false, photoFile: null });
+  const [showComposer, setShowComposer] = useState(false);
+  const [posting, setPosting] = useState(false);
+  const [postError, setPostError] = useState(null);
   const [showChallengeComposer, setShowChallengeComposer] = useState(false);
   const [challengeFormData, setChallengeFormData] = useState(EMPTY_CHALLENGE_FORM);
   const [challengeSubmitting, setChallengeSubmitting] = useState(false);
   const [challengeError, setChallengeError] = useState(null);
-  const [profile, setProfile] = useState({ name: '', photo: '' });
-  const [showComposer, setShowComposer] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [posting, setPosting] = useState(false);
-  const [postError, setPostError] = useState(null);
   const [currentUserId] = useState(() => getUserData()?.id ?? null);
   const [postLikes, setPostLikes] = useState({});
   const [postComments, setPostComments] = useState({});
@@ -862,27 +881,32 @@ export default function LeaderboardPage() {
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState(null);
   const [deletePostId, setDeletePostId] = useState(null);
-  const { user } = useAuth();
 
-  // Fetch leaderboard rankings from API
   const fetchLeaderboard = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-
+      setLeadersLoading(true);
       const data = await getLeaderboard();
-
       if (data.leaderboard && Array.isArray(data.leaderboard)) {
         setLeaders(data.leaderboard);
-      } else {
-        console.warn('No leaderboard data in response');
-        setError('No leaderboard data available');
       }
-    } catch (err) {
-      console.error('Error fetching leaderboard:', err);
-      setError(err.message);
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
     } finally {
-      setLoading(false);
+      setLeadersLoading(false);
+    }
+  }, []);
+
+  const fetchDailyLeaderboard = useCallback(async () => {
+    try {
+      setDailyLeadersLoading(true);
+      const data = await getDailyLeaderboard();
+      if (data.leaderboard && Array.isArray(data.leaderboard)) {
+        setDailyLeaders(data.leaderboard);
+      }
+    } catch (error) {
+      console.error('Error fetching daily leaderboard:', error);
+    } finally {
+      setDailyLeadersLoading(false);
     }
   }, []);
 
@@ -893,8 +917,8 @@ export default function LeaderboardPage() {
           const data = await getPostLikes(post.id);
           const likedByMe = Array.isArray(data.likes) && data.likes.some((l) => Number(l.user) === Number(currentUserId));
           return [post.id, { count: data.like_count || 0, likedByMe }];
-        } catch (err) {
-          console.error(`Error fetching likes for post ${post.id}:`, err);
+        } catch (error) {
+          console.error(`Error fetching likes for post ${post.id}:`, error);
           return [post.id, { count: 0, likedByMe: false }];
         }
       })
@@ -908,8 +932,8 @@ export default function LeaderboardPage() {
         try {
           const data = await getPostComments(post.id);
           return [post.id, { count: data.comment_count || 0, list: data.comments || [] }];
-        } catch (err) {
-          console.error(`Error fetching comments for post ${post.id}:`, err);
+        } catch (error) {
+          console.error(`Error fetching comments for post ${post.id}:`, error);
           return [post.id, { count: 0, list: [] }];
         }
       })
@@ -917,7 +941,6 @@ export default function LeaderboardPage() {
     setPostComments(Object.fromEntries(entries));
   }, []);
 
-  // Fetch posts feed from API
   const fetchPosts = useCallback(async () => {
     try {
       setPostsLoading(true);
@@ -925,8 +948,8 @@ export default function LeaderboardPage() {
       setPosts(data);
       fetchPostLikes(data);
       fetchPostComments(data);
-    } catch (err) {
-      console.error('Error fetching leaderboard posts:', err);
+    } catch (error) {
+      console.error('Error fetching leaderboard posts:', error);
     } finally {
       setPostsLoading(false);
     }
@@ -940,8 +963,8 @@ export default function LeaderboardPage() {
         ...prev,
         [postId]: { count: data.comment_count || 0, list: data.comments || [] },
       }));
-    } catch (err) {
-      console.error(`Failed to add comment to post ${postId}:`, err);
+    } catch (error) {
+      console.error(`Failed to add comment to post ${postId}:`, error);
     }
   }, []);
 
@@ -953,8 +976,8 @@ export default function LeaderboardPage() {
         ...prev,
         [postId]: { count: data.comment_count || 0, list: data.comments || [] },
       }));
-    } catch (err) {
-      console.error(`Failed to update comment ${commentId}:`, err);
+    } catch (error) {
+      console.error(`Failed to update comment ${commentId}:`, error);
     }
   }, []);
 
@@ -966,8 +989,8 @@ export default function LeaderboardPage() {
         ...prev,
         [postId]: { count: data.comment_count || 0, list: data.comments || [] },
       }));
-    } catch (err) {
-      console.error(`Failed to delete comment ${commentId}:`, err);
+    } catch (error) {
+      console.error(`Failed to delete comment ${commentId}:`, error);
     }
   }, []);
 
@@ -978,8 +1001,8 @@ export default function LeaderboardPage() {
         ...prev,
         [postId]: { count: data.like_count || 0, likedByMe: !!data.liked },
       }));
-    } catch (err) {
-      console.error(`Failed to toggle like for post ${postId}:`, err);
+    } catch (error) {
+      console.error(`Failed to toggle like for post ${postId}:`, error);
       fetchPostLikes(posts);
     }
   }, [fetchPostLikes, posts]);
@@ -991,8 +1014,8 @@ export default function LeaderboardPage() {
           const data = await getChallengeLikes(challenge.id);
           const likedByMe = Array.isArray(data.likes) && data.likes.some((l) => Number(l.user) === Number(currentUserId));
           return [challenge.id, { count: data.like_count || 0, likedByMe }];
-        } catch (err) {
-          console.error(`Error fetching likes for challenge ${challenge.id}:`, err);
+        } catch (error) {
+          console.error(`Error fetching likes for challenge ${challenge.id}:`, error);
           return [challenge.id, { count: 0, likedByMe: false }];
         }
       })
@@ -1006,8 +1029,8 @@ export default function LeaderboardPage() {
         try {
           const data = await getChallengeComments(challenge.id);
           return [challenge.id, { count: data.comment_count || 0, list: data.comments || [] }];
-        } catch (err) {
-          console.error(`Error fetching comments for challenge ${challenge.id}:`, err);
+        } catch (error) {
+          console.error(`Error fetching comments for challenge ${challenge.id}:`, error);
           return [challenge.id, { count: 0, list: [] }];
         }
       })
@@ -1021,8 +1044,8 @@ export default function LeaderboardPage() {
       setChallenges(data);
       fetchChallengeLikes(data);
       fetchChallengeComments(data);
-    } catch (err) {
-      console.error('Error fetching leaderboard challenges:', err);
+    } catch (error) {
+      console.error('Error fetching leaderboard challenges:', error);
     }
   }, [fetchChallengeLikes, fetchChallengeComments]);
 
@@ -1034,8 +1057,8 @@ export default function LeaderboardPage() {
         ...prev,
         [challengeId]: { count: data.comment_count || 0, list: data.comments || [] },
       }));
-    } catch (err) {
-      console.error(`Failed to add comment to challenge ${challengeId}:`, err);
+    } catch (error) {
+      console.error(`Failed to add comment to challenge ${challengeId}:`, error);
     }
   }, []);
 
@@ -1047,8 +1070,8 @@ export default function LeaderboardPage() {
         ...prev,
         [challengeId]: { count: data.comment_count || 0, list: data.comments || [] },
       }));
-    } catch (err) {
-      console.error(`Failed to update comment ${commentId}:`, err);
+    } catch (error) {
+      console.error(`Failed to update comment ${commentId}:`, error);
     }
   }, []);
 
@@ -1060,8 +1083,8 @@ export default function LeaderboardPage() {
         ...prev,
         [challengeId]: { count: data.comment_count || 0, list: data.comments || [] },
       }));
-    } catch (err) {
-      console.error(`Failed to delete comment ${commentId}:`, err);
+    } catch (error) {
+      console.error(`Failed to delete comment ${commentId}:`, error);
     }
   }, []);
 
@@ -1072,41 +1095,18 @@ export default function LeaderboardPage() {
         ...prev,
         [challengeId]: { count: data.like_count || 0, likedByMe: !!data.liked },
       }));
-    } catch (err) {
-      console.error(`Failed to toggle like for challenge ${challengeId}:`, err);
+    } catch (error) {
+      console.error(`Failed to toggle like for challenge ${challengeId}:`, error);
       fetchChallengeLikes(challenges);
     }
   }, [fetchChallengeLikes, challenges]);
 
   useEffect(() => {
     fetchLeaderboard();
+    fetchDailyLeaderboard();
     fetchPosts();
     fetchChallenges();
-  }, [fetchLeaderboard, fetchPosts, fetchChallenges]);
-
-  // Get user data from localStorage (from login) to show a "Posting as" preview
-  useEffect(() => {
-    const userData = getUserData();
-    if (userData && !profile.name) {
-      const userName = userData.full_name ||
-                       (userData.first_name && userData.last_name ? `${userData.first_name} ${userData.last_name}` : '') ||
-                       userData.name ||
-                       '';
-
-      let userPhoto = '';
-      if (userData.profile_image) {
-        userPhoto = userData.profile_image.startsWith('http')
-          ? userData.profile_image
-          : `${API_BASE_URL}${userData.profile_image.startsWith('/') ? '' : '/'}${userData.profile_image}`;
-      } else if (userData.avatar) {
-        userPhoto = userData.avatar.startsWith('http')
-          ? userData.avatar
-          : `${API_BASE_URL}${userData.avatar.startsWith('/') ? '' : '/'}${userData.avatar}`;
-      }
-
-      setProfile({ name: userName, photo: userPhoto });
-    }
-  }, [user]);
+  }, [fetchLeaderboard, fetchDailyLeaderboard, fetchPosts, fetchChallenges]);
 
   const handlePhotoChange = (event) => {
     const file = event.target.files?.[0];
@@ -1116,9 +1116,7 @@ export default function LeaderboardPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!formData.summary.trim() && !formData.photoFile) {
-      return;
-    }
+    if (!formData.summary.trim() && !formData.photoFile) return;
 
     const payload = new FormData();
     payload.append('summary', formData.summary);
@@ -1136,9 +1134,10 @@ export default function LeaderboardPage() {
       setShowComposer(false);
       fetchPosts();
       fetchLeaderboard();
-    } catch (err) {
-      console.error('Failed to create post:', err);
-      setPostError(err.message || 'Failed to share progress. Please try again.');
+      fetchDailyLeaderboard();
+    } catch (error) {
+      console.error('Failed to create post:', error);
+      setPostError(error.message || 'Failed to share progress. Please try again.');
     } finally {
       setPosting(false);
     }
@@ -1180,9 +1179,9 @@ export default function LeaderboardPage() {
       setChallengeFormData(EMPTY_CHALLENGE_FORM);
       setShowChallengeComposer(false);
       fetchChallenges();
-    } catch (err) {
-      console.error('Failed to create challenge:', err);
-      setChallengeError(err.message || 'Failed to create challenge. Please try again.');
+    } catch (error) {
+      console.error('Failed to create challenge:', error);
+      setChallengeError(error.message || 'Failed to create challenge. Please try again.');
     } finally {
       setChallengeSubmitting(false);
     }
@@ -1221,9 +1220,9 @@ export default function LeaderboardPage() {
       await updateLeaderboardPost(editingPost.id, payload);
       setEditingPost(null);
       fetchPosts();
-    } catch (err) {
-      console.error('Failed to update post:', err);
-      setEditError(err.message || 'Failed to update post. Please try again.');
+    } catch (error) {
+      console.error('Failed to update post:', error);
+      setEditError(error.message || 'Failed to update post. Please try again.');
     } finally {
       setEditSubmitting(false);
     }
@@ -1239,134 +1238,129 @@ export default function LeaderboardPage() {
     try {
       await deleteLeaderboardPost(postId);
       setPosts((prev) => prev.filter((p) => p.id !== postId));
-    } catch (err) {
-      console.error('Failed to delete post:', err);
-      alert(err.message || 'Failed to delete post. Please try again.');
+    } catch (error) {
+      console.error('Failed to delete post:', error);
+      alert(error.message || 'Failed to delete post. Please try again.');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <Navbar />
+    <div className="min-h-screen bg-slate-50 pt-28 pb-16 px-4 sm:px-6 lg:px-8">
+      <AppHeader />
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded m-4">
-          <p className="font-bold">Error Loading Leaderboard</p>
-          <p className="text-sm">{error}</p>
-          <p className="text-xs mt-2">Check browser console for more details</p>
-        </div>
-      )}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
 
-      <div className="mx-auto mt-5 flex max-w-7xl items-start gap-6 px-4">
-        <div className="hidden w-72 shrink-0 lg:sticky lg:top-20 lg:block lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
-          <Sidebar leaders={leaders} loading={loading} />
-          {leaders.length === 0 && !loading && (
-            <div className="rounded-xl bg-yellow-50 p-4 text-yellow-700 text-sm">
-              <p className="font-semibold">No leaders loaded</p>
-              <p className="text-xs mt-1">Leaders count: {leaders.length}</p>
-            </div>
-          )}
-        </div>
+      <div className="mx-auto max-w-6xl">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[260px_1fr_260px] lg:items-start">
+          <div className="hidden lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:space-y-5 lg:overflow-y-auto lg:pr-1">
+            <Sidebar leaders={leaders} loading={leadersLoading} />
+            <DailyLeaderboard leaders={dailyLeaders} loading={dailyLeadersLoading} />
+          </div>
 
-        <div className="min-w-0 flex-1 space-y-6">
-          <Feed
-            posts={posts}
-            challenges={challenges}
-            loading={postsLoading}
-            currentUserId={currentUserId}
-            onEdit={openEditPost}
-            onDelete={handleDeletePost}
-            postLikes={postLikes}
-            onToggleLike={handleToggleLike}
-            postComments={postComments}
-            onAddComment={handleAddComment}
-            onEditComment={handleEditComment}
-            onDeleteComment={handleDeleteComment}
-            challengeLikes={challengeLikes}
-            onToggleChallengeLike={handleToggleChallengeLike}
-            challengeComments={challengeComments}
-            onAddChallengeComment={handleAddChallengeComment}
-            onEditChallengeComment={handleEditChallengeComment}
-            onDeleteChallengeComment={handleDeleteChallengeComment}
-          />
-        </div>
+          <div>
+            <Feed
+              posts={posts}
+              challenges={challenges}
+              loading={postsLoading}
+              currentUserId={currentUserId}
+              onEdit={openEditPost}
+              onDelete={handleDeletePost}
+              postLikes={postLikes}
+              onToggleLike={handleToggleLike}
+              postComments={postComments}
+              onAddComment={handleAddComment}
+              onEditComment={handleEditComment}
+              onDeleteComment={handleDeleteComment}
+              challengeLikes={challengeLikes}
+              onToggleChallengeLike={handleToggleChallengeLike}
+              challengeComments={challengeComments}
+              onAddChallengeComment={handleAddChallengeComment}
+              onEditChallengeComment={handleEditChallengeComment}
+              onDeleteChallengeComment={handleDeleteChallengeComment}
+            />
+          </div>
 
-        <div className="hidden w-80 shrink-0 xl:sticky xl:top-20 xl:block xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-1">
-          <RightSidebar
-            challenges={challenges.map((c) => c.name)}
-            onAddClick={() => setShowChallengeComposer(true)}
-          />
+          <div className="hidden lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-1">
+            <RightSidebar challenges={challenges.map((c) => c.name)} />
+          </div>
         </div>
       </div>
 
       {showComposer && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
           onClick={() => setShowComposer(false)}
         >
           <form
             onSubmit={handleSubmit}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl"
+            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
           >
-            <h2 className="mb-4 text-lg font-bold">Share your progress</h2>
-            {postError && (
-              <p className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-700">{postError}</p>
-            )}
-
-            {/* User Info Display */}
-            <div className="mb-4 flex items-center gap-4 border-b pb-4">
-              {profile.photo && (
-                <img
-                  src={profile.photo}
-                  alt={profile.name}
-                  className="h-16 w-16 rounded-full object-cover"
-                  onError={(e) => {
-                    e.target.src = 'https://i.pravatar.cc/150';
-                  }}
-                />
-              )}
-              <div>
-                <p className="text-sm text-gray-600">Posting as</p>
-                <h3 className="text-lg font-semibold text-gray-900">{profile.name || 'User'}</h3>
-              </div>
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-slate-900">Share your progress</h2>
+              <button
+                type="button"
+                onClick={() => setShowComposer(false)}
+                aria-label="Close"
+                className="text-slate-400 transition-colors hover:text-slate-600"
+              >
+                ✕
+              </button>
             </div>
 
+            {postError && (
+              <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{postError}</p>
+            )}
+
             <div className="grid gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Summary</label>
+              <label>
+                <span className="mb-1 block text-xs font-medium text-slate-500">Summary</span>
                 <textarea
                   value={formData.summary}
                   onChange={(e) => setFormData((prev) => ({ ...prev, summary: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   rows={3}
                   placeholder="Had a great workout today! 💪🔥"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Photo</label>
+              </label>
+              <label>
+                <span className="mb-1 block text-xs font-medium text-slate-500">Photo</span>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handlePhotoChange}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-gray-500"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-blue-600 focus:border-blue-400 focus:outline-none"
                 />
-              </div>
+              </label>
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={formData.is_completed}
                   onChange={(e) => setFormData((prev) => ({ ...prev, is_completed: e.target.checked }))}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-400"
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-400"
                 />
-                <span className="text-sm text-gray-600">Mark as completed</span>
+                <span className="text-sm text-slate-600">Mark as completed</span>
               </label>
             </div>
-            <div className="mt-4 flex gap-3">
-              <button type="submit" disabled={posting} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white disabled:opacity-60">
+
+            <div className="mt-5 flex gap-3">
+              <button
+                type="submit"
+                disabled={posting}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+              >
                 {posting ? 'Posting…' : 'Submit'}
               </button>
-              <button type="button" onClick={() => setShowComposer(false)} className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700">
+              <button
+                type="button"
+                onClick={() => setShowComposer(false)}
+                className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+              >
                 Cancel
               </button>
             </div>
@@ -1376,116 +1370,140 @@ export default function LeaderboardPage() {
 
       {showChallengeComposer && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
           onClick={() => setShowChallengeComposer(false)}
         >
           <form
             onSubmit={handleAddChallenge}
             onClick={(e) => e.stopPropagation()}
-            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl"
+            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
           >
-            <h2 className="mb-4 text-lg font-bold">Add a challenge</h2>
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-slate-900">Add a challenge</h2>
+              <button
+                type="button"
+                onClick={() => setShowChallengeComposer(false)}
+                aria-label="Close"
+                className="text-slate-400 transition-colors hover:text-slate-600"
+              >
+                ✕
+              </button>
+            </div>
+
             {challengeError && (
-              <p className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-700">{challengeError}</p>
+              <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{challengeError}</p>
             )}
 
             <div className="grid gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Challenge name</label>
+              <label>
+                <span className="mb-1 block text-xs font-medium text-slate-500">Challenge name</span>
                 <input
                   value={challengeFormData.name}
                   onChange={handleChallengeFieldChange('name')}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   placeholder="10K Steps Challenge"
+                  autoFocus
                   required
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+              </label>
+
+              <label>
+                <span className="mb-1 block text-xs font-medium text-slate-500">Description</span>
                 <textarea
                   value={challengeFormData.description}
                   onChange={handleChallengeFieldChange('description')}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   rows={3}
                   placeholder="Walk 10,000 steps every day for one week!"
                 />
-              </div>
+              </label>
+
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Goal</label>
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Goal</span>
                   <input
                     type="number"
                     value={challengeFormData.goal}
                     onChange={handleChallengeFieldChange('goal')}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     placeholder="10000"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Steps</label>
+                </label>
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Steps</span>
                   <input
                     type="number"
                     value={challengeFormData.steps}
                     onChange={handleChallengeFieldChange('steps')}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     placeholder="10000"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Distance (km)</label>
+                </label>
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Distance (km)</span>
                   <input
                     type="number"
                     step="0.1"
                     value={challengeFormData.distance}
                     onChange={handleChallengeFieldChange('distance')}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     placeholder="7.5"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Calories</label>
+                </label>
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Calories</span>
                   <input
                     type="number"
                     value={challengeFormData.calories}
                     onChange={handleChallengeFieldChange('calories')}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     placeholder="500"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Start date</label>
+                </label>
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">Start date</span>
                   <input
                     type="date"
                     value={challengeFormData.start_date}
                     onChange={handleChallengeFieldChange('start_date')}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End date</label>
+                </label>
+                <label>
+                  <span className="mb-1 block text-xs font-medium text-slate-500">End date</span>
                   <input
                     type="date"
                     value={challengeFormData.end_date}
                     onChange={handleChallengeFieldChange('end_date')}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   />
-                </div>
+                </label>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Image</label>
+
+              <label>
+                <span className="mb-1 block text-xs font-medium text-slate-500">Image</span>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleChallengeImageChange}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-gray-500"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-blue-600 focus:border-blue-400 focus:outline-none"
                 />
-              </div>
+              </label>
             </div>
-            <div className="mt-4 flex gap-3">
-              <button type="submit" disabled={challengeSubmitting} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white disabled:opacity-60">
+
+            <div className="mt-5 flex gap-3">
+              <button
+                type="submit"
+                disabled={challengeSubmitting}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+              >
                 {challengeSubmitting ? 'Adding…' : 'Add'}
               </button>
-              <button type="button" onClick={() => setShowChallengeComposer(false)} className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700">
+              <button
+                type="button"
+                onClick={() => setShowChallengeComposer(false)}
+                className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+              >
                 Cancel
               </button>
             </div>
@@ -1495,55 +1513,74 @@ export default function LeaderboardPage() {
 
       {editingPost && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
           onClick={() => setEditingPost(null)}
         >
           <form
             onSubmit={handleEditSubmit}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl"
+            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
           >
-            <h2 className="mb-4 text-lg font-bold">Edit post</h2>
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-slate-900">Edit post</h2>
+              <button
+                type="button"
+                onClick={() => setEditingPost(null)}
+                aria-label="Close"
+                className="text-slate-400 transition-colors hover:text-slate-600"
+              >
+                ✕
+              </button>
+            </div>
+
             {editError && (
-              <p className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-700">{editError}</p>
+              <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{editError}</p>
             )}
 
             <div className="grid gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Summary</label>
+              <label>
+                <span className="mb-1 block text-xs font-medium text-slate-500">Summary</span>
                 <textarea
                   value={editFormData.summary}
                   onChange={(e) => setEditFormData((prev) => ({ ...prev, summary: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   rows={3}
                   placeholder="Share an update..."
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Photo</label>
+              </label>
+              <label>
+                <span className="mb-1 block text-xs font-medium text-slate-500">Photo</span>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleEditPhotoChange}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-gray-500"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-blue-600 focus:border-blue-400 focus:outline-none"
                 />
-              </div>
+              </label>
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={editFormData.is_completed}
                   onChange={(e) => setEditFormData((prev) => ({ ...prev, is_completed: e.target.checked }))}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-400"
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-400"
                 />
-                <span className="text-sm text-gray-600">Mark as completed</span>
+                <span className="text-sm text-slate-600">Mark as completed</span>
               </label>
             </div>
 
-            <div className="mt-4 flex gap-3">
-              <button type="submit" disabled={editSubmitting} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white disabled:opacity-60">
+            <div className="mt-5 flex gap-3">
+              <button
+                type="submit"
+                disabled={editSubmitting}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+              >
                 {editSubmitting ? 'Saving…' : 'Save changes'}
               </button>
-              <button type="button" onClick={() => setEditingPost(null)} className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-700">
+              <button
+                type="button"
+                onClick={() => setEditingPost(null)}
+                className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+              >
                 Cancel
               </button>
             </div>
