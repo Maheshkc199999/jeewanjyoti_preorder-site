@@ -3,10 +3,10 @@ import {
   Search, Loader, X, Stethoscope, User as UserIcon, Phone, Droplet, Calendar,
   Ruler, Weight, Award, Building2, GraduationCap, RefreshCw,
   Heart, Droplets, Activity, Moon, Zap, BatteryFull, BatteryLow, BatteryWarning,
-  Pencil, Trash2, Eye, AlertTriangle,
+  Pencil, Trash2, Eye, AlertTriangle, Bell, Send,
 } from 'lucide-react';
 import { authenticatedFetch } from '../../lib/tokenManager';
-import { updateProfile } from '../../lib/api';
+import { updateProfile, createAdminNotification } from '../../lib/api';
 
 const GENDER_OPTIONS = [
   { value: '', label: 'Select…' },
@@ -139,6 +139,12 @@ export default function AdminMembers({ users = [], loading = false, error = null
   const [selectedUser, setSelectedUser] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
+  // Push notification form — shown inside the member detail modal
+  const [notifyForm, setNotifyForm] = useState({ title: '', body: '' });
+  const [notifySending, setNotifySending] = useState(false);
+  const [notifyError, setNotifyError] = useState('');
+  const [notifySuccess, setNotifySuccess] = useState(false);
+
   // Edit modal state — pre-filled with the user's current values
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState(null);
@@ -155,6 +161,40 @@ export default function AdminMembers({ users = [], loading = false, error = null
   const textMuted = darkMode ? '#64748b' : '#9ca3af';
   const rowHover = darkMode ? '#0f172a' : '#f8fafc';
   const inputStyle = getInputStyle(darkMode);
+
+  const openDetail = (u) => {
+    setSelectedUser(u);
+    setNotifyForm({ title: '', body: '' });
+    setNotifyError('');
+    setNotifySuccess(false);
+  };
+
+  const closeDetail = () => {
+    setSelectedUser(null);
+    setNotifyForm({ title: '', body: '' });
+    setNotifyError('');
+    setNotifySuccess(false);
+  };
+
+  const handleSendNotification = async (e) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    const title = notifyForm.title.trim();
+    const body = notifyForm.body.trim();
+    if (!title || !body) return;
+    try {
+      setNotifySending(true);
+      setNotifyError('');
+      setNotifySuccess(false);
+      await createAdminNotification(selectedUser.id, title, body);
+      setNotifyForm({ title: '', body: '' });
+      setNotifySuccess(true);
+    } catch (err) {
+      setNotifyError(err.message || 'Failed to send notification.');
+    } finally {
+      setNotifySending(false);
+    }
+  };
 
   const openEdit = (u) => {
     setEditingUser(u);
@@ -266,7 +306,7 @@ export default function AdminMembers({ users = [], loading = false, error = null
       {/* Detail Modal — role, gender, phone and other profile fields live here, opened by clicking a member's name */}
       {selectedUser && (
         <>
-          <div onClick={() => setSelectedUser(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999 }} />
+          <div onClick={closeDetail} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999 }} />
           <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: cardBg, borderRadius: 16, boxShadow: '0 20px 40px rgba(0,0,0,0.2)', zIndex: 1000, width: 380, maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ padding: 20, borderBottom: `1px solid ${cardBorder}`, display: 'flex', alignItems: 'center', gap: 12 }}>
               {resolveImageUrl(selectedUser.profile_image) ? (
@@ -280,7 +320,7 @@ export default function AdminMembers({ users = [], loading = false, error = null
                 <div style={{ fontSize: 15, fontWeight: 700, color: textPrimary }}>{`${selectedUser.first_name || ''} ${selectedUser.last_name || ''}`.trim() || 'Unknown'}</div>
                 <RoleBadge role={selectedUser.role} darkMode={darkMode} />
               </div>
-              <button onClick={() => setSelectedUser(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+              <button onClick={closeDetail} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
                 <X size={18} color={textSecondary} />
               </button>
             </div>
@@ -309,6 +349,40 @@ export default function AdminMembers({ users = [], loading = false, error = null
                   <DetailRow icon={Weight} label="Weight" value={selectedUser.weight != null ? `${selectedUser.weight} kg` : null} darkMode={darkMode} />
                 </>
               )}
+
+              {/* Push Notification — send an admin notification straight to this user */}
+              <div style={{ marginTop: 4, paddingTop: 16, borderTop: `1px solid ${cardBorder}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <Bell size={14} color={darkMode ? '#94a3b8' : '#64748b'} />
+                  <div style={{ fontSize: 12, fontWeight: 700, color: textPrimary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Send Notification</div>
+                </div>
+                <form onSubmit={handleSendNotification} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <input
+                    type="text"
+                    value={notifyForm.title}
+                    onChange={e => setNotifyForm(f => ({ ...f, title: e.target.value }))}
+                    placeholder="Title"
+                    style={inputStyle}
+                  />
+                  <textarea
+                    value={notifyForm.body}
+                    onChange={e => setNotifyForm(f => ({ ...f, body: e.target.value }))}
+                    placeholder="Message"
+                    rows={3}
+                    style={{ ...inputStyle, resize: 'vertical' }}
+                  />
+                  {notifyError && <div style={{ fontSize: 11, color: '#ef4444' }}>{notifyError}</div>}
+                  {notifySuccess && <div style={{ fontSize: 11, color: '#10b981' }}>Notification sent.</div>}
+                  <button
+                    type="submit"
+                    disabled={notifySending || !notifyForm.title.trim() || !notifyForm.body.trim()}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 12px', borderRadius: 8, background: '#3b82f6', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: notifySending ? 'not-allowed' : 'pointer', opacity: notifySending || !notifyForm.title.trim() || !notifyForm.body.trim() ? 0.6 : 1 }}
+                  >
+                    {notifySending ? <Loader className="animate-spin" size={14} /> : <Send size={14} />}
+                    {notifySending ? 'Sending...' : 'Send'}
+                  </button>
+                </form>
+              </div>
             </div>
           </div>
         </>
@@ -395,7 +469,7 @@ export default function AdminMembers({ users = [], loading = false, error = null
                     onMouseEnter={e => e.currentTarget.style.background = rowHover}
                     onMouseLeave={e => e.currentTarget.style.background = ''}>
                     <td style={{ padding: '14px 16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setSelectedUser(u)}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => openDetail(u)}>
                         {image ? (
                           <img src={image} alt={name} style={{ width: 38, height: 38, borderRadius: 12, objectFit: 'cover' }} />
                         ) : (

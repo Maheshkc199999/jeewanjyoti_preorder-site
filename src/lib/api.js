@@ -690,6 +690,26 @@ export async function getUserOnlineStatus(userId) {
 }
 
 /**
+ * Send an admin push notification to a specific user
+ * @param {string|number} targetUserId - The recipient's user ID
+ * @param {string} title - Notification title
+ * @param {string} body - Notification body
+ * @returns {Promise<object>} Created notification { id, target_user, title, body, created_at, read_at }
+ */
+export async function createAdminNotification(targetUserId, title, body) {
+  const response = await apiRequest('/api/admin/notifications/create/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target_user: targetUserId, title, body }),
+  })
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}))
+    throw new Error(errData.detail || errData.message || 'Failed to send notification')
+  }
+  return await response.json()
+}
+
+/**
  * Fetch AI data
  * @param {string|null} userId - Optional user ID
  * @param {string|null} date - Optional date (YYYY-MM-DD)

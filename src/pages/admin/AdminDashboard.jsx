@@ -101,10 +101,17 @@ export default function AdminDashboard() {
   const [usersLoading, setUsersLoading] = useState(true);
   const [usersError, setUsersError] = useState(null);
 
-  const fetchAllUsers = useCallback(async () => {
+  // `background` distinguishes the silent 15s auto-refresh from the initial
+  // load / manual refresh click — a background poll swaps `allUsers` in
+  // place once the new data arrives instead of toggling `usersLoading`,
+  // which would otherwise unmount the whole members table into a spinner
+  // every 15 seconds.
+  const fetchAllUsers = useCallback(async (background = false) => {
     try {
-      setUsersLoading(true);
-      setUsersError(null);
+      if (!background) {
+        setUsersLoading(true);
+        setUsersError(null);
+      }
       const res = await authenticatedFetch('https://jeewanjyoti-backend.smart.org.np/api/users/');
       if (!res.ok) throw new Error('Failed to fetch users');
       const json = await res.json();
@@ -125,16 +132,16 @@ export default function AdminDashboard() {
       setAllUsers(usersWithVitals);
     } catch (err) {
       console.error(err);
-      setUsersError('Could not load users.');
+      if (!background) setUsersError('Could not load users.');
     } finally {
-      setUsersLoading(false);
+      if (!background) setUsersLoading(false);
     }
   }, []);
 
   useEffect(() => {
     if (!isAdminAccount) return;
     fetchAllUsers();
-    const interval = setInterval(fetchAllUsers, 15000);
+    const interval = setInterval(() => fetchAllUsers(true), 15000);
     return () => clearInterval(interval);
   }, [fetchAllUsers, isAdminAccount]);
 
