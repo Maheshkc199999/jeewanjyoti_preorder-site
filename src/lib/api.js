@@ -780,7 +780,7 @@ export async function getDailyLeaderboard() {
  * @returns {Promise<object>} { leaderboard: Array, period: string }
  */
 export async function getPublicLeaderboard() {
-  const response = await fetch(`${API_BASE_URL}/api/public/leaderboard/`, {
+  const response = await fetch(`${API_BASE_URL}/api/public/weekly_leaderboard/`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -921,6 +921,26 @@ export async function getLeaderboardChallenges() {
 
   if (!response.ok) {
     throw new Error(`Failed to fetch challenges: ${response.status}`)
+  }
+
+  const data = await response.json()
+  return Array.isArray(data.challenges) ? data.challenges : []
+}
+
+/**
+ * Get the public leaderboard challenges list (no auth required)
+ * @returns {Promise<Array>} List of challenges
+ */
+export async function getPublicLeaderboardChallenges() {
+  const response = await fetch(`${API_BASE_URL}/api/public/leaderboard/challenge/`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch public challenges: ${response.status}`)
   }
 
   const data = await response.json()
