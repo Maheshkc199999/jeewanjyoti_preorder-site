@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { getBatteryStatus, getAIData } from '../../lib/api';
+import { getBatteryStatus, getAIData, getLastSync } from '../../lib/api';
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import BatteryWidget from '../../components/BatteryWidget';
 import { Heart, Moon, Activity, Brain, Calendar, TrendingUp, Droplets, Eye, EyeOff, Sparkles, Target } from 'lucide-react';
@@ -136,7 +136,6 @@ const VitalsTab = ({
   darkMode,
   selectedUserId,
   selectedUserInfo,
-  globalDateFilter,
   globalDateRange
 }) => {
   const [sleepData, setSleepData] = useState(null);
@@ -147,6 +146,8 @@ const VitalsTab = ({
   const [stressApiData, setStressApiData] = useState(null);
   const [hrvApiData, setHrvApiData] = useState(null);
   const [batteryData, setBatteryData] = useState(null);
+  const [lastSyncData, setLastSyncData] = useState(null);
+  const [lastSyncLoading, setLastSyncLoading] = useState(true);
   const latestBatteryReading = useMemo(() => {
     if (!batteryData) return null;
     const readings = Array.isArray(batteryData) ? batteryData : [batteryData];
@@ -231,19 +232,6 @@ const VitalsTab = ({
       : '—';
   }, [stepsData]);
 
-  const getDateRangeDisplay = () => {
-    if (globalDateRange?.customRange && globalDateRange.from && globalDateRange.to) {
-      return `Filtering: ${globalDateRange.from} to ${globalDateRange.to}`;
-    }
-    switch (globalDateFilter) {
-      case 'today': return 'Showing data for today';
-      case 'week': return 'Showing data for the last 7 days';
-      case 'month': return 'Showing data for the last 30 days';
-      case 'custom': return 'Showing custom date range';
-      default: return 'Showing latest data';
-    }
-  };
-
   const handleDataLoading = (dataType, isLoading) => {
     setDataLoadingStates(prev => ({ ...prev, [dataType]: isLoading }));
   };
@@ -267,6 +255,44 @@ const VitalsTab = ({
     fetchBattery();
     return () => { cancelled = true; };
   }, [selectedUserId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchLastSync = async () => {
+      try {
+        setLastSyncLoading(true);
+        const data = await getLastSync(selectedUserId || null);
+        if (!cancelled) setLastSyncData(data);
+      } catch (err) {
+        console.warn('Last sync fetch failed:', err);
+        if (!cancelled) setLastSyncData(null);
+      } finally {
+        if (!cancelled) setLastSyncLoading(false);
+      }
+    };
+    fetchLastSync();
+    return () => { cancelled = true; };
+  }, [selectedUserId]);
+
+  const lastSyncDisplay = useMemo(() => {
+    if (lastSyncLoading) return 'Loading...';
+    const value = lastSyncData?.last_sync;
+    if (!value) return 'No sync data';
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return value;
+
+    const now = new Date();
+    const isSameDay = (a, b) =>
+      a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+
+    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+    if (isSameDay(d, now)) return `Today, ${time}`;
+    if (isSameDay(d, yesterday)) return `Yesterday, ${time}`;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }, [lastSyncData, lastSyncLoading]);
 
   const latestHeartRateTime = useMemo(() => {
     if (!heartRateData || heartRateData.length === 0) return null;
@@ -409,9 +435,6 @@ const VitalsTab = ({
               <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                 {selectedUserInfo?.name}'s Fitness Dashboard
               </h2>
-              <p className={`text-xs mt-1 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-                {getDateRangeDisplay()}
-              </p>
             </div>
           </div>
 
@@ -448,6 +471,29 @@ const VitalsTab = ({
                 </div>
               );
             })()}
+
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-blue-50'}`}>
+                <Calendar className={`w-5 h-5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+              </div>
+              <div className="text-right">
+                <p className={`text-xs font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>TODAY</p>
+                <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {new Date().toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric'
+                  })}
+                </p>
+              </div>
+            </div>
+
+            <div className="text-right">
+              <p className={`text-xs font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>LAST SYNC</p>
+              <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                {lastSyncDisplay}
+              </p>
+            </div>
+
             <div className="flex flex-col items-end justify-center gap-2">
               <BatteryWidget batteryData={batteryData} size={48} darkMode={darkMode} />
               <div className={`text-right text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>

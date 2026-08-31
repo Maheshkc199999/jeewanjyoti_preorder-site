@@ -414,7 +414,7 @@ const ProfileTab = React.memo(({ darkMode, selectedUserId = null, selectedUserIn
                 <div className="text-center">
                   <div className="text-lg md:text-2xl font-bold text-red-500">
                     {heartRateData && Array.isArray(heartRateData) && heartRateData.length > 0
-                      ? heartRateData[heartRateData.length - 1]?.once_heart_value
+                      ? (heartRateData[heartRateData.length - 1]?.once_heart_value ?? '')
                       : '—'
                     }
                   </div>
@@ -478,10 +478,11 @@ const ProfileTab = React.memo(({ darkMode, selectedUserId = null, selectedUserIn
                 {/* Blood Oxygen */}
                 <div className="text-center">
                   <div className="text-lg md:text-2xl font-bold text-blue-500">
-                    {spo2Data && Array.isArray(spo2Data) && spo2Data.length > 0
-                      ? spo2Data[spo2Data.length - 1]?.Blood_oxygen
-                      : '—'
-                    }%
+                    {(() => {
+                      if (!spo2Data || !Array.isArray(spo2Data) || spo2Data.length === 0) return '—';
+                      const val = spo2Data[spo2Data.length - 1]?.Blood_oxygen;
+                      return val != null ? `${val}%` : '';
+                    })()}
                   </div>
                   <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Blood Oxygen</div>
                   {spo2Data && spo2Data.length > 0 && (spo2Data[spo2Data.length - 1]?.date || spo2Data[spo2Data.length - 1]?.measure_time) && (
@@ -493,10 +494,11 @@ const ProfileTab = React.memo(({ darkMode, selectedUserId = null, selectedUserIn
                 {/* Blood Pressure */}
                 <div className="text-center">
                   <div className="text-lg md:text-2xl font-bold text-red-600">
-                    {bloodPressureData && Array.isArray(bloodPressureData) && bloodPressureData.length > 0
-                      ? `${bloodPressureData[bloodPressureData.length - 1]?.sbp}/${bloodPressureData[bloodPressureData.length - 1]?.dbp}`
-                      : '—'
-                    }
+                    {(() => {
+                      if (!bloodPressureData || !Array.isArray(bloodPressureData) || bloodPressureData.length === 0) return '—';
+                      const last = bloodPressureData[bloodPressureData.length - 1];
+                      return (last?.sbp != null && last?.dbp != null) ? `${last.sbp}/${last.dbp}` : '';
+                    })()}
                   </div>
                   <div className={`text-xs md:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>SBP/DBP</div>
                   {bloodPressureData && bloodPressureData.length > 0 && (bloodPressureData[bloodPressureData.length - 1]?.date || bloodPressureData[bloodPressureData.length - 1]?.measure_time) && (
@@ -509,7 +511,7 @@ const ProfileTab = React.memo(({ darkMode, selectedUserId = null, selectedUserIn
                 <div className="text-center">
                   <div className="text-lg md:text-2xl font-bold text-purple-500">
                     {stressData && Array.isArray(stressData) && stressData.length > 0
-                      ? stressData[stressData.length - 1]?.stress
+                      ? (stressData[stressData.length - 1]?.stress ?? '')
                       : '—'
                     }
                   </div>
@@ -524,7 +526,7 @@ const ProfileTab = React.memo(({ darkMode, selectedUserId = null, selectedUserIn
                 <div className="text-center">
                   <div className="text-lg md:text-2xl font-bold text-teal-500">
                     {hrvData && Array.isArray(hrvData) && hrvData.length > 0
-                      ? hrvData[hrvData.length - 1]?.hrv
+                      ? (hrvData[hrvData.length - 1]?.hrv ?? '')
                       : '—'
                     }
                   </div>

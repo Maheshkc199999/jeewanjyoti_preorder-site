@@ -6,7 +6,7 @@ import {
 import OverviewTab from '../institution/Overview';
 import AdminMembersTab from './Members';
 import VitalsTab from './Vitals';
-import AnalyticsTab from '../institution/Analytics';
+import AnalyticsTab from './Analytics';
 import ReportsTab from '../institution/Reports';
 import AlertsTab from '../institution/Alerts';
 import PlaceholderTab from '../institution/Placeholder';
@@ -259,6 +259,16 @@ export default function AdminDashboard() {
     setActiveTab('vitals');
   }, []);
 
+  // Analytics' cohort table only knows a user id — look the user up in
+  // allUsers and hand off to the same handler Members uses for its "view
+  // vitals" eye button.
+  const handleViewMember = useCallback((userId) => {
+    const u = allUsers.find((x) => x.id === userId);
+    if (!u) return;
+    const name = `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || 'Unknown User';
+    handleViewVitals(userId, name, u.profile_image, u.status);
+  }, [allUsers, handleViewVitals]);
+
   const selectedUserInfo = useMemo(
     () => ({ name: selectedUserName, profileImage: selectedUserProfileImage, status: selectedUserStatus }),
     [selectedUserName, selectedUserProfileImage, selectedUserStatus]
@@ -273,7 +283,7 @@ export default function AdminDashboard() {
       case 'vitals':
         return <VitalsTab selectedUserId={selectedUserId} selectedUserInfo={selectedUserInfo} darkMode={darkMode} globalDateFilter={globalDateRange.period} globalDateRange={globalDateRange} />;
       case 'analytics':
-        return <AnalyticsTab darkMode={darkMode} members={members} loading={loading} error={error} thresholds={thresholds} />;
+        return <AnalyticsTab darkMode={darkMode} allUsers={allUsers} onViewMember={handleViewMember} />;
       case 'reports':
         return <ReportsTab darkMode={darkMode} members={members} loading={loading} error={error} />;
       case 'alerts':
@@ -281,7 +291,7 @@ export default function AdminDashboard() {
       default:
         return <PlaceholderTab tab={activeTab} darkMode={darkMode} />;
     }
-  }, [activeTab, handleViewVitals, selectedUserId, selectedUserInfo, darkMode, globalDateRange, members, loading, error, fetchMembers, thresholds, alerts, allUsers, usersLoading, usersError, fetchAllUsers]);
+  }, [activeTab, handleViewVitals, handleViewMember, selectedUserId, selectedUserInfo, darkMode, globalDateRange, members, loading, error, fetchMembers, thresholds, alerts, allUsers, usersLoading, usersError, fetchAllUsers]);
 
   // Non-admin accounts get redirected to /admin by the effect above — render
   // nothing in the meantime instead of flashing the dashboard with their data.
